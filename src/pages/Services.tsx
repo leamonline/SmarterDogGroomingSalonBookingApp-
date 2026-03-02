@@ -6,12 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src
 import { api } from "@/src/lib/api";
 import { Badge } from "@/src/components/ui/badge";
 import { ServiceModal, Service } from "@/src/components/ServiceModal";
+import { ConfirmDialog } from "@/src/components/ConfirmDialog";
+import { toast } from "sonner";
 
 export function Services() {
   const [searchTerm, setSearchTerm] = useState("");
   const [services, setServices] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -43,15 +46,22 @@ export function Services() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this service?")) {
-      try {
-        await api.deleteService(id);
-        setServices(services.filter((s) => s.id !== id));
-      } catch (err) {
-        console.error("Failed to delete service", err);
-      }
+  const confirmDelete = async () => {
+    if (!serviceToDelete) return;
+    try {
+      await api.deleteService(serviceToDelete);
+      setServices(services.filter((s) => s.id !== serviceToDelete));
+      toast.success("Service deleted.");
+    } catch (err) {
+      console.error("Failed to delete service", err);
+      toast.error("Failed to delete service.");
+    } finally {
+      setServiceToDelete(null);
     }
+  };
+
+  const handleDelete = (id: string) => {
+    setServiceToDelete(id);
   };
 
   const handleSaveService = async (service: Service) => {
@@ -134,6 +144,14 @@ export function Services() {
         onClose={() => setIsModalOpen(false)}
         service={selectedService}
         onSave={handleSaveService}
+      />
+      <ConfirmDialog
+        isOpen={!!serviceToDelete}
+        title="Delete Service"
+        description="Are you sure you want to delete this service? It cannot be undone."
+        confirmText="Delete Service"
+        onConfirm={confirmDelete}
+        onCancel={() => setServiceToDelete(null)}
       />
     </div>
   );

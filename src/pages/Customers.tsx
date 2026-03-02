@@ -31,6 +31,7 @@ import {
 import { format } from "date-fns";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { CustomerModal } from "@/src/components/CustomerModal";
+import { ConfirmDialog } from "@/src/components/ConfirmDialog";
 import { Customer, Pet } from "@/src/types";
 
 export function Customers() {
@@ -38,6 +39,7 @@ export function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isCustomerDetailsModalOpen, setIsCustomerDetailsModalOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
 
   const [isCustomerEditModalOpen, setIsCustomerEditModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
@@ -102,12 +104,12 @@ export function Customers() {
     setIsCustomerEditModalOpen(true);
   };
 
-  const handleDeleteCustomer = async (e: React.MouseEvent, customerId: string) => {
-    e.stopPropagation();
+  const confirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
     try {
-      await api.deleteCustomer(customerId);
-      setCustomers(prev => prev.filter(c => c.id !== customerId));
-      if (selectedCustomer?.id === customerId) {
+      await api.deleteCustomer(customerToDelete);
+      setCustomers(prev => prev.filter(c => c.id !== customerToDelete));
+      if (selectedCustomer?.id === customerToDelete) {
         setSelectedCustomer(null);
         setIsCustomerDetailsModalOpen(false);
       }
@@ -115,7 +117,14 @@ export function Customers() {
     } catch (err: any) {
       console.error("Failed to delete customer", err);
       toast.error(err.message || 'Failed to delete customer.');
+    } finally {
+      setCustomerToDelete(null);
     }
+  };
+
+  const handleDeleteCustomer = (e: React.MouseEvent, customerId: string) => {
+    e.stopPropagation();
+    setCustomerToDelete(customerId);
   };
 
   const handleSaveCustomer = async (updatedCustomer: Customer) => {
@@ -487,6 +496,15 @@ export function Customers() {
         onClose={() => setIsCustomerEditModalOpen(false)}
         customer={customerToEdit}
         onSave={handleSaveCustomer}
+      />
+
+      <ConfirmDialog
+        isOpen={!!customerToDelete}
+        title="Delete Customer"
+        description="Are you sure you want to delete this customer? All their pets, appointments, and data will be permanently removed. This action cannot be undone."
+        confirmText="Delete Customer"
+        onConfirm={confirmDeleteCustomer}
+        onCancel={() => setCustomerToDelete(null)}
       />
     </div>
   );
