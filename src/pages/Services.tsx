@@ -1,0 +1,83 @@
+import { useState } from "react";
+import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card";
+import { mockServices } from "@/src/data/mockData";
+import { Badge } from "@/src/components/ui/badge";
+
+export function Services() {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredServices = mockServices.filter(
+    (service) =>
+      service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      service.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const categories = Array.from(new Set(mockServices.map((s) => s.category)));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Services</h1>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Service
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="Search services..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Badge variant="secondary" className="cursor-pointer hover:bg-slate-200">All</Badge>
+          {categories.map((category) => (
+            <Badge key={category} variant="outline" className="cursor-pointer hover:bg-slate-100">
+              {category}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredServices.map((service) => (
+          <Card key={service.id} className="flex flex-col">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg">{service.name}</CardTitle>
+                  <CardDescription className="mt-1">{service.category}</CardDescription>
+                </div>
+                <div className="text-lg font-bold text-slate-900">${service.price}</div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <p className="text-sm text-slate-600">{service.description}</p>
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                <div className="text-sm font-medium text-slate-500">
+                  Duration: {service.duration} mins
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600">
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
