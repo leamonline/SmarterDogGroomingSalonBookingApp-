@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../server/index.js';
+import crypto from 'crypto';
 
 const testToken = jwt.sign({ id: 'test-user', email: 'test@example.com' }, process.env.JWT_SECRET || 'test-jwt-secret');
 
