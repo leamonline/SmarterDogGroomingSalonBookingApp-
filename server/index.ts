@@ -443,16 +443,16 @@ app.get('/api/services', (req, res) => {
 });
 
 app.post('/api/services', validateBody(serviceSchema), (req, res) => {
-    const { id, name, description, duration, price, category } = req.body;
-    const stmt = db.prepare('INSERT INTO services (id, name, description, duration, price, category) VALUES (?, ?, ?, ?, ?, ?)');
-    stmt.run(id, name, description, duration, price, category);
+    const { id, name, description, duration, price, category, priceType, depositRequired, depositAmount, preBuffer, postBuffer, isOnlineBookable, isApprovalRequired, consentFormRequired, isActive } = req.body;
+    const stmt = db.prepare('INSERT INTO services (id, name, description, duration, price, category, priceType, depositRequired, depositAmount, preBuffer, postBuffer, isOnlineBookable, isApprovalRequired, consentFormRequired, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    stmt.run(id, name, description, duration, price, category, priceType || 'fixed', depositRequired ? 1 : 0, depositAmount || 0, preBuffer || 0, postBuffer || 0, isOnlineBookable !== false ? 1 : 0, isApprovalRequired ? 1 : 0, consentFormRequired ? 1 : 0, isActive !== false ? 1 : 0);
     res.json(req.body);
 });
 
 app.put('/api/services/:id', validateBody(serviceSchema), (req, res) => {
-    const { name, description, duration, price, category } = req.body;
-    const stmt = db.prepare('UPDATE services SET name=?, description=?, duration=?, price=?, category=? WHERE id=?');
-    stmt.run(name, description, duration, price, category, req.params.id);
+    const { name, description, duration, price, category, priceType, depositRequired, depositAmount, preBuffer, postBuffer, isOnlineBookable, isApprovalRequired, consentFormRequired, isActive } = req.body;
+    const stmt = db.prepare('UPDATE services SET name=?, description=?, duration=?, price=?, category=?, priceType=?, depositRequired=?, depositAmount=?, preBuffer=?, postBuffer=?, isOnlineBookable=?, isApprovalRequired=?, consentFormRequired=?, isActive=? WHERE id=?');
+    stmt.run(name, description, duration, price, category, priceType || 'fixed', depositRequired ? 1 : 0, depositAmount || 0, preBuffer || 0, postBuffer || 0, isOnlineBookable !== false ? 1 : 0, isApprovalRequired ? 1 : 0, consentFormRequired ? 1 : 0, isActive !== false ? 1 : 0, req.params.id);
     res.json(req.body);
 });
 

@@ -19,6 +19,16 @@ export interface Service {
     duration: number;
     price: number;
     category: string;
+    // Sprint 1 enhancements
+    priceType?: string;
+    depositRequired?: boolean;
+    depositAmount?: number;
+    preBuffer?: number;
+    postBuffer?: number;
+    isOnlineBookable?: boolean;
+    isApprovalRequired?: boolean;
+    consentFormRequired?: boolean;
+    isActive?: boolean;
 }
 
 interface ServiceModalProps {
@@ -43,6 +53,14 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                     duration: 30,
                     price: 0,
                     category: "",
+                    priceType: "fixed",
+                    depositRequired: false,
+                    depositAmount: 0,
+                    preBuffer: 0,
+                    postBuffer: 0,
+                    isOnlineBookable: true,
+                    isApprovalRequired: false,
+                    consentFormRequired: false,
                 });
             }
         }
@@ -126,6 +144,100 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                             className="col-span-3"
                             rows={3}
                         />
+                    </div>
+
+                    {/* Pricing & Deposit Section */}
+                    <div className="border-t border-slate-100 pt-4 mt-2">
+                        <h4 className="text-sm font-medium text-slate-900 mb-3">Pricing & Deposits</h4>
+                        <div className="grid grid-cols-4 items-center gap-4 mb-3">
+                            <Label className="text-right text-sm">Price Type</Label>
+                            <div className="col-span-3 flex gap-2">
+                                {(['fixed', 'variable', 'from'] as const).map(pt => (
+                                    <button
+                                        key={pt}
+                                        type="button"
+                                        onClick={() => handleChange('priceType' as any, pt)}
+                                        className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${formData.priceType === pt
+                                                ? 'bg-slate-900 text-white border-slate-900'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                            }`}
+                                    >
+                                        {pt === 'from' ? 'From £' : pt.charAt(0).toUpperCase() + pt.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4 mb-3">
+                            <Label className="text-right text-sm">Deposit</Label>
+                            <div className="col-span-3 flex items-center gap-3">
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!formData.depositRequired}
+                                        onChange={e => handleChange('depositRequired' as any, e.target.checked as any)}
+                                        className="rounded border-slate-300 text-indigo-600"
+                                    />
+                                    Required
+                                </label>
+                                {formData.depositRequired && (
+                                    <Input
+                                        type="number"
+                                        value={formData.depositAmount || 0}
+                                        onChange={e => handleChange('depositAmount' as any, Number(e.target.value))}
+                                        className="w-24"
+                                        placeholder="£"
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Scheduling Section */}
+                    <div className="border-t border-slate-100 pt-4 mt-2">
+                        <h4 className="text-sm font-medium text-slate-900 mb-3">Scheduling</h4>
+                        <div className="grid grid-cols-4 items-center gap-4 mb-3">
+                            <Label className="text-right text-sm">Pre Buffer</Label>
+                            <div className="col-span-3 flex items-center gap-2">
+                                <Input
+                                    type="number"
+                                    value={formData.preBuffer || 0}
+                                    onChange={e => handleChange('preBuffer' as any, Number(e.target.value))}
+                                    className="w-20"
+                                />
+                                <span className="text-xs text-slate-500">min before</span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4 mb-3">
+                            <Label className="text-right text-sm">Post Buffer</Label>
+                            <div className="col-span-3 flex items-center gap-2">
+                                <Input
+                                    type="number"
+                                    value={formData.postBuffer || 0}
+                                    onChange={e => handleChange('postBuffer' as any, Number(e.target.value))}
+                                    className="w-20"
+                                />
+                                <span className="text-xs text-slate-500">min after</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Options Section */}
+                    <div className="border-t border-slate-100 pt-4 mt-2">
+                        <h4 className="text-sm font-medium text-slate-900 mb-3">Options</h4>
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="checkbox" checked={formData.isOnlineBookable !== false} onChange={e => handleChange('isOnlineBookable' as any, e.target.checked as any)} className="rounded border-slate-300 text-indigo-600" />
+                                Available for online booking
+                            </label>
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="checkbox" checked={!!formData.isApprovalRequired} onChange={e => handleChange('isApprovalRequired' as any, e.target.checked as any)} className="rounded border-slate-300 text-indigo-600" />
+                                Requires approval before confirming
+                            </label>
+                            <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="checkbox" checked={!!formData.consentFormRequired} onChange={e => handleChange('consentFormRequired' as any, e.target.checked as any)} className="rounded border-slate-300 text-indigo-600" />
+                                Requires consent form
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>
