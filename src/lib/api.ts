@@ -24,7 +24,11 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    throw new Error(errorBody?.error || `API Request failed: ${response.statusText}`);
+    const error: any = new Error(errorBody?.error || `API Request failed: ${response.statusText}`);
+    if (errorBody) {
+      error.details = errorBody;
+    }
+    throw error;
   }
 
   return response.json();
@@ -80,6 +84,9 @@ export const api = {
     const res = await fetchWithAuth(`/api/appointments?page=${page}&limit=${limit}`);
     return res.data ? res.data : res;
   },
+
+  getNextAvailableSlots: (duration = 60, from = new Date().toISOString()) =>
+    fetchWithAuth(`/api/appointments/next-available?duration=${duration}&from=${encodeURIComponent(from)}`),
   createAppointment: (data: any) => fetchWithAuth('/api/appointments', {
     method: 'POST',
     body: JSON.stringify(data),

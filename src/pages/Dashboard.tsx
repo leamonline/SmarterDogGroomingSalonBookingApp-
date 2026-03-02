@@ -59,7 +59,12 @@ export function Dashboard() {
       }
     } catch (err: any) {
       console.error("Failed to save appointment", err);
-      toast.error(err.message || 'Failed to save due to an error.');
+      const suggestions: string[] = err?.details?.suggestions || [];
+      if (suggestions.length > 0) {
+        toast.error(`${err.message} Next openings: ${suggestions.map((s) => format(new Date(s), "EEE h:mm a")).join(', ')}`);
+      } else {
+        toast.error(err.message || 'Failed to save due to an error.');
+      }
     }
   };
 
