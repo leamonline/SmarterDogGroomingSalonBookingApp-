@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText, Users } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import {
@@ -157,7 +157,7 @@ export function Customers() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
@@ -173,6 +173,17 @@ export function Customers() {
         </div>
       </div>
 
+      <div className="flex items-center justify-between text-sm text-slate-600">
+        <p>
+          Showing <span className="font-semibold text-slate-900">{filteredCustomers.length}</span> of {customers.length} customers
+        </p>
+        {searchTerm && (
+          <Button variant="ghost" size="sm" onClick={() => setSearchTerm("")}>
+            Clear search
+          </Button>
+        )}
+      </div>
+
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <Table>
           <TableHeader>
@@ -186,7 +197,19 @@ export function Customers() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCustomers.map((customer) => (
+            {filteredCustomers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                    <div className="rounded-full bg-slate-100 p-3">
+                      <Users className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">No customers found</p>
+                    <p className="text-sm text-slate-500">Try a different search term or add a new customer.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredCustomers.map((customer) => (
               <TableRow
                 key={customer.id}
                 className="cursor-pointer"
