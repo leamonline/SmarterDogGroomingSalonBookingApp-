@@ -11,18 +11,35 @@ import {
 import { cn } from "@/src/lib/utils";
 
 import { useAuth } from "@/src/lib/AuthContext";
+import type { UserRole } from "@/src/types";
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Calendar", href: "/calendar", icon: CalendarDays },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Services", href: "/services", icon: Scissors },
-  { name: "Settings", href: "/settings", icon: Settings },
+const ROLE_LEVEL: Record<UserRole, number> = {
+  customer: 0,
+  groomer: 1,
+  receptionist: 2,
+  owner: 3,
+};
+
+type NavItem = {
+  name: string;
+  href: string;
+  icon: any;
+  minRole: UserRole;
+};
+
+const navigation: NavItem[] = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, minRole: "groomer" },
+  { name: "Calendar", href: "/calendar", icon: CalendarDays, minRole: "groomer" },
+  { name: "Customers", href: "/customers", icon: Users, minRole: "groomer" },
+  { name: "Services", href: "/services", icon: Scissors, minRole: "receptionist" },
+  { name: "Settings", href: "/settings", icon: Settings, minRole: "groomer" },
 ];
 
 export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boolean) => void }) {
   const location = useLocation();
   const { user } = useAuth();
+  const userLevel = ROLE_LEVEL[(user?.role as UserRole) || 'groomer'] ?? 1;
+  const visibleNav = navigation.filter(item => userLevel >= ROLE_LEVEL[item.minRole]);
 
   useEffect(() => {
     if (setOpen) setOpen(false);
@@ -40,7 +57,7 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
         </div>
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-3">
-            {navigation.map((item) => {
+            {visibleNav.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
@@ -77,7 +94,7 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-medium text-slate-900">{user?.email?.split('@')[0] || "User"}</span>
-              <span className="text-xs text-slate-500">Shop Manager</span>
+              <span className="text-xs text-slate-500 capitalize">{(user as any)?.role || "Staff"}</span>
             </div>
           </div>
         </div>

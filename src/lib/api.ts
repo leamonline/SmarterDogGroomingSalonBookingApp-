@@ -61,6 +61,11 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
+  updateStaffRole: (userId: string, role: string) => fetchWithAuth(`/api/staff/${userId}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role })
+  }),
+  getMe: () => fetchWithAuth('/api/auth/me'),
 
   // Customers
   getCustomers: async (page = 1, limit = 50) => {

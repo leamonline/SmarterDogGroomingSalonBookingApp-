@@ -40,6 +40,36 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
     });
 };
 
+// --- Role-Based Access Control ---
+type Role = 'customer' | 'groomer' | 'receptionist' | 'owner';
+
+const ROLE_HIERARCHY: Record<Role, number> = {
+    'customer': 0,
+    'groomer': 1,
+    'receptionist': 2,
+    'owner': 3,
+};
+
+const requireRole = (...allowedRoles: Role[]) => {
+    return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+        const user = (req as any).user;
+        if (!user || !user.role) {
+            return res.status(403).json({ error: 'Access denied: no role assigned' });
+        }
+        if (!allowedRoles.includes(user.role)) {
+            return res.status(403).json({ error: `Access denied: requires ${allowedRoles.join(' or ')} role` });
+        }
+        next();
+    };
+};
+
+// Shortcut: any staff (not customer)
+const requireStaff = requireRole('groomer', 'receptionist', 'owner');
+// Shortcut: admin-level (receptionist or owner)
+const requireAdmin = requireRole('receptionist', 'owner');
+// Shortcut: owner only
+const requireOwner = requireRole('owner');
+
 // --- Auth ---
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -54,8 +84,13 @@ app.post('/api/auth/login', loginLimiter, (req, res) => {
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
 
     if (user && bcrypt.compareSync(password, user.password)) {
-        const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET as string, { expiresIn: '24h' });
-        res.json({ token, user: { id: user.id, email: user.email } });
+        const role = user.role || 'owner'; // Default existing users to owner role
+        const token = jwt.sign(
+            { id: user.id, email: user.email, role },
+            process.env.JWT_SECRET as string,
+            { expiresIn: '24h' }
+        );
+        res.json({ token, user: { id: user.id, email: user.email, role } });
     } else {
         res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -74,26 +109,57 @@ app.post('/api/auth/password', authenticateToken, (req: any, res: any) => {
     res.json({ success: true });
 });
 
-app.get('/api/staff', authenticateToken, (req, res) => {
-    const users = db.prepare('SELECT id, email FROM users').all();
+// Get current user info (for frontend)
+app.get('/api/auth/me', authenticateToken, (req: any, res: any) => {
+    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(req.user.id) as any;
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ id: user.id, email: user.email, role: user.role || 'owner' });
+});
+
+// --- Staff Management (admin only) ---
+app.get('/api/staff', authenticateToken, requireAdmin, (req, res) => {
+    const users = db.prepare('SELECT id, email, role FROM users').all();
     res.json(users);
 });
 
-app.post('/api/staff', authenticateToken, (req: any, res: any) => {
-    const { email, password } = req.body;
+app.post('/api/staff', authenticateToken, requireAdmin, (req: any, res: any) => {
+    const { email, password, role } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+
+    const validRoles: Role[] = ['customer', 'groomer', 'receptionist', 'owner'];
+    const assignedRole = validRoles.includes(role) ? role : 'groomer';
+
+    // Only owners can create other owners
+    if (assignedRole === 'owner' && req.user.role !== 'owner') {
+        return res.status(403).json({ error: 'Only owners can create owner accounts' });
+    }
 
     try {
         const id = crypto.randomUUID();
         const hash = bcrypt.hashSync(password, 10);
-        db.prepare('INSERT INTO users (id, email, password) VALUES (?, ?, ?)').run(id, email, hash);
-        res.json({ success: true, id, email });
+        db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(id, email, hash, assignedRole);
+        logAudit(req.user.id, 'create', 'user', id, null, { email, role: assignedRole });
+        res.json({ success: true, id, email, role: assignedRole });
     } catch (err: any) {
         if (err.message.includes('UNIQUE')) {
             return res.status(400).json({ error: 'Email already exists' });
         }
         res.status(500).json({ error: 'Failed to create staff' });
     }
+});
+
+// Update staff role (owner only)
+app.put('/api/staff/:id/role', authenticateToken, requireOwner, (req: any, res: any) => {
+    const { role } = req.body;
+    const validRoles: Role[] = ['customer', 'groomer', 'receptionist', 'owner'];
+    if (!validRoles.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+
+    const target = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(req.params.id) as any;
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id);
+    logAudit(req.user.id, 'update_role', 'user', req.params.id, { role: target.role }, { role });
+    res.json({ success: true, id: req.params.id, role });
 });
 
 // Apply auth middleware to all routes below this point
@@ -404,7 +470,7 @@ app.get('/api/settings', (req, res) => {
     res.json({ ...settings, schedule });
 });
 
-app.post('/api/settings', validateBody(settingsSchema), (req, res) => {
+app.post('/api/settings', requireAdmin, validateBody(settingsSchema), (req, res) => {
     const { shopName, shopPhone, shopAddress, schedule } = req.body;
 
     const updateSetting = db.prepare('UPDATE settings SET value = ? WHERE key = ?');
@@ -580,7 +646,7 @@ app.post('/api/dogs/:id/tags', (req, res) => {
 });
 
 // --- Audit Log ---
-app.get('/api/audit-log', (req, res) => {
+app.get('/api/audit-log', requireOwner, (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const offset = (page - 1) * limit;
