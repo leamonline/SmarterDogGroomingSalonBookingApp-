@@ -1,27 +1,78 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card";
-import { mockServices } from "@/src/data/mockData";
+import { api } from "@/src/lib/api";
 import { Badge } from "@/src/components/ui/badge";
+import { ServiceModal, Service } from "@/src/components/ServiceModal";
 
 export function Services() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [services, setServices] = useState<any[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
-  const filteredServices = mockServices.filter(
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await api.getServices();
+        setServices(data);
+      } catch (err) {
+        console.error("Failed to load services", err);
+      }
+    }
+    loadData();
+  }, []);
+
+  const filteredServices = services.filter(
     (service) =>
       service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      service.category.toLowerCase().includes(searchTerm.toLowerCase())
+      (service.category && service.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const categories = Array.from(new Set(mockServices.map((s) => s.category)));
+  const categories = Array.from(new Set(services.map((s) => s.category).filter(Boolean)));
+
+  const handleCreate = () => {
+    setSelectedService(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (service: Service) => {
+    setSelectedService(service);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this service?")) {
+      try {
+        await api.deleteService(id);
+        setServices(services.filter((s) => s.id !== id));
+      } catch (err) {
+        console.error("Failed to delete service", err);
+      }
+    }
+  };
+
+  const handleSaveService = async (service: Service) => {
+    try {
+      if (selectedService) {
+        await api.updateService(service.id, service);
+        setServices((prev) => prev.map((s) => (s.id === service.id ? service : s)));
+      } else {
+        await api.createService(service);
+        setServices((prev) => [...prev, service]);
+      }
+    } catch (err) {
+      console.error("Failed to save service", err);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Services</h1>
-        <Button>
+        <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" />
           Add Service
         </Button>
@@ -66,10 +117,10 @@ export function Services() {
                   Duration: {service.duration} mins
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600" onClick={() => handleEdit(service)}>
                     <Edit2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => handleDelete(service.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -78,6 +129,12 @@ export function Services() {
           </Card>
         ))}
       </div>
+      <ServiceModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        service={selectedService}
+        onSave={handleSaveService}
+      />
     </div>
   );
 }

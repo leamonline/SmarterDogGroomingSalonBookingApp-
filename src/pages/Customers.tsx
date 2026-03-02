@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/src/components/ui/table";
 import { Badge } from "@/src/components/ui/badge";
-import { mockCustomers, mockAppointments } from "@/src/data/mockData";
+import { api } from "@/src/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -34,23 +34,39 @@ import { Customer, Pet } from "@/src/types";
 
 export function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isCustomerDetailsModalOpen, setIsCustomerDetailsModalOpen] = useState(false);
-  
+
   const [isCustomerEditModalOpen, setIsCustomerEditModalOpen] = useState(false);
   const [customerToEdit, setCustomerToEdit] = useState<Customer | null>(null);
-  
-  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
+
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [initialAppointmentData, setInitialAppointmentData] = useState<Partial<Appointment>>({});
 
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [custData, aptData] = await Promise.all([
+          api.getCustomers(),
+          api.getAppointments()
+        ]);
+        setCustomers(custData);
+        setAppointments(aptData.map((a: any) => ({ ...a, date: new Date(a.date) })));
+      } catch (err) {
+        console.error("Failed to load data", err);
+      }
+    }
+    loadData();
+  }, []);
+
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.pets.some((pet) => pet.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (customer.pets && customer.pets.some((pet) => pet.name.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
   const handleRowClick = (customer: Customer) => {
@@ -85,49 +101,44 @@ export function Customers() {
     setIsCustomerEditModalOpen(true);
   };
 
-  const handleDeleteCustomer = (e: React.MouseEvent, customerId: string) => {
+  const handleDeleteCustomer = async (e: React.MouseEvent, customerId: string) => {
     e.stopPropagation();
+    // In a real app we'd call api.deleteCustomer(customerId), but we didn't build that API fully yet.
+    // For now we just remove it locally to simulate.
     setCustomers(prev => prev.filter(c => c.id !== customerId));
-    const index = mockCustomers.findIndex(c => c.id === customerId);
-    if (index !== -1) {
-      mockCustomers.splice(index, 1);
+  };
+
+  const handleSaveCustomer = async (updatedCustomer: Customer) => {
+    try {
+      const exists = customers.some((c) => c.id === updatedCustomer.id);
+      if (exists) {
+        await api.updateCustomer(updatedCustomer.id, updatedCustomer);
+        setCustomers((prev) => prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c)));
+      } else {
+        await api.createCustomer(updatedCustomer);
+        setCustomers((prev) => [...prev, updatedCustomer]);
+      }
+      if (selectedCustomer?.id === updatedCustomer.id) {
+        setSelectedCustomer(updatedCustomer);
+      }
+    } catch (err) {
+      console.error("Failed to save customer", err);
     }
   };
 
-  const handleSaveCustomer = (updatedCustomer: Customer) => {
-    setCustomers((prev) => {
-      const exists = prev.some((c) => c.id === updatedCustomer.id);
+  const handleSaveAppointment = async (updatedAppointment: Appointment) => {
+    try {
+      const exists = appointments.some((apt) => apt.id === updatedAppointment.id);
       if (exists) {
-        return prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c));
+        await api.updateAppointment(updatedAppointment.id, updatedAppointment);
+        setAppointments((prev) => prev.map((apt) => (apt.id === updatedAppointment.id ? updatedAppointment : apt)));
+      } else {
+        await api.createAppointment(updatedAppointment);
+        setAppointments((prev) => [...prev, updatedAppointment]);
       }
-      return [...prev, updatedCustomer];
-    });
-    
-    const index = mockCustomers.findIndex((c) => c.id === updatedCustomer.id);
-    if (index !== -1) {
-      mockCustomers[index] = updatedCustomer;
-    } else {
-      mockCustomers.push(updatedCustomer);
-    }
-    
-    if (selectedCustomer?.id === updatedCustomer.id) {
-      setSelectedCustomer(updatedCustomer);
-    }
-  };
-
-  const handleSaveAppointment = (updatedAppointment: Appointment) => {
-    setAppointments((prev) => {
-      const exists = prev.some((apt) => apt.id === updatedAppointment.id);
-      if (exists) {
-        return prev.map((apt) => (apt.id === updatedAppointment.id ? updatedAppointment : apt));
-      }
-      return [...prev, updatedAppointment];
-    });
-    const index = mockAppointments.findIndex((a) => a.id === updatedAppointment.id);
-    if (index !== -1) {
-      mockAppointments[index] = updatedAppointment;
-    } else {
-      mockAppointments.push(updatedAppointment);
+    } catch (err: any) {
+      console.error("Failed to save appointment", err);
+      alert(err.message || 'Failed to save due to an error.');
     }
   };
 
@@ -175,8 +186,8 @@ export function Customers() {
           </TableHeader>
           <TableBody>
             {filteredCustomers.map((customer) => (
-              <TableRow 
-                key={customer.id} 
+              <TableRow
+                key={customer.id}
                 className="cursor-pointer"
                 onClick={() => handleRowClick(customer)}
               >
@@ -208,9 +219,9 @@ export function Customers() {
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8"
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -263,7 +274,7 @@ export function Customers() {
                   </Button>
                 </div>
               </DialogHeader>
-              
+
               {selectedCustomer.warnings && selectedCustomer.warnings.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3 my-2">
                   <ShieldAlert className="h-5 w-5 text-red-600 mt-0.5" />
@@ -316,7 +327,7 @@ export function Customers() {
                       <p className="text-sm text-blue-800 whitespace-pre-wrap">{selectedCustomer.notes}</p>
                     </div>
                   )}
-                  
+
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <h4 className="text-sm font-semibold text-slate-900 mb-3">Account Summary</h4>
                     <div className="space-y-3">
@@ -361,7 +372,7 @@ export function Customers() {
                             <h5 className="font-bold text-lg text-slate-900">{pet.name}</h5>
                             <Badge variant="secondary">{pet.breed}</Badge>
                           </div>
-                          
+
                           <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 mb-4">
                             <div><span className="text-slate-400">Weight:</span> {pet.weight} lbs</div>
                             {pet.dob && <div><span className="text-slate-400">DOB:</span> {pet.dob}</div>}
@@ -412,8 +423,8 @@ export function Customers() {
                     {customerAppointments.length > 0 ? (
                       <div className="space-y-3">
                         {customerAppointments.map((apt) => (
-                          <div 
-                            key={apt.id} 
+                          <div
+                            key={apt.id}
                             onClick={() => handleAppointmentClick(apt)}
                             className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-4 text-sm cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all"
                           >
@@ -451,7 +462,7 @@ export function Customers() {
         initialData={initialAppointmentData}
         onSave={handleSaveAppointment}
       />
-      
+
       <CustomerModal
         isOpen={isCustomerEditModalOpen}
         onClose={() => setIsCustomerEditModalOpen(false)}

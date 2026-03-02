@@ -1,16 +1,28 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
-import { mockAppointments } from "@/src/data/mockData";
+import { api } from "@/src/lib/api";
 import { cn } from "@/src/lib/utils";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 
 export function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await api.getAppointments();
+        setAppointments(data.map((d: any) => ({ ...d, date: new Date(d.date) })));
+      } catch (err) {
+        console.error("Failed to load appointments", err);
+      }
+    }
+    loadData();
+  }, []);
 
   const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(startDate, i));
@@ -30,19 +42,19 @@ export function Calendar() {
     setIsModalOpen(true);
   };
 
-  const handleSaveAppointment = (updatedAppointment: Appointment) => {
-    setAppointments((prev) => {
-      const exists = prev.some((apt) => apt.id === updatedAppointment.id);
+  const handleSaveAppointment = async (updatedAppointment: Appointment) => {
+    try {
+      const exists = appointments.some((apt) => apt.id === updatedAppointment.id);
       if (exists) {
-        return prev.map((apt) => (apt.id === updatedAppointment.id ? updatedAppointment : apt));
+        await api.updateAppointment(updatedAppointment.id, updatedAppointment);
+        setAppointments((prev) => prev.map((apt) => (apt.id === updatedAppointment.id ? updatedAppointment : apt)));
+      } else {
+        await api.createAppointment(updatedAppointment);
+        setAppointments((prev) => [...prev, updatedAppointment]);
       }
-      return [...prev, updatedAppointment];
-    });
-    const index = mockAppointments.findIndex((a) => a.id === updatedAppointment.id);
-    if (index !== -1) {
-      mockAppointments[index] = updatedAppointment;
-    } else {
-      mockAppointments.push(updatedAppointment);
+    } catch (err: any) {
+      console.error("Failed to save appointment", err);
+      alert(err.message || 'Failed to save due to an error.');
     }
   };
 
@@ -63,7 +75,7 @@ export function Calendar() {
 
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    
+
     // Calculate new time based on drop position (96px per hour)
     const droppedHour = Math.floor(y / 96) + 8;
     const droppedMinute = Math.round(((y % 96) / 96) * 60);
@@ -73,7 +85,7 @@ export function Calendar() {
     if (appointmentToUpdate) {
       const newDate = new Date(targetDay);
       newDate.setHours(droppedHour, snappedMinute, 0, 0);
-      
+
       const updatedAppointment = { ...appointmentToUpdate, date: newDate };
       handleSaveAppointment(updatedAppointment);
     }
@@ -142,8 +154,8 @@ export function Calendar() {
             </div>
             <div className="col-span-7 grid grid-cols-7">
               {weekDays.map((day, dayIdx) => (
-                <div 
-                  key={dayIdx} 
+                <div
+                  key={dayIdx}
                   className="relative border-r border-slate-200 last:border-r-0"
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, day)}
@@ -170,8 +182,8 @@ export function Calendar() {
                             apt.status === "completed"
                               ? "border-green-200 bg-green-50 text-green-700"
                               : apt.status === "in-progress"
-                              ? "border-blue-200 bg-blue-50 text-blue-700"
-                              : "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                ? "border-blue-200 bg-blue-50 text-blue-700"
+                                : "border-indigo-200 bg-indigo-50 text-indigo-700"
                           )}
                           style={{
                             top: `${top}px`,

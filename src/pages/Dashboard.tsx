@@ -1,22 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
 import { Button } from "@/src/components/ui/button";
-import { mockAppointments } from "@/src/data/mockData";
-import { format } from "date-fns";
+import { api } from "@/src/lib/api";
+import { format, isToday } from "date-fns";
 import { Calendar, Clock, DollarSign, TrendingUp, Users } from "lucide-react";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 
 export function Dashboard() {
-  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [analytics, setAnalytics] = useState({
+    totalRevenue: 0,
+    appointments: 0,
+    activeRate: 0,
+    newCustomers: 0
+  });
 
-  const todayAppointments = appointments.filter(
-    (apt) => apt.date.toDateString() === new Date().toDateString()
-  );
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [aptData, analyticsData] = await Promise.all([
+          api.getAppointments(),
+          api.getAnalytics()
+        ]);
+        setAppointments(aptData.map((d: any) => ({ ...d, date: new Date(d.date) })));
+        setAnalytics(analyticsData);
+      } catch (err) {
+        console.error("Failed to load dashboard data", err);
+      }
+    }
+    loadData();
+  }, []);
 
-  const totalRevenue = todayAppointments.reduce((sum, apt) => sum + apt.price, 0);
+  const todayAppointments = appointments.filter((apt) => isToday(apt.date));
 
   const handleAppointmentClick = (appointment: Appointment) => {
     setSelectedAppointment(appointment);
@@ -28,21 +46,19 @@ export function Dashboard() {
     setIsModalOpen(true);
   };
 
-  const handleSaveAppointment = (updatedAppointment: Appointment) => {
-    setAppointments((prev) => {
-      const exists = prev.some((apt) => apt.id === updatedAppointment.id);
+  const handleSaveAppointment = async (updatedAppointment: Appointment) => {
+    try {
+      const exists = appointments.some((apt) => apt.id === updatedAppointment.id);
       if (exists) {
-        return prev.map((apt) => (apt.id === updatedAppointment.id ? updatedAppointment : apt));
+        await api.updateAppointment(updatedAppointment.id, updatedAppointment);
+        setAppointments((prev) => prev.map((apt) => (apt.id === updatedAppointment.id ? updatedAppointment : apt)));
+      } else {
+        await api.createAppointment(updatedAppointment);
+        setAppointments((prev) => [...prev, updatedAppointment]);
       }
-      return [...prev, updatedAppointment];
-    });
-    
-    // Also update mockData so changes persist across pages in this simple clone
-    const index = mockAppointments.findIndex((a) => a.id === updatedAppointment.id);
-    if (index !== -1) {
-      mockAppointments[index] = updatedAppointment;
-    } else {
-      mockAppointments.push(updatedAppointment);
+    } catch (err: any) {
+      console.error("Failed to save appointment", err);
+      alert(err.message || 'Failed to save due to an error.');
     }
   };
 
@@ -56,11 +72,11 @@ export function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue}</div>
+            <div className="text-2xl font-bold">${analytics.totalRevenue}</div>
             <p className="text-xs text-slate-500">+20.1% from yesterday</p>
           </CardContent>
         </Card>
@@ -70,8 +86,8 @@ export function Dashboard() {
             <Calendar className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todayAppointments.length}</div>
-            <p className="text-xs text-slate-500">2 pending, 3 completed</p>
+            <div className="text-2xl font-bold">{analytics.appointments}</div>
+            <p className="text-xs text-slate-500">All-time appointments</p>
           </CardContent>
         </Card>
         <Card>
@@ -80,7 +96,7 @@ export function Dashboard() {
             <Users className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+12</div>
+            <div className="text-2xl font-bold">+{analytics.newCustomers}</div>
             <p className="text-xs text-slate-500">+180.1% from last month</p>
           </CardContent>
         </Card>
@@ -90,8 +106,8 @@ export function Dashboard() {
             <TrendingUp className="h-4 w-4 text-slate-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">89%</div>
-            <p className="text-xs text-slate-500">+4% from last week</p>
+            <div className="text-2xl font-bold">{analytics.activeRate}%</div>
+            <p className="text-xs text-slate-500">Customers with visits</p>
           </CardContent>
         </Card>
       </div>
@@ -141,8 +157,8 @@ export function Dashboard() {
                         appointment.status === "completed"
                           ? "default"
                           : appointment.status === "in-progress"
-                          ? "secondary"
-                          : "outline"
+                            ? "secondary"
+                            : "outline"
                       }
                       className={
                         appointment.status === "in-progress" ? "bg-blue-100 text-blue-700 hover:bg-blue-100" : ""
