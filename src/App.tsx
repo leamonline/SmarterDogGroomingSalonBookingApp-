@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Toaster } from "sonner";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/layout/Layout";
 import { Dashboard } from "./pages/Dashboard";
@@ -17,6 +18,7 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 export default function App() {
   return (
     <AuthProvider>
+      <Toaster position="top-right" richColors />
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />

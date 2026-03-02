@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
@@ -138,7 +139,7 @@ export function Customers() {
       }
     } catch (err: any) {
       console.error("Failed to save appointment", err);
-      alert(err.message || 'Failed to save due to an error.');
+      toast.error(err.message || 'Failed to save due to an error.');
     }
   };
 
@@ -341,25 +342,6 @@ export function Customers() {
                       </div>
                     </div>
                   </div>
-
-                  {selectedCustomer.documents && selectedCustomer.documents.length > 0 && (
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <h4 className="text-sm font-semibold text-slate-900 mb-3">Documents</h4>
-                      <div className="space-y-2">
-                        {selectedCustomer.documents.map((doc) => (
-                          <div key={doc.id} className="flex items-center gap-3 p-2 bg-white border border-slate-200 rounded-lg">
-                            <div className="bg-indigo-50 p-1.5 rounded text-indigo-600">
-                              <FileText className="h-4 w-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-slate-900 truncate">{doc.name}</div>
-                              <div className="text-xs text-slate-500">{doc.uploadDate}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="col-span-2 space-y-6">

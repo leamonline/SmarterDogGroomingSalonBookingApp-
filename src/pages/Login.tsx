@@ -6,8 +6,8 @@ import { useAuth } from '@/src/lib/AuthContext';
 import { Scissors } from 'lucide-react';
 
 export function Login() {
-    const [email, setEmail] = useState('admin@savvy.com');
-    const [password, setPassword] = useState('password');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 

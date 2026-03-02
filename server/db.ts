@@ -134,8 +134,7 @@ const customersCount = db.prepare('SELECT COUNT(*) as count FROM customers').get
 if (customersCount.count === 0) {
   console.log('Seeding database with mock data...');
 
-  const insertUser = db.prepare('INSERT INTO users (id, email, password) VALUES (?, ?, ?)');
-  insertUser.run('1', 'admin@savvy.com', bcrypt.hashSync('password', 10)); // Basic seeded user
+  // Removed default user seeding to prevent hardcoded credentials in production
 
   const insertCustomer = db.prepare(`
     INSERT INTO customers (id, name, email, phone, address, emergencyContactName, emergencyContactPhone, notes, lastVisit, totalSpent)

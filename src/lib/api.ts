@@ -33,8 +33,36 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 // --- API Methods ---
 
 export const api = {
+  // Auth
+  login: async (credentials: any) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Login failed');
+    }
+    return res.json();
+  },
+  updatePassword: (currentPassword: string, newPassword: string) => fetchWithAuth('/api/auth/password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword })
+  }),
+
+  // Staff
+  getStaff: () => fetchWithAuth('/api/staff'),
+  createStaff: (data: any) => fetchWithAuth('/api/staff', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+
   // Customers
-  getCustomers: () => fetchWithAuth('/api/customers'),
+  getCustomers: async (page = 1, limit = 50) => {
+    const res = await fetchWithAuth(`/api/customers?page=${page}&limit=${limit}`);
+    return res.data ? res.data : res;
+  },
   createCustomer: (data: any) => fetchWithAuth('/api/customers', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -43,9 +71,15 @@ export const api = {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+  deleteCustomer: (id: string) => fetchWithAuth(`/api/customers/${id}`, {
+    method: 'DELETE',
+  }),
 
   // Appointments
-  getAppointments: () => fetchWithAuth('/api/appointments'),
+  getAppointments: async (page = 1, limit = 50) => {
+    const res = await fetchWithAuth(`/api/appointments?page=${page}&limit=${limit}`);
+    return res.data ? res.data : res;
+  },
   createAppointment: (data: any) => fetchWithAuth('/api/appointments', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -54,9 +88,15 @@ export const api = {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+  deleteAppointment: (id: string) => fetchWithAuth(`/api/appointments/${id}`, {
+    method: 'DELETE',
+  }),
 
   // Services
-  getServices: () => fetchWithAuth('/api/services'),
+  getServices: async (page = 1, limit = 50) => {
+    const res = await fetchWithAuth(`/api/services?page=${page}&limit=${limit}`);
+    return res.data ? res.data : res;
+  },
   createService: (data: any) => fetchWithAuth('/api/services', {
     method: 'POST',
     body: JSON.stringify(data),

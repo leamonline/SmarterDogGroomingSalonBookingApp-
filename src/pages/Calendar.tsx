@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
@@ -54,7 +55,7 @@ export function Calendar() {
       }
     } catch (err: any) {
       console.error("Failed to save appointment", err);
-      alert(err.message || 'Failed to save due to an error.');
+      toast.error(err.message || 'Failed to save due to an error.');
     }
   };
 
@@ -185,6 +186,7 @@ export function Calendar() {
                                 ? "border-blue-200 bg-blue-50 text-blue-700"
                                 : "border-indigo-200 bg-indigo-50 text-indigo-700"
                           )}
+                          // eslint-disable-next-line react/forbid-dom-props
                           style={{
                             top: `${top}px`,
                             height: `${height}px`,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
 import { Button } from "@/src/components/ui/button";
@@ -58,7 +59,7 @@ export function Dashboard() {
       }
     } catch (err: any) {
       console.error("Failed to save appointment", err);
-      alert(err.message || 'Failed to save due to an error.');
+      toast.error(err.message || 'Failed to save due to an error.');
     }
   };
 
@@ -77,7 +78,6 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${analytics.totalRevenue}</div>
-            <p className="text-xs text-slate-500">+20.1% from yesterday</p>
           </CardContent>
         </Card>
         <Card>
@@ -97,7 +97,6 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+{analytics.newCustomers}</div>
-            <p className="text-xs text-slate-500">+180.1% from last month</p>
           </CardContent>
         </Card>
         <Card>
@@ -119,56 +118,66 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {todayAppointments.sort((a, b) => a.date.getTime() - b.date.getTime()).map((appointment) => (
-                <div
-                  key={appointment.id}
-                  onClick={() => handleAppointmentClick(appointment)}
-                  className="flex items-center justify-between rounded-lg border border-slate-100 p-4 shadow-sm transition-all hover:shadow-md cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 overflow-hidden rounded-full bg-slate-100">
-                      <img
-                        src={appointment.avatar}
-                        alt={appointment.petName}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">
-                        {appointment.petName} <span className="text-slate-500 font-normal">({appointment.breed})</span>
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {format(appointment.date, "h:mm a")} ({appointment.duration}m)
-                        </span>
-                        <span>•</span>
-                        <span>{appointment.service}</span>
+              {todayAppointments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="rounded-full bg-slate-100 p-3 mb-4">
+                    <Calendar className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-900">No appointments today</h3>
+                  <p className="mt-1 text-sm text-slate-500">You are all caught up for the day.</p>
+                </div>
+              ) : (
+                todayAppointments.sort((a, b) => a.date.getTime() - b.date.getTime()).map((appointment) => (
+                  <div
+                    key={appointment.id}
+                    onClick={() => handleAppointmentClick(appointment)}
+                    className="flex items-center justify-between rounded-lg border border-slate-100 p-4 shadow-sm transition-all hover:shadow-md cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 overflow-hidden rounded-full bg-slate-100 flex-shrink-0">
+                        <img
+                          src={appointment.avatar}
+                          alt={appointment.petName}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">
+                          {appointment.petName} <span className="text-slate-500 font-normal">({appointment.breed})</span>
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 truncate">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {format(appointment.date, "h:mm a")} ({appointment.duration}m)
+                          </span>
+                          <span>•</span>
+                          <span className="truncate">{appointment.service}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-slate-900">${appointment.price}</p>
-                      <p className="text-xs text-slate-500">{appointment.ownerName}</p>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-sm font-medium text-slate-900">${appointment.price}</p>
+                        <p className="text-xs text-slate-500">{appointment.ownerName}</p>
+                      </div>
+                      <Badge
+                        variant={
+                          appointment.status === "completed"
+                            ? "default"
+                            : appointment.status === "in-progress"
+                              ? "secondary"
+                              : "outline"
+                        }
+                        className={
+                          appointment.status === "in-progress" ? "bg-blue-100 text-blue-700 hover:bg-blue-100" : ""
+                        }
+                      >
+                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant={
-                        appointment.status === "completed"
-                          ? "default"
-                          : appointment.status === "in-progress"
-                            ? "secondary"
-                            : "outline"
-                      }
-                      className={
-                        appointment.status === "in-progress" ? "bg-blue-100 text-blue-700 hover:bg-blue-100" : ""
-                      }
-                    >
-                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                    </Badge>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -178,20 +187,21 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-8">
-              {[
-                { time: "10 mins ago", text: "Sarah Johnson booked a Full Groom for Bella" },
-                { time: "1 hour ago", text: "Payment of $45 received from Michael Chen" },
-                { time: "2 hours ago", text: "Charlie's Nail Trim appointment completed" },
-                { time: "3 hours ago", text: "New customer Emily Davis registered" },
-              ].map((activity, i) => (
-                <div key={i} className="flex items-start gap-4">
-                  <div className="mt-0.5 h-2 w-2 rounded-full bg-indigo-500" />
-                  <div className="space-y-1">
-                    <p className="text-sm text-slate-900">{activity.text}</p>
-                    <p className="text-xs text-slate-500">{activity.time}</p>
-                  </div>
+              {appointments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <p className="text-sm text-slate-500">No recent activity.</p>
                 </div>
-              ))}
+              ) : (
+                appointments.slice(0, 4).map((apt, i) => (
+                  <div key={apt.id || i} className="flex items-start gap-4">
+                    <div className="mt-0.5 h-2 w-2 rounded-full bg-indigo-500 flex-shrink-0" />
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <p className="text-sm text-slate-900 truncate">{apt.ownerName} booked {apt.service} for {apt.petName}</p>
+                      <p className="text-xs text-slate-500">Scheduled for {format(apt.date, "MMM d, yyyy h:mm a")}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

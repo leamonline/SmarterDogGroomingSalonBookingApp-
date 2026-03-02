@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -36,7 +37,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                 setFormData(service);
             } else {
                 setFormData({
-                    id: Math.random().toString(36).substring(2, 9),
+                    id: crypto.randomUUID(),
                     name: "",
                     description: "",
                     duration: 30,
@@ -53,7 +54,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
 
     const handleSave = () => {
         if (!formData.name || !formData.category) {
-            alert("Name and Category are required.");
+            toast.error("Name and Category are required.");
             return;
         }
         onSave(formData as Service);

@@ -14,24 +14,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string | null>(null);
-
-    useEffect(() => {
-        // Check for saved auth state on mount
-        const savedToken = localStorage.getItem('petspa_token');
-        const savedUser = localStorage.getItem('petspa_user');
-
-        if (savedToken && savedUser) {
-            try {
-                setToken(savedToken);
-                setUser(JSON.parse(savedUser));
-            } catch (e) {
-                console.error('Failed to parse saved user data', e);
-            }
+const getInitialUser = () => {
+    const savedUser = localStorage.getItem('petspa_user');
+    if (savedUser) {
+        try {
+            return JSON.parse(savedUser);
+        } catch (e) {
+            console.error('Failed to parse saved user data', e);
         }
-    }, []);
+    }
+    return null;
+};
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+    const [user, setUser] = useState<User | null>(getInitialUser);
+    const [token, setToken] = useState<string | null>(() => localStorage.getItem('petspa_token'));
 
     const login = (newToken: string, newUser: User) => {
         setToken(newToken);

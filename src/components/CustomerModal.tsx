@@ -13,10 +13,10 @@ interface CustomerModalProps {
 }
 
 export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerModalProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'pets' | 'notes' | 'documents'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'pets' | 'notes'>('info');
   const [formData, setFormData] = useState<Partial<Customer>>({});
   const [pets, setPets] = useState<Pet[]>([]);
-  
+
   // State for a new pet being added
   const [isAddingPet, setIsAddingPet] = useState(false);
   const [newPet, setNewPet] = useState<Partial<Pet>>({
@@ -26,7 +26,6 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
   const [newVaxName, setNewVaxName] = useState("");
   const [newVaxDate, setNewVaxDate] = useState("");
   const [newWarning, setNewWarning] = useState("");
-  const [newDocName, setNewDocName] = useState("");
 
   useEffect(() => {
     if (customer) {
@@ -34,7 +33,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
       setPets(customer.pets || []);
     } else {
       setFormData({
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         name: "",
         email: "",
         phone: "",
@@ -74,7 +73,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
   const handleAddPet = () => {
     if (newPet.name) {
       const petToAdd: Pet = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         name: newPet.name || "",
         breed: newPet.breed || "",
         weight: Number(newPet.weight) || 0,
@@ -151,30 +150,6 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
     }));
   };
 
-  const handleAddDocument = () => {
-    if (newDocName.trim()) {
-      const newDoc: Document = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: newDocName.trim(),
-        type: 'pdf', // Mock type
-        uploadDate: new Date().toISOString().split('T')[0],
-        url: '#'
-      };
-      setFormData(prev => ({
-        ...prev,
-        documents: [...(prev.documents || []), newDoc]
-      }));
-      setNewDocName("");
-    }
-  };
-
-  const handleRemoveDocument = (docId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      documents: (prev.documents || []).filter(d => d.id !== docId)
-    }));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({ ...formData, pets } as Customer);
@@ -187,7 +162,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
         <DialogHeader>
           <DialogTitle>{customer ? "Edit Customer" : "New Customer"}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex border-b border-slate-200 mb-4 overflow-x-auto">
           <button
             type="button"
@@ -210,13 +185,6 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
           >
             Notes & Warnings
           </button>
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'documents' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('documents')}
-          >
-            Documents ({(formData.documents || []).length})
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -238,7 +206,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                 <label htmlFor="address" className="text-right text-sm font-medium">Address</label>
                 <Input id="address" name="address" value={formData.address || ""} onChange={handleChange} className="col-span-3" />
               </div>
-              
+
               <div className="pt-4 border-t border-slate-100">
                 <h4 className="text-sm font-medium text-slate-900 mb-3">Emergency Contact</h4>
                 <div className="grid grid-cols-4 items-center gap-4 mb-3">
@@ -281,34 +249,34 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-medium">Name *</label>
-                      <Input value={newPet.name || ""} onChange={(e) => setNewPet({...newPet, name: e.target.value})} />
+                      <Input value={newPet.name || ""} onChange={(e) => setNewPet({ ...newPet, name: e.target.value })} />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium">Breed</label>
-                      <Input value={newPet.breed || ""} onChange={(e) => setNewPet({...newPet, breed: e.target.value})} />
+                      <Input value={newPet.breed || ""} onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })} />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium">Weight (lbs)</label>
-                      <Input type="number" value={newPet.weight || ""} onChange={(e) => setNewPet({...newPet, weight: Number(e.target.value)})} />
+                      <Input type="number" value={newPet.weight || ""} onChange={(e) => setNewPet({ ...newPet, weight: Number(e.target.value) })} />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium">DOB</label>
-                      <Input type="date" value={newPet.dob || ""} onChange={(e) => setNewPet({...newPet, dob: e.target.value})} />
+                      <Input type="date" value={newPet.dob || ""} onChange={(e) => setNewPet({ ...newPet, dob: e.target.value })} />
                     </div>
                     <div className="space-y-1 col-span-2">
                       <label className="text-xs font-medium">Coat Type</label>
-                      <Input value={newPet.coatType || ""} onChange={(e) => setNewPet({...newPet, coatType: e.target.value})} placeholder="e.g., Double Coat, Curly, Short" />
+                      <Input value={newPet.coatType || ""} onChange={(e) => setNewPet({ ...newPet, coatType: e.target.value })} placeholder="e.g., Double Coat, Curly, Short" />
                     </div>
                   </div>
 
                   <div className="space-y-2 pt-2 border-t border-slate-200">
                     <label className="text-xs font-medium text-slate-700">Behavioral Notes</label>
                     <div className="flex gap-2">
-                      <Input 
+                      <Input
                         size={1}
                         className="h-8 text-sm"
-                        value={newBehavior} 
-                        onChange={(e) => setNewBehavior(e.target.value)} 
+                        value={newBehavior}
+                        onChange={(e) => setNewBehavior(e.target.value)}
                         placeholder="e.g., Anxious, Biter"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -324,7 +292,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                         {(newPet.behavioralNotes || []).map((note, idx) => (
                           <div key={idx} className="flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-xs">
                             <span>{note}</span>
-                            <button type="button" onClick={() => handleRemoveBehavior(note)} className="hover:text-amber-950">
+                            <button type="button" onClick={() => handleRemoveBehavior(note)} className="hover:text-amber-950" title="Remove behavior">
                               <X className="h-3 w-3" />
                             </button>
                           </div>
@@ -336,18 +304,18 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                   <div className="space-y-2 pt-2 border-t border-slate-200">
                     <label className="text-xs font-medium text-slate-700">Vaccinations</label>
                     <div className="flex gap-2">
-                      <Input 
+                      <Input
                         size={1}
                         className="h-8 text-sm flex-1"
-                        value={newVaxName} 
-                        onChange={(e) => setNewVaxName(e.target.value)} 
+                        value={newVaxName}
+                        onChange={(e) => setNewVaxName(e.target.value)}
                         placeholder="Name (e.g., Rabies)"
                       />
-                      <Input 
+                      <Input
                         type="date"
                         className="h-8 text-sm w-32"
-                        value={newVaxDate} 
-                        onChange={(e) => setNewVaxDate(e.target.value)} 
+                        value={newVaxDate}
+                        onChange={(e) => setNewVaxDate(e.target.value)}
                       />
                       <Button type="button" size="sm" variant="secondary" onClick={handleAddVax}>Add</Button>
                     </div>
@@ -360,7 +328,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                               <span className="text-slate-500">Exp: {vax.expiryDate}</span>
                               <div className={`h-1.5 w-1.5 rounded-full ${vax.status === 'valid' ? 'bg-emerald-500' : 'bg-red-500'}`} />
                             </div>
-                            <button type="button" onClick={() => handleRemoveVax(vax.name)} className="text-slate-400 hover:text-red-500">
+                            <button type="button" onClick={() => handleRemoveVax(vax.name)} className="text-slate-400 hover:text-red-500" title="Remove vaccination">
                               <X className="h-3 w-3" />
                             </button>
                           </div>
@@ -385,7 +353,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                 <textarea
                   name="notes"
                   value={formData.notes || ""}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   className="w-full min-h-[100px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
                   placeholder="General preferences, favorite groomer, etc."
                 />
@@ -409,68 +377,18 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                   />
                   <Button type="button" variant="secondary" onClick={handleAddWarning}>Add</Button>
                 </div>
-                
+
                 {(formData.warnings || []).length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-2">
                     {(formData.warnings || []).map((warning, idx) => (
                       <div key={idx} className="flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-md text-sm">
                         <span>{warning}</span>
-                        <button type="button" onClick={() => handleRemoveWarning(warning)} className="text-red-400 hover:text-red-600">
+                        <button type="button" onClick={() => handleRemoveWarning(warning)} className="text-red-400 hover:text-red-600" title="Remove warning">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'documents' && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">Upload Document</label>
-                <div className="flex gap-2">
-                  <Input
-                    value={newDocName}
-                    onChange={(e) => setNewDocName(e.target.value)}
-                    placeholder="Document Name (e.g., Rabies Certificate)"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddDocument();
-                      }
-                    }}
-                  />
-                  <Button type="button" variant="secondary" onClick={handleAddDocument}>
-                    <Upload className="mr-2 h-4 w-4" /> Upload
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-slate-900">Saved Documents</h4>
-                {(formData.documents || []).length > 0 ? (
-                  <div className="grid gap-3">
-                    {(formData.documents || []).map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-indigo-100 p-2 rounded-md text-indigo-600">
-                            <FileIcon className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm text-slate-900">{doc.name}</div>
-                            <div className="text-xs text-slate-500">Uploaded {doc.uploadDate}</div>
-                          </div>
-                        </div>
-                        <Button type="button" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleRemoveDocument(doc.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">No documents uploaded yet.</div>
                 )}
               </div>
             </div>
