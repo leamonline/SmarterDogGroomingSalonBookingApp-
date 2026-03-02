@@ -12,6 +12,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const { logout } = useAuth();
@@ -59,6 +60,25 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    function handleShortcuts(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const isTypingField = !!target?.closest("input, textarea, [contenteditable='true']");
+
+      if (event.key === "/" && !isTypingField) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      if (event.key === "Escape") {
+        setShowResults(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleShortcuts);
+    return () => document.removeEventListener("keydown", handleShortcuts);
+  }, []);
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
@@ -78,6 +98,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
             aria-hidden="true"
           />
           <input
+            ref={searchInputRef}
             id="search-field"
             className="block h-full w-full border-0 py-0 pl-8 pr-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 sm:text-sm"
             placeholder="Search appointments, customers, or pets..."
@@ -90,13 +111,25 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
             }}
             onFocus={() => setShowResults(true)}
           />
+          {!query && (
+            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-500">
+              /
+            </kbd>
+          )}
           {isSearching && (
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
               <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
             </div>
           )}
 
-          {showResults && results && (query.length > 0) && (
+          {showResults && query.length === 0 && (
+            <div className="absolute top-full mt-2 w-full z-50 rounded-md border border-slate-200 bg-white shadow-lg overflow-hidden py-4 px-4">
+              <p className="text-sm font-medium text-slate-800">Search across customers, pets, and appointments</p>
+              <p className="mt-1 text-xs text-slate-500">Tip: press <span className="font-semibold">/</span> from anywhere to jump to search.</p>
+            </div>
+          )}
+
+          {showResults && results && query.length > 0 && (
             <div className="absolute top-full mt-2 w-full z-50 rounded-md border border-slate-200 bg-white shadow-lg overflow-hidden py-2" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {results.customers?.length > 0 && (
                 <div className="px-4 py-2">

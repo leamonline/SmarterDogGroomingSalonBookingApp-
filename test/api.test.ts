@@ -29,7 +29,11 @@ describe('API Endpoints Integration Tests', () => {
     });
 
     it('should suggest alternate slots when creating an overlapping appointment', async () => {
-        const date = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+        const availableRes = await request(app)
+            .get('/api/appointments/next-available?duration=60')
+            .set('Authorization', `Bearer ${testToken}`);
+        const date = availableRes.body.data[0];
+
         const first = {
             id: crypto.randomUUID(),
             petName: 'Buddy',
@@ -47,6 +51,7 @@ describe('API Endpoints Integration Tests', () => {
             .post('/api/appointments')
             .set('Authorization', `Bearer ${testToken}`)
             .send(first);
+        if (createRes.status !== 200) console.log(createRes.body);
         expect(createRes.status).toBe(200);
 
         const overlapRes = await request(app)
