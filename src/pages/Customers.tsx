@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/src/components/ui/dropdown-menu";
 import { format } from "date-fns";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { CustomerModal } from "@/src/components/CustomerModal";
 import { ConfirmDialog } from "@/src/components/ConfirmDialog";
@@ -49,6 +50,9 @@ export function Customers() {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [initialAppointmentData, setInitialAppointmentData] = useState<Partial<Appointment>>({});
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -64,6 +68,18 @@ export function Customers() {
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.customerId && customers.length > 0) {
+      const targetCustomer = customers.find(c => c.id === location.state.customerId);
+      if (targetCustomer) {
+        setSelectedCustomer(targetCustomer);
+        setIsCustomerDetailsModalOpen(true);
+      }
+      // Clear the state so it doesn't reopen on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, customers]);
 
   const filteredCustomers = customers.filter(
     (customer) =>

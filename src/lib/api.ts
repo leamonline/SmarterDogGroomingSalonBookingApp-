@@ -79,6 +79,20 @@ export const api = {
     method: 'DELETE',
   }),
 
+  // Customer Tags
+  getCustomerTags: (customerId: string) => fetchWithAuth(`/api/customers/${customerId}/tags`),
+  setCustomerTags: (customerId: string, tags: string[]) => fetchWithAuth(`/api/customers/${customerId}/tags`, {
+    method: 'POST',
+    body: JSON.stringify({ tags }),
+  }),
+
+  // Dog Tags
+  getDogTags: (dogId: string) => fetchWithAuth(`/api/dogs/${dogId}/tags`),
+  setDogTags: (dogId: string, tags: string[]) => fetchWithAuth(`/api/dogs/${dogId}/tags`, {
+    method: 'POST',
+    body: JSON.stringify({ tags }),
+  }),
+
   // Appointments
   getAppointments: async (page = 1, limit = 50) => {
     const res = await fetchWithAuth(`/api/appointments?page=${page}&limit=${limit}`);
@@ -115,6 +129,71 @@ export const api = {
   deleteService: (id: string) => fetchWithAuth(`/api/services/${id}`, {
     method: 'DELETE',
   }),
+
+  // Service Add-ons
+  getServiceAddOns: (serviceId: string) => fetchWithAuth(`/api/services/${serviceId}/add-ons`),
+  setServiceAddOns: (serviceId: string, addOnIds: string[]) => fetchWithAuth(`/api/services/${serviceId}/add-ons`, {
+    method: 'POST',
+    body: JSON.stringify({ addOnIds }),
+  }),
+
+  // Add-ons
+  getAddOns: () => fetchWithAuth('/api/add-ons'),
+  createAddOn: (data: any) => fetchWithAuth('/api/add-ons', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  updateAddOn: (id: string, data: any) => fetchWithAuth(`/api/add-ons/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  deleteAddOn: (id: string) => fetchWithAuth(`/api/add-ons/${id}`, {
+    method: 'DELETE',
+  }),
+
+  // Payments
+  getPayments: (appointmentId?: string) =>
+    appointmentId
+      ? fetchWithAuth(`/api/payments?appointmentId=${appointmentId}`)
+      : fetchWithAuth('/api/payments'),
+  createPayment: (data: any) => fetchWithAuth('/api/payments', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  // Forms & Consent
+  getForms: () => fetchWithAuth('/api/forms'),
+  createForm: (data: any) => fetchWithAuth('/api/forms', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  updateForm: (id: string, data: any) => fetchWithAuth(`/api/forms/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+
+  // Form Submissions
+  getFormSubmissions: (filters?: { formId?: string; customerId?: string; dogId?: string; appointmentId?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.formId) params.set('formId', filters.formId);
+    if (filters?.customerId) params.set('customerId', filters.customerId);
+    if (filters?.dogId) params.set('dogId', filters.dogId);
+    if (filters?.appointmentId) params.set('appointmentId', filters.appointmentId);
+    return fetchWithAuth(`/api/form-submissions?${params.toString()}`);
+  },
+  submitForm: (data: any) => fetchWithAuth('/api/form-submissions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  // Audit Log
+  getAuditLog: (filters?: { entityType?: string; entityId?: string; page?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.entityType) params.set('entityType', filters.entityType);
+    if (filters?.entityId) params.set('entityId', filters.entityId);
+    if (filters?.page) params.set('page', String(filters.page));
+    return fetchWithAuth(`/api/audit-log?${params.toString()}`);
+  },
 
   // Analytics
   getAnalytics: () => fetchWithAuth('/api/analytics'),

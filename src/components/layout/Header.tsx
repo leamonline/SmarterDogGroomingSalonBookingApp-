@@ -135,7 +135,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
                 <div className="px-4 py-2">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Customers</h3>
                   {results.customers.map((c: any) => (
-                    <div key={c.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/customers'); setShowResults(false); setQuery(""); }}>{c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span></div>
+                    <div key={c.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/customers', { state: { customerId: c.id } }); setShowResults(false); setQuery(""); }}>{c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span></div>
                   ))}
                 </div>
               )}
@@ -143,7 +143,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
                 <div className="px-4 py-2">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Pets</h3>
                   {results.pets.map((p: any) => (
-                    <div key={p.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/customers'); setShowResults(false); setQuery(""); }}>{p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span></div>
+                    <div key={p.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/customers', { state: { customerId: p.customerId } }); setShowResults(false); setQuery(""); }}>{p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span></div>
                   ))}
                 </div>
               )}
@@ -151,7 +151,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
                 <div className="px-4 py-2">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Appointments</h3>
                   {results.appointments.map((a: any) => (
-                    <div key={a.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/calendar'); setShowResults(false); setQuery(""); }}>{a.petName} - {a.service}</div>
+                    <div key={a.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/calendar', { state: { appointmentId: a.id } }); setShowResults(false); setQuery(""); }}>{a.petName} - {a.service}</div>
                   ))}
                 </div>
               )}

@@ -11,7 +11,7 @@ import db from './db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
-import { validateBody, customerSchema, appointmentSchema, serviceSchema, settingsSchema } from './schema.js';
+import { validateBody, customerSchema, appointmentSchema, serviceSchema, settingsSchema, addOnSchema, paymentSchema, formSchema, formSubmissionSchema } from './schema.js';
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
@@ -442,6 +442,214 @@ app.get('/api/search', (req, res) => {
     const appointments = db.prepare('SELECT * FROM appointments WHERE petName LIKE ? OR ownerName LIKE ? OR service LIKE ?').all(queryLike, queryLike, queryLike);
 
     res.json({ customers, pets, appointments });
+});
+
+// --- Audit Log Helper ---
+function logAudit(userId: string | null, action: string, entityType: string, entityId: string | null, oldValue?: any, newValue?: any) {
+    db.prepare(`INSERT INTO audit_log (userId, action, entityType, entityId, oldValue, newValue, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run(userId, action, entityType, entityId, oldValue ? JSON.stringify(oldValue) : null, newValue ? JSON.stringify(newValue) : null, new Date().toISOString());
+}
+
+// --- Add-ons ---
+app.get('/api/add-ons', (req, res) => {
+    const addOns = db.prepare('SELECT * FROM add_ons WHERE isActive = 1').all();
+    res.json(addOns);
+});
+
+app.post('/api/add-ons', validateBody(addOnSchema), (req, res) => {
+    const { name, description, price, duration, isOptional, isActive } = req.body;
+    const id = req.body.id || crypto.randomUUID();
+    db.prepare(`INSERT INTO add_ons (id, name, description, price, duration, isOptional, isActive) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run(id, name, description || null, price || 0, duration || 0, isOptional !== false ? 1 : 0, isActive !== false ? 1 : 0);
+    logAudit(null, 'create', 'add_on', id, null, req.body);
+    res.json({ id, ...req.body });
+});
+
+app.put('/api/add-ons/:id', validateBody(addOnSchema), (req, res) => {
+    const { name, description, price, duration, isOptional, isActive } = req.body;
+    const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id);
+    db.prepare(`UPDATE add_ons SET name=?, description=?, price=?, duration=?, isOptional=?, isActive=? WHERE id=?`)
+        .run(name, description || null, price || 0, duration || 0, isOptional !== false ? 1 : 0, isActive !== false ? 1 : 0, req.params.id);
+    logAudit(null, 'update', 'add_on', req.params.id, old, req.body);
+    res.json({ id: req.params.id, ...req.body });
+});
+
+app.delete('/api/add-ons/:id', (req, res) => {
+    const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id);
+    db.prepare('UPDATE add_ons SET isActive = 0 WHERE id = ?').run(req.params.id);
+    logAudit(null, 'archive', 'add_on', req.params.id, old, null);
+    res.json({ success: true });
+});
+
+// --- Service Add-on Links ---
+app.get('/api/services/:id/add-ons', (req, res) => {
+    const addOns = db.prepare(`
+        SELECT a.* FROM add_ons a
+        JOIN service_add_ons sa ON sa.addOnId = a.id
+        WHERE sa.serviceId = ? AND a.isActive = 1
+    `).all(req.params.id);
+    res.json(addOns);
+});
+
+app.post('/api/services/:id/add-ons', (req, res) => {
+    const { addOnIds } = req.body;
+    if (!Array.isArray(addOnIds)) return res.status(400).json({ error: 'addOnIds must be an array' });
+    const del = db.prepare('DELETE FROM service_add_ons WHERE serviceId = ?');
+    const ins = db.prepare('INSERT INTO service_add_ons (serviceId, addOnId) VALUES (?, ?)');
+    db.transaction(() => {
+        del.run(req.params.id);
+        for (const addOnId of addOnIds) {
+            ins.run(req.params.id, addOnId);
+        }
+    })();
+    logAudit(null, 'update', 'service_add_ons', req.params.id, null, { addOnIds });
+    res.json({ success: true });
+});
+
+// --- Payments ---
+app.get('/api/payments', (req, res) => {
+    const { appointmentId } = req.query;
+    if (appointmentId) {
+        const payments = db.prepare('SELECT * FROM payments WHERE appointmentId = ? ORDER BY createdAt DESC').all(appointmentId);
+        return res.json(payments);
+    }
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = (page - 1) * limit;
+    const payments = db.prepare('SELECT * FROM payments ORDER BY createdAt DESC LIMIT ? OFFSET ?').all(limit, offset);
+    const total = (db.prepare('SELECT COUNT(*) as count FROM payments').get() as any).count;
+    res.json({ data: payments, total, page, limit });
+});
+
+app.post('/api/payments', validateBody(paymentSchema), (req, res) => {
+    const { appointmentId, customerId, amount, method, type, status, notes } = req.body;
+    const id = req.body.id || crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    db.prepare(`INSERT INTO payments (id, appointmentId, customerId, amount, method, type, status, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(id, appointmentId, customerId || null, amount, method, type, status || 'completed', notes || null, createdAt);
+
+    // Auto-update appointment deposit status if this is a deposit payment
+    if (type === 'deposit') {
+        db.prepare('UPDATE appointments SET depositPaid = 1 WHERE id = ?').run(appointmentId);
+    }
+
+    logAudit(null, 'create', 'payment', id, null, req.body);
+    res.json({ id, createdAt, ...req.body });
+});
+
+// --- Customer Tags ---
+app.get('/api/customers/:id/tags', (req, res) => {
+    const tags = db.prepare('SELECT tag FROM customer_tags WHERE customerId = ?').all(req.params.id) as { tag: string }[];
+    res.json(tags.map(t => t.tag));
+});
+
+app.post('/api/customers/:id/tags', (req, res) => {
+    const { tags } = req.body;
+    if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' });
+    const del = db.prepare('DELETE FROM customer_tags WHERE customerId = ?');
+    const ins = db.prepare('INSERT INTO customer_tags (customerId, tag) VALUES (?, ?)');
+    db.transaction(() => {
+        del.run(req.params.id);
+        for (const tag of tags) {
+            ins.run(req.params.id, tag);
+        }
+    })();
+    logAudit(null, 'update', 'customer_tags', req.params.id, null, { tags });
+    res.json({ success: true });
+});
+
+// --- Dog Tags ---
+app.get('/api/dogs/:id/tags', (req, res) => {
+    const tags = db.prepare('SELECT tag FROM dog_tags WHERE dogId = ?').all(req.params.id) as { tag: string }[];
+    res.json(tags.map(t => t.tag));
+});
+
+app.post('/api/dogs/:id/tags', (req, res) => {
+    const { tags } = req.body;
+    if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' });
+    const del = db.prepare('DELETE FROM dog_tags WHERE dogId = ?');
+    const ins = db.prepare('INSERT INTO dog_tags (dogId, tag) VALUES (?, ?)');
+    db.transaction(() => {
+        del.run(req.params.id);
+        for (const tag of tags) {
+            ins.run(req.params.id, tag);
+        }
+    })();
+    logAudit(null, 'update', 'dog_tags', req.params.id, null, { tags });
+    res.json({ success: true });
+});
+
+// --- Audit Log ---
+app.get('/api/audit-log', (req, res) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const offset = (page - 1) * limit;
+    const entityType = req.query.entityType as string;
+    const entityId = req.query.entityId as string;
+
+    let query = 'SELECT * FROM audit_log';
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (entityType) { conditions.push('entityType = ?'); params.push(entityType); }
+    if (entityId) { conditions.push('entityId = ?'); params.push(entityId); }
+    if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+    query += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const entries = db.prepare(query).all(...params);
+    res.json(entries);
+});
+
+// --- Forms ---
+app.get('/api/forms', (req, res) => {
+    const forms = db.prepare('SELECT * FROM forms WHERE isActive = 1 ORDER BY createdAt DESC').all();
+    res.json(forms);
+});
+
+app.post('/api/forms', validateBody(formSchema), (req, res) => {
+    const { name, description, version, fields, isActive } = req.body;
+    const id = req.body.id || crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    db.prepare(`INSERT INTO forms (id, name, description, version, fields, isActive, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run(id, name, description || null, version || 1, fields, isActive !== false ? 1 : 0, createdAt);
+    logAudit(null, 'create', 'form', id, null, req.body);
+    res.json({ id, createdAt, ...req.body });
+});
+
+app.put('/api/forms/:id', validateBody(formSchema), (req, res) => {
+    const { name, description, version, fields, isActive } = req.body;
+    const old = db.prepare('SELECT * FROM forms WHERE id = ?').get(req.params.id);
+    db.prepare(`UPDATE forms SET name=?, description=?, version=?, fields=?, isActive=?, updatedAt=? WHERE id=?`)
+        .run(name, description || null, version || 1, fields, isActive !== false ? 1 : 0, new Date().toISOString(), req.params.id);
+    logAudit(null, 'update', 'form', req.params.id, old, req.body);
+    res.json({ id: req.params.id, ...req.body });
+});
+
+// --- Form Submissions ---
+app.get('/api/form-submissions', (req, res) => {
+    const { formId, customerId, dogId, appointmentId } = req.query;
+    let query = 'SELECT * FROM form_submissions';
+    const params: any[] = [];
+    const conditions: string[] = [];
+    if (formId) { conditions.push('formId = ?'); params.push(formId); }
+    if (customerId) { conditions.push('customerId = ?'); params.push(customerId); }
+    if (dogId) { conditions.push('dogId = ?'); params.push(dogId); }
+    if (appointmentId) { conditions.push('appointmentId = ?'); params.push(appointmentId); }
+    if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+    query += ' ORDER BY submittedAt DESC';
+    const submissions = db.prepare(query).all(...params);
+    res.json(submissions);
+});
+
+app.post('/api/form-submissions', validateBody(formSubmissionSchema), (req, res) => {
+    const { formId, customerId, dogId, appointmentId, data, signature } = req.body;
+    const id = req.body.id || crypto.randomUUID();
+    const submittedAt = new Date().toISOString();
+    db.prepare(`INSERT INTO form_submissions (id, formId, customerId, dogId, appointmentId, data, signature, submittedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(id, formId, customerId || null, dogId || null, appointmentId || null, data, signature || null, submittedAt);
+    logAudit(null, 'create', 'form_submission', id, null, req.body);
+    res.json({ id, submittedAt, ...req.body });
 });
 
 // --- Analytics ---
