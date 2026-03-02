@@ -77,7 +77,10 @@ db.exec(`
     id TEXT PRIMARY KEY,
     petName TEXT,
     breed TEXT,
+    age TEXT,
+    notes TEXT,
     ownerName TEXT,
+    phone TEXT,
     service TEXT,
     date TEXT NOT NULL,
     duration INTEGER,
@@ -114,6 +117,14 @@ db.exec(`
     createdAt TEXT NOT NULL
   );
 `);
+
+
+// Ensure legacy databases have all appointment columns used by the app
+const appointmentColumns = db.prepare("PRAGMA table_info(appointments)").all() as { name: string }[];
+const appointmentColumnSet = new Set(appointmentColumns.map((c) => c.name));
+if (!appointmentColumnSet.has('age')) db.exec('ALTER TABLE appointments ADD COLUMN age TEXT');
+if (!appointmentColumnSet.has('notes')) db.exec('ALTER TABLE appointments ADD COLUMN notes TEXT');
+if (!appointmentColumnSet.has('phone')) db.exec('ALTER TABLE appointments ADD COLUMN phone TEXT');
 
 // Migrate existing cleartext passwords to bcrypt hashes
 const existingUsers = db.prepare('SELECT id, password FROM users').all() as { id: string, password: string }[];

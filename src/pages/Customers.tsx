@@ -104,9 +104,18 @@ export function Customers() {
 
   const handleDeleteCustomer = async (e: React.MouseEvent, customerId: string) => {
     e.stopPropagation();
-    // In a real app we'd call api.deleteCustomer(customerId), but we didn't build that API fully yet.
-    // For now we just remove it locally to simulate.
-    setCustomers(prev => prev.filter(c => c.id !== customerId));
+    try {
+      await api.deleteCustomer(customerId);
+      setCustomers(prev => prev.filter(c => c.id !== customerId));
+      if (selectedCustomer?.id === customerId) {
+        setSelectedCustomer(null);
+        setIsCustomerDetailsModalOpen(false);
+      }
+      toast.success('Customer deleted.');
+    } catch (err: any) {
+      console.error("Failed to delete customer", err);
+      toast.error(err.message || 'Failed to delete customer.');
+    }
   };
 
   const handleSaveCustomer = async (updatedCustomer: Customer) => {
@@ -139,7 +148,12 @@ export function Customers() {
       }
     } catch (err: any) {
       console.error("Failed to save appointment", err);
-      toast.error(err.message || 'Failed to save due to an error.');
+      const suggestions: string[] = err?.details?.suggestions || [];
+      if (suggestions.length > 0) {
+        toast.error(`${err.message} Next openings: ${suggestions.map((s) => format(new Date(s), "EEE h:mm a")).join(', ')}`);
+      } else {
+        toast.error(err.message || 'Failed to save due to an error.');
+      }
     }
   };
 

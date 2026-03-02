@@ -20,7 +20,7 @@ app.use(express.json());
 
 
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test-jwt-secret' : undefined);
 if (!JWT_SECRET) {
     console.error('CRITICAL ERROR: JWT_SECRET environment variable is required.');
     process.exit(1);
@@ -107,7 +107,12 @@ app.get('/api/customers', (req, res) => {
 
     const total = (db.prepare('SELECT COUNT(*) as count FROM customers').get() as any).count;
     const customers = db.prepare('SELECT * FROM customers LIMIT ? OFFSET ?').all(limit, offset) as any[];
-    if (customers.length === 0) return res.json(customers);
+    if (customers.length === 0) {
+        return res.json({
+            data: customers,
+            pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+        });
+    }
 
     const customerIds = customers.map(c => c.id);
     const placeholders = customerIds.map(() => '?').join(',');
@@ -261,6 +266,43 @@ const hasOverlap = (dateString: string, duration: number, excludeId?: string) =>
     return false;
 };
 
+
+const getNextAvailableSlots = (fromIso: string, duration: number, maxResults = 5) => {
+    const scheduleRows = db.prepare('SELECT day, openTime, closeTime, isClosed FROM schedule').all() as any[];
+    const scheduleByDay = new Map(scheduleRows.map((r) => [r.day, r]));
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    const upcoming: string[] = [];
+    const cursor = new Date(fromIso);
+    const now = Number.isNaN(cursor.getTime()) ? new Date() : cursor;
+
+    for (let dayOffset = 0; dayOffset < 14 && upcoming.length < maxResults; dayOffset++) {
+        const dayDate = new Date(now);
+        dayDate.setDate(now.getDate() + dayOffset);
+        const dayName = dayNames[dayDate.getDay()];
+        const daySchedule = scheduleByDay.get(dayName);
+        if (!daySchedule || daySchedule.isClosed) continue;
+
+        const [openHour, openMin] = (daySchedule.openTime || '08:00').split(':').map(Number);
+        const [closeHour, closeMin] = (daySchedule.closeTime || '17:00').split(':').map(Number);
+
+        const windowStart = new Date(dayDate);
+        windowStart.setHours(openHour, openMin, 0, 0);
+        const windowEnd = new Date(dayDate);
+        windowEnd.setHours(closeHour, closeMin, 0, 0);
+
+        const slot = new Date(windowStart);
+        while (slot.getTime() + duration * 60000 <= windowEnd.getTime() && upcoming.length < maxResults) {
+            if (slot.getTime() >= now.getTime() && !hasOverlap(slot.toISOString(), duration)) {
+                upcoming.push(slot.toISOString());
+            }
+            slot.setMinutes(slot.getMinutes() + 15);
+        }
+    }
+
+    return upcoming;
+};
+
 app.get('/api/appointments', (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
@@ -275,11 +317,20 @@ app.get('/api/appointments', (req, res) => {
     });
 });
 
+
+app.get('/api/appointments/next-available', (req, res) => {
+    const duration = Math.max(15, parseInt(req.query.duration as string) || 60);
+    const from = (req.query.from as string) || new Date().toISOString();
+    const slots = getNextAvailableSlots(from, duration, 5);
+    res.json({ data: slots });
+});
+
 app.post('/api/appointments', validateBody(appointmentSchema), (req, res) => {
     const { id, petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar } = req.body;
 
     if (hasOverlap(date, duration)) {
-        return res.status(400).json({ error: 'This time slot overlaps with an existing appointment.' });
+        const suggestions = getNextAvailableSlots(date, duration, 3);
+        return res.status(400).json({ error: 'This time slot overlaps with an existing appointment.', suggestions });
     }
 
     const stmt = db.prepare(`
@@ -294,7 +345,8 @@ app.put('/api/appointments/:id', validateBody(appointmentSchema), (req, res) => 
     const { petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar } = req.body;
 
     if (hasOverlap(date, duration, req.params.id)) {
-        return res.status(400).json({ error: 'This time slot overlaps with an existing appointment.' });
+        const suggestions = getNextAvailableSlots(date, duration, 3);
+        return res.status(400).json({ error: 'This time slot overlaps with an existing appointment.', suggestions });
     }
 
     const stmt = db.prepare(`
