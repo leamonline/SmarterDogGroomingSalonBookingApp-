@@ -13,6 +13,7 @@ import { Services } from "./pages/Services";
 import { Settings } from "./pages/Settings";
 import { FormsManager } from "./components/FormsManager";
 import { Login } from "./pages/Login";
+import { BookingPage } from "./pages/BookingPage";
 import { AuthProvider } from "./lib/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
@@ -23,6 +24,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/book" element={<BookingPage />} />
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="calendar" element={<Calendar />} />
