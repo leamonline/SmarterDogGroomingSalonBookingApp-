@@ -63,4 +63,43 @@ describe('API Endpoints Integration Tests', () => {
         expect(overlapRes.status).toBe(400);
         expect(Array.isArray(overlapRes.body.suggestions)).toBe(true);
     });
+
+    it('should create and fully delete a customer', async () => {
+        // Create
+        const customerToCreate = {
+            id: crypto.randomUUID(),
+            name: 'Test Deletion User',
+            email: 'delete_me@example.com',
+            phone: '555-0000',
+            pets: [
+                {
+                    id: crypto.randomUUID(),
+                    name: 'TestPet',
+                    breed: 'Mutt'
+                }
+            ]
+        };
+
+        const createRes = await request(app)
+            .post('/api/customers')
+            .set('Authorization', `Bearer ${testToken}`)
+            .send(customerToCreate);
+        expect(createRes.status).toBe(200);
+
+        // Delete
+        const deleteRes = await request(app)
+            .delete(`/api/customers/${customerToCreate.id}`)
+            .set('Authorization', `Bearer ${testToken}`);
+        expect(deleteRes.status).toBe(200);
+
+        // Verify Deletion
+        const getRes = await request(app)
+            .get('/api/customers')
+            .set('Authorization', `Bearer ${testToken}`);
+
+        expect(getRes.status).toBe(200);
+        const customers = getRes.body.data;
+        const exists = customers.some((c: any) => c.id === customerToCreate.id);
+        expect(exists).toBe(false);
+    });
 });
