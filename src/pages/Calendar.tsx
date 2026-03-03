@@ -7,6 +7,7 @@ import { Button } from "@/src/components/ui/button";
 import { api } from "@/src/lib/api";
 import { cn } from "@/src/lib/utils";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
+import { AppointmentStatusBar } from "@/src/components/AppointmentStatusBar";
 
 export function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -73,6 +74,10 @@ export function Calendar() {
       console.error("Failed to save appointment", err);
       toast.error(err.message || 'Failed to save due to an error.');
     }
+  };
+
+  const handleStatusUpdate = (updated: Appointment) => {
+    setAppointments(prev => prev.map(a => a.id === updated.id ? updated : a));
   };
 
   const handleDragStart = (e: React.DragEvent, appointmentId: string) => {
@@ -209,11 +214,18 @@ export function Calendar() {
                               height: `${height}px`,
                             }}
                           >
-                            <div className="font-semibold">{apt.petName}</div>
+                            <div className="font-semibold truncate">{apt.petName}</div>
                             <div className="truncate opacity-80">{apt.service}</div>
-                            <div className="mt-1 opacity-70">
-                              {format(apt.date, "h:mm a")} - {format(new Date(apt.date.getTime() + apt.duration * 60000), "h:mm a")}
-                            </div>
+                            {height > 60 && (
+                              <div className="mt-1 opacity-70 text-[10px]">
+                                {format(apt.date, "h:mm a")} – {format(new Date(apt.date.getTime() + apt.duration * 60000), "h:mm a")}
+                              </div>
+                            )}
+                            {height > 90 && (
+                              <div className="mt-1" onClick={e => e.stopPropagation()}>
+                                <AppointmentStatusBar appointment={apt} onUpdated={handleStatusUpdate} compact />
+                              </div>
+                            )}
                           </div>
                         );
                       })}

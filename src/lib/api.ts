@@ -203,6 +203,19 @@ export const api = {
   // Analytics
   getAnalytics: () => fetchWithAuth('/api/analytics'),
 
+  // Messaging
+  getMessages: (limit = 100) => fetchWithAuth(`/api/messages?limit=${limit}`),
+  sendMessage: (data: { recipientEmail?: string; recipientPhone?: string; channel: 'email' | 'sms'; subject?: string; body: string; customerId?: string; appointmentId?: string }) =>
+    fetchWithAuth('/api/messages/send', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Reports (server-side aggregated)
+  getReports: (start?: string, end?: string) => {
+    const params = new URLSearchParams();
+    if (start) params.set('start', start);
+    if (end) params.set('end', end);
+    return fetchWithAuth(`/api/reports?${params.toString()}`);
+  },
+
   // Settings & Schedule
   getSettings: () => fetchWithAuth('/api/settings'),
   updateSettings: (data: any) => fetchWithAuth('/api/settings', {

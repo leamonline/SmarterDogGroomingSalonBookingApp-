@@ -221,83 +221,120 @@ db.exec(`
   );
 `);
 
-// --- Safe column migration helper ---
-const safeAddColumn = (table: string, column: string, type: string) => {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!cols.some(c => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-  }
+// ─────────────────────────────────────────────
+// Migration infrastructure
+// Each migration runs exactly once, tracked by version number.
+// ─────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    appliedAt TEXT NOT NULL
+  );
+`);
+
+const appliedVersions = new Set(
+  (db.prepare('SELECT version FROM schema_migrations').all() as { version: number }[]).map(r => r.version)
+);
+
+const migrate = (version: number, fn: () => void) => {
+  if (appliedVersions.has(version)) return;
+  fn();
+  db.prepare('INSERT INTO schema_migrations (version, appliedAt) VALUES (?, ?)').run(version, new Date().toISOString());
+  appliedVersions.add(version);
 };
 
-// --- Users: add role ---
-safeAddColumn('users', 'role', 'TEXT DEFAULT \'staff\'');
+// Migration 1: roles, expanded customer/pet/appointment/service columns
+migrate(1, () => {
+  const safeAdd = (table: string, column: string, type: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some(c => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
+  };
 
-// --- Customers: expanded profile ---
-safeAddColumn('customers', 'preferredName', 'TEXT');
-safeAddColumn('customers', 'postcode', 'TEXT');
-safeAddColumn('customers', 'preferredContact', 'TEXT DEFAULT \'email\'');
-safeAddColumn('customers', 'marketingConsent', 'INTEGER DEFAULT 0');
+  // Users
+  safeAdd('users', 'role', "TEXT DEFAULT 'staff'");
 
-// --- Pets: full grooming profile ---
-safeAddColumn('pets', 'photo', 'TEXT');
-safeAddColumn('pets', 'sex', 'TEXT');
-safeAddColumn('pets', 'neuteredStatus', 'TEXT');
-safeAddColumn('pets', 'coatLength', 'TEXT');
-safeAddColumn('pets', 'colour', 'TEXT');
-safeAddColumn('pets', 'vetName', 'TEXT');
-safeAddColumn('pets', 'vetPhone', 'TEXT');
-safeAddColumn('pets', 'sizeCategory', 'TEXT');
-safeAddColumn('pets', 'estimatedGroomDuration', 'INTEGER');
-safeAddColumn('pets', 'dryingTolerance', 'TEXT');
-safeAddColumn('pets', 'clipperTolerance', 'TEXT');
-safeAddColumn('pets', 'scissorTolerance', 'TEXT');
-safeAddColumn('pets', 'nailTrimTolerance', 'TEXT');
-safeAddColumn('pets', 'mattingTendency', 'TEXT');
-safeAddColumn('pets', 'medicalNotes', 'TEXT');
-safeAddColumn('pets', 'allergies', 'TEXT');
-safeAddColumn('pets', 'mobilityNotes', 'TEXT');
-safeAddColumn('pets', 'seniorCareNotes', 'TEXT');
-safeAddColumn('pets', 'biteRisk', 'TEXT');
-safeAddColumn('pets', 'approvalRequired', 'INTEGER DEFAULT 0');
-safeAddColumn('pets', 'stylePreferences', 'TEXT');
-safeAddColumn('pets', 'isArchived', 'INTEGER DEFAULT 0');
+  // Customers
+  safeAdd('customers', 'preferredName', 'TEXT');
+  safeAdd('customers', 'postcode', 'TEXT');
+  safeAdd('customers', 'preferredContact', "TEXT DEFAULT 'email'");
+  safeAdd('customers', 'marketingConsent', 'INTEGER DEFAULT 0');
 
-// --- Appointments: full lifecycle ---
-safeAddColumn('appointments', 'age', 'TEXT');
-safeAddColumn('appointments', 'notes', 'TEXT');
-safeAddColumn('appointments', 'phone', 'TEXT');
-safeAddColumn('appointments', 'customerId', 'TEXT');
-safeAddColumn('appointments', 'dogId', 'TEXT');
-safeAddColumn('appointments', 'staffId', 'TEXT');
-safeAddColumn('appointments', 'depositAmount', 'REAL DEFAULT 0');
-safeAddColumn('appointments', 'depositPaid', 'INTEGER DEFAULT 0');
-safeAddColumn('appointments', 'cancelledAt', 'TEXT');
-safeAddColumn('appointments', 'cancelledBy', 'TEXT');
-safeAddColumn('appointments', 'cancellationReason', 'TEXT');
-safeAddColumn('appointments', 'checkedInAt', 'TEXT');
-safeAddColumn('appointments', 'checkedInNotes', 'TEXT');
-safeAddColumn('appointments', 'groomNotes', 'TEXT');
-safeAddColumn('appointments', 'productsUsed', 'TEXT');
-safeAddColumn('appointments', 'behaviourDuringGroom', 'TEXT');
-safeAddColumn('appointments', 'completedAt', 'TEXT');
-safeAddColumn('appointments', 'aftercareNotes', 'TEXT');
-safeAddColumn('appointments', 'readyForCollectionAt', 'TEXT');
-safeAddColumn('appointments', 'surcharge', 'REAL DEFAULT 0');
-safeAddColumn('appointments', 'surchargeReason', 'TEXT');
-safeAddColumn('appointments', 'finalPrice', 'REAL');
-safeAddColumn('appointments', 'beforePhotos', 'TEXT');
-safeAddColumn('appointments', 'afterPhotos', 'TEXT');
+  // Pets
+  safeAdd('pets', 'photo', 'TEXT');
+  safeAdd('pets', 'sex', 'TEXT');
+  safeAdd('pets', 'neuteredStatus', 'TEXT');
+  safeAdd('pets', 'coatLength', 'TEXT');
+  safeAdd('pets', 'colour', 'TEXT');
+  safeAdd('pets', 'vetName', 'TEXT');
+  safeAdd('pets', 'vetPhone', 'TEXT');
+  safeAdd('pets', 'sizeCategory', 'TEXT');
+  safeAdd('pets', 'estimatedGroomDuration', 'INTEGER');
+  safeAdd('pets', 'dryingTolerance', 'TEXT');
+  safeAdd('pets', 'clipperTolerance', 'TEXT');
+  safeAdd('pets', 'scissorTolerance', 'TEXT');
+  safeAdd('pets', 'nailTrimTolerance', 'TEXT');
+  safeAdd('pets', 'mattingTendency', 'TEXT');
+  safeAdd('pets', 'medicalNotes', 'TEXT');
+  safeAdd('pets', 'allergies', 'TEXT');
+  safeAdd('pets', 'mobilityNotes', 'TEXT');
+  safeAdd('pets', 'seniorCareNotes', 'TEXT');
+  safeAdd('pets', 'biteRisk', 'TEXT');
+  safeAdd('pets', 'approvalRequired', 'INTEGER DEFAULT 0');
+  safeAdd('pets', 'stylePreferences', 'TEXT');
+  safeAdd('pets', 'isArchived', 'INTEGER DEFAULT 0');
 
-// --- Services: enhanced config ---
-safeAddColumn('services', 'isOnlineBookable', 'INTEGER DEFAULT 1');
-safeAddColumn('services', 'isApprovalRequired', 'INTEGER DEFAULT 0');
-safeAddColumn('services', 'depositRequired', 'INTEGER DEFAULT 0');
-safeAddColumn('services', 'depositAmount', 'REAL DEFAULT 0');
-safeAddColumn('services', 'consentFormRequired', 'INTEGER DEFAULT 0');
-safeAddColumn('services', 'preBuffer', 'INTEGER DEFAULT 0');
-safeAddColumn('services', 'postBuffer', 'INTEGER DEFAULT 0');
-safeAddColumn('services', 'priceType', 'TEXT DEFAULT \'fixed\'');
-safeAddColumn('services', 'isActive', 'INTEGER DEFAULT 1');
+  // Appointments
+  safeAdd('appointments', 'age', 'TEXT');
+  safeAdd('appointments', 'notes', 'TEXT');
+  safeAdd('appointments', 'phone', 'TEXT');
+  safeAdd('appointments', 'customerId', 'TEXT');
+  safeAdd('appointments', 'dogId', 'TEXT');
+  safeAdd('appointments', 'staffId', 'TEXT');
+  safeAdd('appointments', 'depositAmount', 'REAL DEFAULT 0');
+  safeAdd('appointments', 'depositPaid', 'INTEGER DEFAULT 0');
+  safeAdd('appointments', 'cancelledAt', 'TEXT');
+  safeAdd('appointments', 'cancelledBy', 'TEXT');
+  safeAdd('appointments', 'cancellationReason', 'TEXT');
+  safeAdd('appointments', 'checkedInAt', 'TEXT');
+  safeAdd('appointments', 'checkedInNotes', 'TEXT');
+  safeAdd('appointments', 'groomNotes', 'TEXT');
+  safeAdd('appointments', 'productsUsed', 'TEXT');
+  safeAdd('appointments', 'behaviourDuringGroom', 'TEXT');
+  safeAdd('appointments', 'completedAt', 'TEXT');
+  safeAdd('appointments', 'aftercareNotes', 'TEXT');
+  safeAdd('appointments', 'readyForCollectionAt', 'TEXT');
+  safeAdd('appointments', 'surcharge', 'REAL DEFAULT 0');
+  safeAdd('appointments', 'surchargeReason', 'TEXT');
+  safeAdd('appointments', 'finalPrice', 'REAL');
+  safeAdd('appointments', 'beforePhotos', 'TEXT');
+  safeAdd('appointments', 'afterPhotos', 'TEXT');
+
+  // Services
+  safeAdd('services', 'isOnlineBookable', 'INTEGER DEFAULT 1');
+  safeAdd('services', 'isApprovalRequired', 'INTEGER DEFAULT 0');
+  safeAdd('services', 'depositRequired', 'INTEGER DEFAULT 0');
+  safeAdd('services', 'depositAmount', 'REAL DEFAULT 0');
+  safeAdd('services', 'consentFormRequired', 'INTEGER DEFAULT 0');
+  safeAdd('services', 'preBuffer', 'INTEGER DEFAULT 0');
+  safeAdd('services', 'postBuffer', 'INTEGER DEFAULT 0');
+  safeAdd('services', "priceType", "TEXT DEFAULT 'fixed'");
+  safeAdd('services', 'isActive', 'INTEGER DEFAULT 1');
+});
+
+// Migration 2: add recipient fields to messages table
+migrate(2, () => {
+  const safeAdd = (table: string, column: string, type: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some(c => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
+  };
+  safeAdd('messages', 'recipientEmail', 'TEXT');
+  safeAdd('messages', 'recipientPhone', 'TEXT');
+});
+
 
 // Migrate existing cleartext passwords to bcrypt hashes
 const existingUsers = db.prepare('SELECT id, password FROM users').all() as { id: string, password: string }[];

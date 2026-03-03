@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/src/components/ui/card";
 import { api } from "@/src/lib/api";
+import { type AuditLogEntry } from "@/src/types";
 import { toast } from "sonner";
 import { BarChart3, TrendingUp, DollarSign, Calendar as CalendarIcon, Users, Download, Filter } from "lucide-react";
-import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 
 // ────────────────────────────────────────────
 // Types
@@ -21,109 +22,94 @@ interface ReportAppointment {
     price: number;
 }
 
-interface ReportAuditEntry {
-    id: string;
-    userId: string;
-    action: string;
-    entity: string;
-    entityId: string;
-    before: string;
-    after: string;
-    createdAt: string;
+interface RevenueByDay {
+    day: string;
+    revenue: number;
+    count: number;
 }
+
+interface ServiceBreakdown {
+    name: string;
+    count: number;
+    revenue: number;
+}
+
+// ────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────
+const formatCurrency = (amount: number) => `£${amount.toFixed(0)}`;
 
 // ────────────────────────────────────────────
 // Reports Page
 // ────────────────────────────────────────────
 export function ReportsPage() {
     const [appointments, setAppointments] = useState<ReportAppointment[]>([]);
-    const [auditLog, setAuditLog] = useState<ReportAuditEntry[]>([]);
+    const [revenueByDay, setRevenueByDay] = useState<RevenueByDay[]>([]);
+    const [serviceBreakdown, setServiceBreakdown] = useState<ServiceBreakdown[]>([]);
+    const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
     const [activeTab, setActiveTab] = useState<"overview" | "revenue" | "services" | "audit">("overview");
     const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d" | "custom">("30d");
     const [customStart, setCustomStart] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
     const [customEnd, setCustomEnd] = useState(format(new Date(), "yyyy-MM-dd"));
+    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    const getISORange = useCallback((): { start: string; end: string } => {
+        const now = new Date();
+        const endISO = now.toISOString();
+        switch (dateRange) {
+            case "7d": return { start: subDays(now, 7).toISOString(), end: endISO };
+            case "30d": return { start: subDays(now, 30).toISOString(), end: endISO };
+            case "90d": return { start: subDays(now, 90).toISOString(), end: endISO };
+            case "custom":
+                return {
+                    start: new Date(customStart).toISOString(),
+                    end: new Date(customEnd + "T23:59:59").toISOString(),
+                };
+        }
+    }, [dateRange, customStart, customEnd]);
 
-    const loadData = async () => {
+    const loadReports = useCallback(async () => {
+        setLoading(true);
         try {
-            const [appts, audit] = await Promise.all([
-                api.getAppointments(1, 1000),
+            const { start, end } = getISORange();
+            const [reportData, audit] = await Promise.all([
+                api.getReports(start, end),
                 api.getAuditLog?.().catch(() => []),
             ]);
-            setAppointments(Array.isArray(appts) ? appts : appts?.data || []);
+            setAppointments(reportData.appointments || []);
+            setRevenueByDay(reportData.revenueByDay || []);
+            setServiceBreakdown(reportData.serviceBreakdown || []);
             setAuditLog(Array.isArray(audit) ? audit : audit?.data || []);
         } catch {
             toast.error("Failed to load report data");
+        } finally {
+            setLoading(false);
         }
-    };
+    }, [getISORange]);
 
-    // ────── Date filtering ──────
-    const getDateRange = () => {
-        const end = new Date();
-        switch (dateRange) {
-            case "7d": return { start: subDays(end, 7), end };
-            case "30d": return { start: subDays(end, 30), end };
-            case "90d": return { start: subDays(end, 90), end };
-            case "custom": return { start: new Date(customStart), end: new Date(customEnd) };
-        }
-    };
+    // Reload when date range changes (but not on every keystroke for custom)
+    useEffect(() => {
+        if (dateRange !== "custom") loadReports();
+    }, [dateRange]);
 
-    const { start: rangeStart, end: rangeEnd } = getDateRange();
-
-    const filteredAppointments = useMemo(() => {
-        return appointments.filter(a => {
-            const d = new Date(a.date);
-            return d >= rangeStart && d <= rangeEnd;
-        });
-    }, [appointments, rangeStart, rangeEnd]);
-
-    // ────── Metrics ──────
-    const totalBookings = filteredAppointments.length;
-    const completedBookings = filteredAppointments.filter(a => a.status === "completed").length;
-    const cancelledBookings = filteredAppointments.filter(a => a.status?.includes("cancelled")).length;
-    const noShows = filteredAppointments.filter(a => a.status === "no-show").length;
-    const totalRevenue = filteredAppointments
+    // ────── Metrics (computed from server data) ──────
+    const totalBookings = appointments.length;
+    const completedBookings = appointments.filter(a => a.status === "completed").length;
+    const cancelledBookings = appointments.filter(a => a.status?.includes("cancelled")).length;
+    const noShows = appointments.filter(a => a.status === "no-show").length;
+    const totalRevenue = appointments
         .filter(a => a.status === "completed")
         .reduce((sum, a) => sum + (a.price || 0), 0);
     const avgTicket = completedBookings > 0 ? totalRevenue / completedBookings : 0;
-    const cancellationRate = totalBookings > 0 ? ((cancelledBookings + noShows) / totalBookings * 100) : 0;
-
-    // ────── Revenue by day ──────
-    const revenueByDay = useMemo(() => {
-        const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
-        return days.map(day => {
-            const dayStr = format(day, "yyyy-MM-dd");
-            const dayRevenue = filteredAppointments
-                .filter(a => a.date?.startsWith(dayStr) && a.status === "completed")
-                .reduce((sum, a) => sum + (a.price || 0), 0);
-            return { date: dayStr, label: format(day, "dd MMM"), revenue: dayRevenue };
-        });
-    }, [filteredAppointments, rangeStart, rangeEnd]);
+    const cancellationRate = totalBookings > 0 ? ((cancelledBookings + noShows) / totalBookings) * 100 : 0;
 
     const maxRevenue = Math.max(...revenueByDay.map(d => d.revenue), 1);
-
-    // ────── Service breakdown ──────
-    const serviceBreakdown = useMemo(() => {
-        const map: Record<string, { count: number; revenue: number }> = {};
-        filteredAppointments.filter(a => a.status === "completed").forEach(a => {
-            if (!map[a.service]) map[a.service] = { count: 0, revenue: 0 };
-            map[a.service].count++;
-            map[a.service].revenue += a.price || 0;
-        });
-        return Object.entries(map)
-            .map(([name, data]) => ({ name, ...data }))
-            .sort((a, b) => b.revenue - a.revenue);
-    }, [filteredAppointments]);
-
     const totalServiceRevenue = serviceBreakdown.reduce((sum, s) => sum + s.revenue, 0) || 1;
 
     // ────── CSV Export ──────
     const exportCSV = () => {
         const headers = ["ID", "Pet Name", "Owner", "Service", "Date", "Duration", "Status", "Price"];
-        const rows = filteredAppointments.map(a => [
+        const rows = appointments.map(a => [
             a.id, a.petName, a.ownerName, a.service,
             a.date, String(a.duration), a.status, String(a.price)
         ]);
@@ -167,7 +153,7 @@ export function ReportsPage() {
 
             {/* Date Range Filter */}
             {activeTab !== "audit" && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Filter className="h-4 w-4 text-slate-400" />
                     {(["7d", "30d", "90d", "custom"] as const).map(r => (
                         <button
@@ -184,8 +170,10 @@ export function ReportsPage() {
                             <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="h-8 w-36 text-xs" />
                             <span className="text-xs text-slate-400">to</span>
                             <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="h-8 w-36 text-xs" />
+                            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={loadReports}>Apply</Button>
                         </div>
                     )}
+                    {loading && <span className="text-xs text-slate-400 ml-2">Loading…</span>}
                 </div>
             )}
 
@@ -209,7 +197,7 @@ export function ReportsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-slate-500">Revenue</p>
-                                        <p className="text-2xl font-bold text-green-600">£{totalRevenue.toFixed(0)}</p>
+                                        <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p>
                                     </div>
                                     <DollarSign className="h-8 w-8 text-slate-200" />
                                 </div>
@@ -220,7 +208,7 @@ export function ReportsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-slate-500">Avg. Ticket</p>
-                                        <p className="text-2xl font-bold text-slate-900">£{avgTicket.toFixed(0)}</p>
+                                        <p className="text-2xl font-bold text-slate-900">{formatCurrency(avgTicket)}</p>
                                     </div>
                                     <TrendingUp className="h-8 w-8 text-slate-200" />
                                 </div>
@@ -248,7 +236,7 @@ export function ReportsPage() {
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 {[
                                     { label: "Completed", count: completedBookings, colour: "bg-green-100 text-green-800" },
-                                    { label: "Confirmed", count: filteredAppointments.filter(a => a.status === "confirmed" || a.status === "scheduled").length, colour: "bg-blue-100 text-blue-800" },
+                                    { label: "Confirmed", count: appointments.filter(a => a.status === "confirmed" || a.status === "scheduled").length, colour: "bg-blue-100 text-blue-800" },
                                     { label: "Cancelled", count: cancelledBookings, colour: "bg-red-100 text-red-800" },
                                     { label: "No Show", count: noShows, colour: "bg-orange-100 text-orange-800" },
                                 ].map(s => (
@@ -271,27 +259,31 @@ export function ReportsPage() {
                         <CardDescription>Completed appointment revenue over the selected period.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-48 flex items-end gap-[2px]">
-                            {revenueByDay.map((d, i) => (
-                                <div key={d.date} className="flex-1 flex flex-col items-center group">
-                                    <div className="relative w-full flex justify-center">
-                                        <div className="absolute -top-5 bg-slate-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                            £{d.revenue}
+                        {revenueByDay.length === 0 ? (
+                            <p className="text-sm text-slate-400 py-6 text-center">No revenue data for this period.</p>
+                        ) : (
+                            <div className="h-48 flex items-end gap-[2px]">
+                                {revenueByDay.map((d, i) => (
+                                    <div key={d.day} className="flex-1 flex flex-col items-center group">
+                                        <div className="relative w-full flex justify-center">
+                                            <div className="absolute -top-5 bg-slate-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                                {formatCurrency(d.revenue)}
+                                            </div>
+                                            <div
+                                                className="w-full max-w-[20px] bg-slate-900 rounded-t transition-all hover:bg-slate-700"
+                                                style={{ height: `${Math.max((d.revenue / maxRevenue) * 160, d.revenue > 0 ? 4 : 0)}px` }}
+                                            />
                                         </div>
-                                        <div
-                                            className="w-full max-w-[20px] bg-slate-900 rounded-t transition-all hover:bg-slate-700"
-                                            style={{ height: `${Math.max((d.revenue / maxRevenue) * 160, d.revenue > 0 ? 4 : 0)}px` }}
-                                        />
+                                        {(i % Math.max(Math.floor(revenueByDay.length / 7), 1) === 0) && (
+                                            <span className="text-[8px] text-slate-400 mt-1 transform -rotate-45">{d.day.slice(5)}</span>
+                                        )}
                                     </div>
-                                    {(i % Math.max(Math.floor(revenueByDay.length / 7), 1) === 0) && (
-                                        <span className="text-[8px] text-slate-400 mt-1 transform -rotate-45">{d.label}</span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                         <div className="flex justify-between mt-4 text-sm">
-                            <span className="text-slate-500">Total: <strong>£{totalRevenue.toFixed(2)}</strong></span>
-                            <span className="text-slate-500">Daily avg: <strong>£{(totalRevenue / Math.max(revenueByDay.length, 1)).toFixed(2)}</strong></span>
+                            <span className="text-slate-500">Total: <strong>{formatCurrency(totalRevenue)}</strong></span>
+                            <span className="text-slate-500">Daily avg: <strong>{formatCurrency(totalRevenue / Math.max(revenueByDay.length, 1))}</strong></span>
                         </div>
                     </CardContent>
                 </Card>
@@ -313,7 +305,7 @@ export function ReportsPage() {
                                     <div key={s.name} className="space-y-1">
                                         <div className="flex justify-between text-sm">
                                             <span className="font-medium text-slate-900">{s.name}</span>
-                                            <span className="text-slate-600">£{s.revenue.toFixed(0)} ({s.count} bookings)</span>
+                                            <span className="text-slate-600">{formatCurrency(s.revenue)} ({s.count} bookings)</span>
                                         </div>
                                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                             <div
@@ -346,11 +338,15 @@ export function ReportsPage() {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-medium text-slate-900">{entry.action}</span>
-                                                <span className="text-[10px] text-slate-400">{entry.entity}/{entry.entityId?.slice(0, 8)}</span>
+                                                <span className="text-[10px] text-slate-400">
+                                                    {entry.entityType}/{entry.entityId?.slice(0, 8)}
+                                                </span>
                                             </div>
-                                            {entry.after && (
+                                            {entry.newValue && (
                                                 <pre className="text-[10px] text-slate-500 mt-1 whitespace-pre-wrap">
-                                                    {typeof entry.after === 'string' ? entry.after.slice(0, 100) : JSON.stringify(entry.after).slice(0, 100)}
+                                                    {typeof entry.newValue === 'string'
+                                                        ? entry.newValue.slice(0, 100)
+                                                        : JSON.stringify(entry.newValue).slice(0, 100)}
                                                 </pre>
                                             )}
                                         </div>

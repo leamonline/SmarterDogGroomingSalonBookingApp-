@@ -88,8 +88,19 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
   const [formData, setFormData] = useState<Partial<Appointment>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'checkin' | 'groom' | 'checkout'>('details');
+  // Track the last appointment id we initialised for, so we only reset
+  // when a *different* appointment is opened (not when the modal re-opens
+  // for the same one, which would lose in-progress edits).
+  const lastAppointmentIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
+    if (!isOpen) return; // don't reset while closed
+
+    const incomingId = appointment?.id ?? null;
+    if (incomingId === lastAppointmentIdRef.current && isOpen) return; // same appointment re-opened — keep state
+
+    // New context: reset everything
+    lastAppointmentIdRef.current = incomingId;
     setIsEditing(!appointment);
     setActiveTab('details');
     if (appointment) {
@@ -112,7 +123,9 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
         ...initialData,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointment, initialData, isOpen]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

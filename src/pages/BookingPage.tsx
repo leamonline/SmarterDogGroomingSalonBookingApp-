@@ -63,6 +63,7 @@ export function BookingPage() {
     const [selectedService, setSelectedService] = useState<BookableService | null>(null);
 
     // Date/time
+    const [schedule, setSchedule] = useState<Record<string, { isClosed: boolean }>>({});
     const [selectedDate, setSelectedDate] = useState<string>(format(addDays(new Date(), 1), "yyyy-MM-dd"));
     const [slots, setSlots] = useState<string[]>([]);
     const [selectedSlot, setSelectedSlot] = useState<string>("");
@@ -89,14 +90,25 @@ export function BookingPage() {
         }
     }, []);
 
-    // Load services
+    // Load services and schedule (both are public)
     useEffect(() => {
         publicFetch("/api/public/services")
             .then(setServices)
             .catch(() => setServices([]));
+
+        // Fetch actual schedule so the calendar disables correct days
+        fetch('/api/public/schedule')
+            .then(r => r.ok ? r.json() : [])
+            .then((rows: any[]) => {
+                const map: Record<string, { isClosed: boolean }> = {};
+                rows.forEach(r => { map[r.day] = { isClosed: !!r.isClosed }; });
+                setSchedule(map);
+            })
+            .catch(() => {/* schedule not critical for booking to work */ });
     }, []);
 
-    // Load slots when date changes
+    // Load slots when date or service changes.
+    // Pass the date in yyyy-MM-dd form; the server must parse it as a local date.
     useEffect(() => {
         if (selectedDate && selectedService) {
             setLoadingSlots(true);
@@ -163,6 +175,15 @@ export function BookingPage() {
 
     // ────── Render Helpers ──────
     const dates = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i + 1));
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // A day is disabled if the schedule marks it as closed.
+    // Falls back to allowing all days if the schedule hasn't loaded yet.
+    const isDayDisabled = (d: Date) => {
+        if (Object.keys(schedule).length === 0) return false; // schedule not yet loaded
+        const dayName = DAY_NAMES[d.getDay()];
+        return schedule[dayName]?.isClosed === true;
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
@@ -199,7 +220,7 @@ export function BookingPage() {
                                 <React.Fragment key={s}>
                                     {i > 0 && <div className={`flex-1 h-0.5 ${thisIdx <= current ? "bg-slate-900" : "bg-slate-200"}`} />}
                                     <div className={`flex items-center gap-1.5 text-xs font-medium ${thisIdx < current ? "text-green-600" :
-                                            thisIdx === current ? "text-slate-900" : "text-slate-400"
+                                        thisIdx === current ? "text-slate-900" : "text-slate-400"
                                         }`}>
                                         {thisIdx < current ? (
                                             <CheckCircle className="h-4 w-4" />
@@ -318,15 +339,15 @@ export function BookingPage() {
                             {dates.map(d => {
                                 const ds = format(d, "yyyy-MM-dd");
                                 const isSelected = ds === selectedDate;
-                                const isWeekend = d.getDay() === 0;
+                                const disabled = isDayDisabled(d);
                                 return (
                                     <button
                                         key={ds}
                                         onClick={() => setSelectedDate(ds)}
-                                        disabled={isWeekend}
+                                        disabled={disabled}
                                         className={`flex-shrink-0 w-16 py-3 rounded-lg text-center transition-all ${isSelected ? "bg-slate-900 text-white shadow-md" :
-                                                isWeekend ? "bg-slate-100 text-slate-300 cursor-not-allowed" :
-                                                    "bg-white border border-slate-200 text-slate-700 hover:border-slate-400"
+                                            disabled ? "bg-slate-100 text-slate-300 cursor-not-allowed" :
+                                                "bg-white border border-slate-200 text-slate-700 hover:border-slate-400"
                                             }`}
                                     >
                                         <span className="text-[10px] font-medium uppercase block">{format(d, "EEE")}</span>

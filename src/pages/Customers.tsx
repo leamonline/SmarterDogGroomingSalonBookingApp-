@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText, Users } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText, ChevronDown, Users } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import {
@@ -50,24 +50,56 @@ export function Customers() {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [initialAppointmentData, setInitialAppointmentData] = useState<Partial<Appointment>>({});
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PAGE_SIZE = 50;
+
+  // Debounced search — local filter on loaded pages; fresh fetch on cleared search
+
   const location = useLocation();
   const navigate = useNavigate();
+
+  const loadCustomers = useCallback(async (targetPage: number, replace: boolean) => {
+    const setter = replace ? setLoadingMore : setLoadingMore;
+    setter(true);
+    try {
+      const res = await fetch(`/api/customers?page=${targetPage}&limit=${PAGE_SIZE}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('petspa_token')}` }
+      });
+      if (!res.ok) throw new Error('Failed to fetch customers');
+      const json = await res.json();
+      const items: Customer[] = json.data ?? json;
+      const total: number = json.pagination?.total ?? items.length;
+      setTotalCustomers(total);
+      setHasMore(targetPage * PAGE_SIZE < total);
+      setCustomers(prev => replace ? items : [...prev, ...items]);
+      setPage(targetPage);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load customers');
+    } finally {
+      setter(false);
+    }
+  }, []);
+
+  const loadMore = () => loadCustomers(page + 1, false);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [custData, aptData] = await Promise.all([
-          api.getCustomers(),
+        const [, aptData] = await Promise.all([
+          loadCustomers(1, true),
           api.getAppointments()
         ]);
-        setCustomers(custData);
         setAppointments(aptData.map((a: any) => ({ ...a, date: new Date(a.date) })));
       } catch (err) {
-        console.error("Failed to load data", err);
+        console.error('Failed to load data', err);
       }
     }
     loadData();
-  }, []);
+  }, [loadCustomers]);
 
   useEffect(() => {
     if (location.state?.customerId && customers.length > 0) {
@@ -87,6 +119,11 @@ export function Customers() {
       (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (customer.pets && customer.pets.some((pet) => pet.name.toLowerCase().includes(searchTerm.toLowerCase())))
   );
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+  };
 
   const handleRowClick = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -202,7 +239,7 @@ export function Customers() {
           <Input
             placeholder="Search customers, emails, or pets..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-9"
           />
         </div>
@@ -214,10 +251,15 @@ export function Customers() {
 
       <div className="flex items-center justify-between text-sm text-slate-600">
         <p>
-          Showing <span className="font-semibold text-slate-900">{filteredCustomers.length}</span> of {customers.length} customers
+          Showing <span className="font-semibold text-slate-900">{filteredCustomers.length}</span>
+          {searchTerm
+            ? ` match${filteredCustomers.length !== 1 ? 'es' : ''} in loaded data`
+            : ` of ${totalCustomers} customers`
+          }
         </p>
         {searchTerm && (
-          <Button variant="ghost" size="sm" onClick={() => setSearchTerm("")}>
+          <Button variant="ghost" size="sm" onClick={() => setSearchTerm("")}
+          >
             Clear search
           </Button>
         )}
@@ -277,7 +319,7 @@ export function Customers() {
                 </TableCell>
                 <TableCell className="text-slate-500">{customer.lastVisit}</TableCell>
                 <TableCell className="text-right font-medium text-slate-900">
-                  ${customer.totalSpent}
+                  £{customer.totalSpent}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -315,6 +357,24 @@ export function Customers() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Load More */}
+      {hasMore && !searchTerm && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="gap-2"
+          >
+            {loadingMore
+              ? <><span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />Loading…</>
+              : <><ChevronDown className="h-3.5 w-3.5" />Load more ({totalCustomers - customers.length} remaining)</>
+            }
+          </Button>
+        </div>
+      )}
 
       <Dialog open={isCustomerDetailsModalOpen} onOpenChange={setIsCustomerDetailsModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -400,7 +460,7 @@ export function Customers() {
                       </div>
                       <div className="flex items-center text-sm text-slate-700">
                         <DollarSign className="mr-3 h-4 w-4 text-slate-400" />
-                        Total Spent: ${selectedCustomer.totalSpent}
+                        Total Spent: £{selectedCustomer.totalSpent}
                       </div>
                     </div>
                   </div>
@@ -474,7 +534,7 @@ export function Customers() {
                           >
                             <div className="flex items-center justify-between font-medium text-slate-900">
                               <span className="text-base">{apt.service} <span className="text-slate-500 font-normal text-sm">({apt.petName})</span></span>
-                              <span className="font-semibold text-indigo-600">${apt.price}</span>
+                              <span className="font-semibold text-indigo-600">£{apt.price}</span>
                             </div>
                             <div className="flex items-center justify-between text-slate-500">
                               <span className="flex items-center gap-1.5">

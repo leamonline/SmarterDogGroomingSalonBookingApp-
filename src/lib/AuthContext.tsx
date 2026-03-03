@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 import type { UserRole } from '@/src/types';
 
 interface User {
@@ -50,14 +50,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('petspa_user');
     };
 
-    const hasRole = (...roles: UserRole[]) => {
-        if (!user) return false;
-        return roles.includes(user.role);
-    };
+    const hasRole = useMemo(
+        () => (...roles: UserRole[]) => {
+            if (!user) return false;
+            return roles.includes(user.role);
+        },
+        [user]
+    );
 
-    const isStaff = hasRole('groomer', 'receptionist', 'owner');
-    const isAdmin = hasRole('receptionist', 'owner');
-    const isOwner = hasRole('owner');
+    const isStaff = useMemo(() => !!user && ['groomer', 'receptionist', 'owner'].includes(user.role), [user]);
+    const isAdmin = useMemo(() => !!user && ['receptionist', 'owner'].includes(user.role), [user]);
+    const isOwner = useMemo(() => !!user && user.role === 'owner', [user]);
 
     return (
         <AuthContext.Provider value={{ user, token, login, logout, hasRole, isStaff, isAdmin, isOwner }}>

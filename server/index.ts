@@ -15,7 +15,9 @@ import { validateBody, customerSchema, appointmentSchema, serviceSchema, setting
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-app.use(morgan('combined'));
+if (process.env.NODE_ENV !== 'test') {
+    app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+}
 app.use(express.json());
 
 
@@ -50,14 +52,17 @@ const ROLE_HIERARCHY: Record<Role, number> = {
     'owner': 3,
 };
 
+// Allows the given roles AND any role higher in the hierarchy.
 const requireRole = (...allowedRoles: Role[]) => {
+    const minLevel = Math.min(...allowedRoles.map(r => ROLE_HIERARCHY[r]));
     return (req: express.Request, res: express.Response, next: express.NextFunction) => {
         const user = (req as any).user;
         if (!user || !user.role) {
             return res.status(403).json({ error: 'Access denied: no role assigned' });
         }
-        if (!allowedRoles.includes(user.role)) {
-            return res.status(403).json({ error: `Access denied: requires ${allowedRoles.join(' or ')} role` });
+        const userLevel = ROLE_HIERARCHY[user.role as Role] ?? -1;
+        if (userLevel < minLevel) {
+            return res.status(403).json({ error: `Access denied: requires ${allowedRoles.join(' or ')} role or higher` });
         }
         next();
     };
@@ -87,7 +92,7 @@ app.post('/api/auth/login', loginLimiter, (req, res) => {
         const role = user.role || 'owner'; // Default existing users to owner role
         const token = jwt.sign(
             { id: user.id, email: user.email, role },
-            process.env.JWT_SECRET as string,
+            JWT_SECRET,
             { expiresIn: '24h' }
         );
         res.json({ token, user: { id: user.id, email: user.email, role } });
@@ -174,13 +179,26 @@ app.get('/api/public/services', (req, res) => {
     res.json(services);
 });
 
+// Public: shop schedule (so the booking calendar can disable closed days)
+app.get('/api/public/schedule', (req, res) => {
+    const rows = db.prepare('SELECT day, openTime, closeTime, isClosed FROM schedule').all();
+    res.json(rows);
+});
+
 // Public: get available slots for a date
 app.get('/api/public/available-slots', (req, res) => {
     const { date, duration } = req.query;
     if (!date) return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
 
+    const dateStr = date as string;
     const dur = parseInt(duration as string) || 60;
-    const dayOfWeek = new Date(date as string).toLocaleDateString('en-US', { weekday: 'long' });
+
+    // Parse the date string directly to avoid UTC-offset day-of-week errors.
+    // "2024-01-15" -> year=2024, month=0, day=15 (local time, not UTC midnight)
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayOfWeek = dayNames[localDate.getDay()];
 
     // Get schedule for this day
     const scheduleRow = db.prepare('SELECT * FROM schedule WHERE day = ?').get(dayOfWeek) as any;
@@ -191,8 +209,7 @@ app.get('/api/public/available-slots', (req, res) => {
     const openTime = scheduleRow.openTime || '08:00';
     const closeTime = scheduleRow.closeTime || '17:00';
 
-    // Get existing appointments for this date
-    const dateStr = date as string;
+    // Get existing appointments for this date (filter by YYYY-MM-DD prefix)
     const existing = db.prepare(
         "SELECT date, duration FROM appointments WHERE date LIKE ? AND status NOT IN ('cancelled-by-customer', 'cancelled-by-salon', 'no-show')"
     ).all(`${dateStr}%`) as any[];
@@ -205,7 +222,9 @@ app.get('/api/public/available-slots', (req, res) => {
     const closeMinutes = closeH * 60 + closeM;
 
     for (let m = openMinutes; m + dur <= closeMinutes; m += 30) {
-        const slotStart = new Date(`${dateStr}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00`);
+        const slotH = Math.floor(m / 60);
+        const slotM = m % 60;
+        const slotStart = new Date(year, month - 1, day, slotH, slotM, 0);
         const slotEnd = new Date(slotStart.getTime() + dur * 60000);
 
         // Check for conflicts
@@ -244,7 +263,7 @@ app.post('/api/public/register', (req, res) => {
             customerId, `${firstName} ${lastName || ''}`.trim(), email, phone || ''
         );
 
-        const token = jwt.sign({ id: userId, email, role: 'customer' }, JWT_SECRET as string, { expiresIn: '24h' });
+        const token = jwt.sign({ id: userId, email, role: 'customer' }, JWT_SECRET, { expiresIn: '24h' });
         res.json({ token, user: { id: userId, email, role: 'customer', customerId } });
     } catch (err: any) {
         if (err.message.includes('UNIQUE')) {
@@ -261,7 +280,7 @@ app.post('/api/public/login', loginLimiter, (req, res) => {
 
     if (user && bcrypt.compareSync(password, user.password)) {
         const role = user.role || 'customer';
-        const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET as string, { expiresIn: '24h' });
+        const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET, { expiresIn: '24h' });
 
         // Find linked customer record
         const customer = db.prepare('SELECT id FROM customers WHERE email = ?').get(email) as any;
@@ -310,6 +329,18 @@ app.post('/api/public/bookings', authenticateToken, (req: any, res: any) => {
 
     logAudit(req.user.id, 'book', 'appointment', apptId, null, { serviceId, petName, status });
 
+    // Auto-notify customer
+    const customer = customerId
+        ? (db.prepare('SELECT name, email, phone FROM customers WHERE id = ?').get(customerId) as any)
+        : null;
+    const triggerKey = status === 'pending-approval' ? 'booking_pending' : 'booking_confirmed';
+    autoNotify(
+        triggerKey,
+        { id: apptId, ownerName: customer?.name || petName, petName, service: service.name, date, price: service.price, customerId },
+        customer?.email ?? null,
+        customer?.phone ?? null,
+    );
+
     res.json({
         id: apptId,
         status,
@@ -320,7 +351,12 @@ app.post('/api/public/bookings', authenticateToken, (req: any, res: any) => {
     });
 });
 
-// Apply auth middleware to all routes below this point
+// ══════════════════════════════════════════════
+// PRIVATE API — auth required for all routes below.
+// IMPORTANT: all public /api routes MUST be registered ABOVE this line.
+// Adding a new private route below is safe. Adding a new public
+// route below will silently require authentication for it.
+// ══════════════════════════════════════════════
 app.use('/api', authenticateToken);
 
 // --- Customers ---
@@ -440,24 +476,44 @@ app.put('/api/customers/:id', validateBody(customerSchema), (req, res) => {
             noUndef(notes), noUndef(lastVisit), noUndef(totalSpent), noUndef(customerId)
         );
 
-        // Delete existing relations and recreate for simplicity
+        // Warnings: simple replace (no stable ID on the client side)
         db.prepare('DELETE FROM customer_warnings WHERE customerId = ?').run(customerId);
-        db.prepare('DELETE FROM pets WHERE customerId = ?').run(customerId);
-        db.prepare('DELETE FROM documents WHERE customerId = ?').run(customerId);
-
         const insertWarning = db.prepare('INSERT INTO customer_warnings (customerId, warning) VALUES (?, ?)');
         (warnings || []).forEach((w: string) => insertWarning.run(customerId, noUndef(w)));
 
-        const insertPet = db.prepare('INSERT INTO pets (id, customerId, name, breed, weight, dob, coatType) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        // Pets: upsert to preserve IDs (and their downstream FK relationships).
+        // Remove only pets that were deleted on the client.
+        const incomingPetIds = (pets || []).map((p: any) => p.id).filter(Boolean);
+        if (incomingPetIds.length > 0) {
+            const placeholders = incomingPetIds.map(() => '?').join(',');
+            db.prepare(`DELETE FROM pets WHERE customerId = ? AND id NOT IN (${placeholders})`).run(customerId, ...incomingPetIds);
+        } else {
+            db.prepare('DELETE FROM pets WHERE customerId = ?').run(customerId);
+        }
+
+        const upsertPet = db.prepare(`
+            INSERT INTO pets (id, customerId, name, breed, weight, dob, coatType)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name, breed=excluded.breed, weight=excluded.weight,
+                dob=excluded.dob, coatType=excluded.coatType
+        `);
+        const deleteBehavior = db.prepare('DELETE FROM pet_behavioral_notes WHERE petId = ?');
         const insertBehavior = db.prepare('INSERT INTO pet_behavioral_notes (petId, note) VALUES (?, ?)');
+        const deleteVax = db.prepare('DELETE FROM vaccinations WHERE petId = ?');
         const insertVax = db.prepare('INSERT INTO vaccinations (petId, name, expiryDate, status) VALUES (?, ?, ?, ?)');
 
         (pets || []).forEach((p: any) => {
-            insertPet.run(noUndef(p.id), noUndef(customerId), noUndef(p.name), noUndef(p.breed), noUndef(p.weight), noUndef(p.dob), noUndef(p.coatType));
+            upsertPet.run(noUndef(p.id), noUndef(customerId), noUndef(p.name), noUndef(p.breed), noUndef(p.weight), noUndef(p.dob), noUndef(p.coatType));
+            // Replace notes and vaccinations for each pet
+            deleteBehavior.run(noUndef(p.id));
             (p.behavioralNotes || []).forEach((bn: string) => insertBehavior.run(noUndef(p.id), noUndef(bn)));
+            deleteVax.run(noUndef(p.id));
             (p.vaccinations || []).forEach((v: any) => insertVax.run(noUndef(p.id), noUndef(v.name), noUndef(v.expiryDate), noUndef(v.status)));
         });
 
+        // Documents: simple replace (URLs are the stable reference)
+        db.prepare('DELETE FROM documents WHERE customerId = ?').run(customerId);
         const insertDoc = db.prepare('INSERT INTO documents (id, customerId, name, type, uploadDate, url) VALUES (?, ?, ?, ?, ?, ?)');
         (documents || []).forEach((d: any) => insertDoc.run(noUndef(d.id), noUndef(customerId), noUndef(d.name), noUndef(d.type), noUndef(d.uploadDate), noUndef(d.url)));
     })();
@@ -465,27 +521,37 @@ app.put('/api/customers/:id', validateBody(customerSchema), (req, res) => {
     res.json(req.body);
 });
 
-app.delete('/api/customers/:id', (req, res) => {
+app.delete('/api/customers/:id', requireAdmin, (req: any, res: any) => {
     db.prepare('DELETE FROM customers WHERE id=?').run(req.params.id);
+    logAudit(req.user.id, 'delete', 'customer', req.params.id, null, null);
     res.json({ success: true });
 });
 
 // --- Appointments ---
-// Helper to check for overlapping appointments
+// Maximum grooming appointment duration used to bound the overlap query window.
+const MAX_DURATION_MINUTES = 480; // 8 hours, generous upper bound
+
+// Helper to check for overlapping appointments.
+// Uses a bounded time-window query instead of a full table scan.
 const hasOverlap = (dateString: string, duration: number, excludeId?: string) => {
     const start = new Date(dateString).getTime();
     const end = start + duration * 60000;
 
-    const appointments = db.prepare('SELECT id, date, duration FROM appointments').all() as any[];
+    // Only fetch rows that could possibly overlap this window
+    const windowStart = new Date(start - MAX_DURATION_MINUTES * 60000).toISOString();
+    const windowEnd = new Date(end).toISOString();
+
+    const appointments = db.prepare(`
+        SELECT id, date, duration FROM appointments
+        WHERE date BETWEEN ? AND ?
+          AND status NOT IN ('cancelled-by-customer', 'cancelled-by-salon', 'no-show')
+    `).all(windowStart, windowEnd) as any[];
+
     for (const apt of appointments) {
         if (excludeId && apt.id === excludeId) continue;
-
         const aptStart = new Date(apt.date).getTime();
-        const aptEnd = aptStart + apt.duration * 60000;
-
-        if (start < aptEnd && end > aptStart) {
-            return true;
-        }
+        const aptEnd = aptStart + (apt.duration || 60) * 60000;
+        if (start < aptEnd && end > aptStart) return true;
     }
     return false;
 };
@@ -499,6 +565,25 @@ const getNextAvailableSlots = (fromIso: string, duration: number, maxResults = 5
     const upcoming: string[] = [];
     const cursor = new Date(fromIso);
     const now = Number.isNaN(cursor.getTime()) ? new Date() : cursor;
+
+    // Pre-fetch all appointments in the next 14-day window once, rather than
+    // hitting the DB for every candidate slot inside hasOverlap.
+    const searchWindowStart = now.toISOString();
+    const searchWindowEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const existingAppts = db.prepare(`
+        SELECT id, date, duration FROM appointments
+        WHERE date BETWEEN ? AND ?
+          AND status NOT IN ('cancelled-by-customer', 'cancelled-by-salon', 'no-show')
+    `).all(searchWindowStart, searchWindowEnd) as any[];
+
+    const slotConflicts = (slotStart: number, slotDur: number) => {
+        const slotEnd = slotStart + slotDur * 60000;
+        return existingAppts.some(apt => {
+            const aptStart = new Date(apt.date).getTime();
+            const aptEnd = aptStart + (apt.duration || 60) * 60000;
+            return slotStart < aptEnd && slotEnd > aptStart;
+        });
+    };
 
     for (let dayOffset = 0; dayOffset < 14 && upcoming.length < maxResults; dayOffset++) {
         const dayDate = new Date(now);
@@ -517,7 +602,7 @@ const getNextAvailableSlots = (fromIso: string, duration: number, maxResults = 5
 
         const slot = new Date(windowStart);
         while (slot.getTime() + duration * 60000 <= windowEnd.getTime() && upcoming.length < maxResults) {
-            if (slot.getTime() >= now.getTime() && !hasOverlap(slot.toISOString(), duration)) {
+            if (slot.getTime() >= now.getTime() && !slotConflicts(slot.getTime(), duration)) {
                 upcoming.push(slot.toISOString());
             }
             slot.setMinutes(slot.getMinutes() + 15);
@@ -565,22 +650,53 @@ app.post('/api/appointments', validateBody(appointmentSchema), (req, res) => {
     res.json(req.body);
 });
 
-app.put('/api/appointments/:id', validateBody(appointmentSchema), (req, res) => {
-    const { petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar } = req.body;
+app.put('/api/appointments/:id', validateBody(appointmentSchema), (req: any, res: any) => {
+    const { petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar,
+        checkedInAt, checkedInNotes, groomNotes, productsUsed, behaviourDuringGroom,
+        completedAt, aftercareNotes, readyForCollectionAt, surcharge, surchargeReason, finalPrice,
+        cancelledAt, cancellationReason, customerId } = req.body;
 
     if (hasOverlap(date, duration, req.params.id)) {
         const suggestions = getNextAvailableSlots(date, duration, 3);
         return res.status(400).json({ error: 'This time slot overlaps with an existing appointment.', suggestions });
     }
 
-    const stmt = db.prepare(`
-    UPDATE appointments SET petName=?, breed=?, age=?, notes=?, ownerName=?, phone=?, service=?, date=?, duration=?, status=?, price=?, avatar=? WHERE id=?
-  `);
-    stmt.run(petName, breed, age || null, notes || null, ownerName, phone || null, service, date, duration, status, price, avatar, req.params.id);
+    const old = db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id) as any;
+
+    db.prepare(`
+        UPDATE appointments SET
+            petName=?, breed=?, age=?, notes=?, ownerName=?, phone=?, service=?, date=?, duration=?, status=?, price=?, avatar=?,
+            checkedInAt=?, checkedInNotes=?, groomNotes=?, productsUsed=?, behaviourDuringGroom=?,
+            completedAt=?, aftercareNotes=?, readyForCollectionAt=?, surcharge=?, surchargeReason=?, finalPrice=?,
+            cancelledAt=?, cancellationReason=?, customerId=?
+        WHERE id=?
+    `).run(
+        petName, breed, age ?? null, notes ?? null, ownerName, phone ?? null, service, date, duration, status, price, avatar,
+        checkedInAt ?? null, checkedInNotes ?? null, groomNotes ?? null, productsUsed ?? null, behaviourDuringGroom ?? null,
+        completedAt ?? null, aftercareNotes ?? null, readyForCollectionAt ?? null, surcharge ?? null, surchargeReason ?? null, finalPrice ?? null,
+        cancelledAt ?? null, cancellationReason ?? null, customerId ?? null,
+        req.params.id,
+    );
+
+    logAudit(req.user?.id, 'update', 'appointment', req.params.id, old, req.body);
+
+    // Auto-notify on key status transitions
+    if (old && old.status !== status) {
+        const cust = customerId
+            ? (db.prepare('SELECT email, phone FROM customers WHERE id = ?').get(customerId) as any)
+            : null;
+        if (status === 'ready-for-collection') {
+            autoNotify('ready_for_collection', { ...req.body, id: req.params.id }, cust?.email, cust?.phone);
+        }
+        if (status === 'cancelled-by-salon' || status === 'cancelled-by-customer') {
+            autoNotify('booking_cancelled', { ...req.body, id: req.params.id }, cust?.email, cust?.phone);
+        }
+    }
+
     res.json(req.body);
 });
 
-app.delete('/api/appointments/:id', (req, res) => {
+app.delete('/api/appointments/:id', requireAdmin, (req, res) => {
     db.prepare('DELETE FROM appointments WHERE id=?').run(req.params.id);
     res.json({ success: true });
 });
@@ -614,7 +730,7 @@ app.put('/api/services/:id', validateBody(serviceSchema), (req, res) => {
     res.json(req.body);
 });
 
-app.delete('/api/services/:id', (req, res) => {
+app.delete('/api/services/:id', requireAdmin, (req, res) => {
     db.prepare('DELETE FROM services WHERE id=?').run(req.params.id);
     res.json({ success: true });
 });
@@ -680,28 +796,28 @@ app.get('/api/add-ons', (req, res) => {
     res.json(addOns);
 });
 
-app.post('/api/add-ons', validateBody(addOnSchema), (req, res) => {
+app.post('/api/add-ons', validateBody(addOnSchema), (req: any, res: any) => {
     const { name, description, price, duration, isOptional, isActive } = req.body;
     const id = req.body.id || crypto.randomUUID();
     db.prepare(`INSERT INTO add_ons (id, name, description, price, duration, isOptional, isActive) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run(id, name, description || null, price || 0, duration || 0, isOptional !== false ? 1 : 0, isActive !== false ? 1 : 0);
-    logAudit(null, 'create', 'add_on', id, null, req.body);
+    logAudit(req.user?.id || null, 'create', 'add_on', id, null, req.body);
     res.json({ id, ...req.body });
 });
 
-app.put('/api/add-ons/:id', validateBody(addOnSchema), (req, res) => {
+app.put('/api/add-ons/:id', validateBody(addOnSchema), (req: any, res: any) => {
     const { name, description, price, duration, isOptional, isActive } = req.body;
     const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id);
     db.prepare(`UPDATE add_ons SET name=?, description=?, price=?, duration=?, isOptional=?, isActive=? WHERE id=?`)
         .run(name, description || null, price || 0, duration || 0, isOptional !== false ? 1 : 0, isActive !== false ? 1 : 0, req.params.id);
-    logAudit(null, 'update', 'add_on', req.params.id, old, req.body);
+    logAudit(req.user?.id || null, 'update', 'add_on', req.params.id, old, req.body);
     res.json({ id: req.params.id, ...req.body });
 });
 
-app.delete('/api/add-ons/:id', (req, res) => {
+app.delete('/api/add-ons/:id', (req: any, res: any) => {
     const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id);
     db.prepare('UPDATE add_ons SET isActive = 0 WHERE id = ?').run(req.params.id);
-    logAudit(null, 'archive', 'add_on', req.params.id, old, null);
+    logAudit(req.user?.id || null, 'archive', 'add_on', req.params.id, old, null);
     res.json({ success: true });
 });
 
@@ -715,7 +831,7 @@ app.get('/api/services/:id/add-ons', (req, res) => {
     res.json(addOns);
 });
 
-app.post('/api/services/:id/add-ons', (req, res) => {
+app.post('/api/services/:id/add-ons', (req: any, res: any) => {
     const { addOnIds } = req.body;
     if (!Array.isArray(addOnIds)) return res.status(400).json({ error: 'addOnIds must be an array' });
     const del = db.prepare('DELETE FROM service_add_ons WHERE serviceId = ?');
@@ -726,7 +842,7 @@ app.post('/api/services/:id/add-ons', (req, res) => {
             ins.run(req.params.id, addOnId);
         }
     })();
-    logAudit(null, 'update', 'service_add_ons', req.params.id, null, { addOnIds });
+    logAudit(req.user?.id || null, 'update', 'service_add_ons', req.params.id, null, { addOnIds });
     res.json({ success: true });
 });
 
@@ -745,7 +861,7 @@ app.get('/api/payments', (req, res) => {
     res.json({ data: payments, total, page, limit });
 });
 
-app.post('/api/payments', validateBody(paymentSchema), (req, res) => {
+app.post('/api/payments', validateBody(paymentSchema), (req: any, res: any) => {
     const { appointmentId, customerId, amount, method, type, status, notes } = req.body;
     const id = req.body.id || crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -757,7 +873,7 @@ app.post('/api/payments', validateBody(paymentSchema), (req, res) => {
         db.prepare('UPDATE appointments SET depositPaid = 1 WHERE id = ?').run(appointmentId);
     }
 
-    logAudit(null, 'create', 'payment', id, null, req.body);
+    logAudit(req.user?.id || null, 'create', 'payment', id, null, req.body);
     res.json({ id, createdAt, ...req.body });
 });
 
@@ -767,7 +883,7 @@ app.get('/api/customers/:id/tags', (req, res) => {
     res.json(tags.map(t => t.tag));
 });
 
-app.post('/api/customers/:id/tags', (req, res) => {
+app.post('/api/customers/:id/tags', (req: any, res: any) => {
     const { tags } = req.body;
     if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' });
     const del = db.prepare('DELETE FROM customer_tags WHERE customerId = ?');
@@ -778,7 +894,7 @@ app.post('/api/customers/:id/tags', (req, res) => {
             ins.run(req.params.id, tag);
         }
     })();
-    logAudit(null, 'update', 'customer_tags', req.params.id, null, { tags });
+    logAudit(req.user?.id || null, 'update', 'customer_tags', req.params.id, null, { tags });
     res.json({ success: true });
 });
 
@@ -788,7 +904,7 @@ app.get('/api/dogs/:id/tags', (req, res) => {
     res.json(tags.map(t => t.tag));
 });
 
-app.post('/api/dogs/:id/tags', (req, res) => {
+app.post('/api/dogs/:id/tags', (req: any, res: any) => {
     const { tags } = req.body;
     if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array' });
     const del = db.prepare('DELETE FROM dog_tags WHERE dogId = ?');
@@ -799,7 +915,7 @@ app.post('/api/dogs/:id/tags', (req, res) => {
             ins.run(req.params.id, tag);
         }
     })();
-    logAudit(null, 'update', 'dog_tags', req.params.id, null, { tags });
+    logAudit(req.user?.id || null, 'update', 'dog_tags', req.params.id, null, { tags });
     res.json({ success: true });
 });
 
@@ -831,22 +947,22 @@ app.get('/api/forms', (req, res) => {
     res.json(forms);
 });
 
-app.post('/api/forms', validateBody(formSchema), (req, res) => {
+app.post('/api/forms', validateBody(formSchema), (req: any, res: any) => {
     const { name, description, version, fields, isActive } = req.body;
     const id = req.body.id || crypto.randomUUID();
     const createdAt = new Date().toISOString();
     db.prepare(`INSERT INTO forms (id, name, description, version, fields, isActive, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run(id, name, description || null, version || 1, fields, isActive !== false ? 1 : 0, createdAt);
-    logAudit(null, 'create', 'form', id, null, req.body);
+    logAudit(req.user?.id || null, 'create', 'form', id, null, req.body);
     res.json({ id, createdAt, ...req.body });
 });
 
-app.put('/api/forms/:id', validateBody(formSchema), (req, res) => {
+app.put('/api/forms/:id', validateBody(formSchema), (req: any, res: any) => {
     const { name, description, version, fields, isActive } = req.body;
     const old = db.prepare('SELECT * FROM forms WHERE id = ?').get(req.params.id);
     db.prepare(`UPDATE forms SET name=?, description=?, version=?, fields=?, isActive=?, updatedAt=? WHERE id=?`)
         .run(name, description || null, version || 1, fields, isActive !== false ? 1 : 0, new Date().toISOString(), req.params.id);
-    logAudit(null, 'update', 'form', req.params.id, old, req.body);
+    logAudit(req.user?.id || null, 'update', 'form', req.params.id, old, req.body);
     res.json({ id: req.params.id, ...req.body });
 });
 
@@ -866,13 +982,13 @@ app.get('/api/form-submissions', (req, res) => {
     res.json(submissions);
 });
 
-app.post('/api/form-submissions', validateBody(formSubmissionSchema), (req, res) => {
+app.post('/api/form-submissions', validateBody(formSubmissionSchema), (req: any, res: any) => {
     const { formId, customerId, dogId, appointmentId, data, signature } = req.body;
     const id = req.body.id || crypto.randomUUID();
     const submittedAt = new Date().toISOString();
     db.prepare(`INSERT INTO form_submissions (id, formId, customerId, dogId, appointmentId, data, signature, submittedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(id, formId, customerId || null, dogId || null, appointmentId || null, data, signature || null, submittedAt);
-    logAudit(null, 'create', 'form_submission', id, null, req.body);
+    logAudit(req.user?.id || null, 'create', 'form_submission', id, null, req.body);
     res.json({ id, submittedAt, ...req.body });
 });
 
@@ -881,25 +997,208 @@ app.get('/api/analytics', (req, res) => {
     const stats: any = {
         totalRevenue: 0,
         appointments: 0,
-        activeRate: 89,
-        newCustomers: 12
+        activeRate: 0,
+        newCustomers: 0
     };
 
     const appointments = db.prepare('SELECT price, status FROM appointments').all() as any[];
     stats.appointments = appointments.length;
-    stats.totalRevenue = appointments.filter(a => a.status === 'completed' || a.status === 'in-progress').reduce((sum, a) => sum + (a.price || 0), 0);
+    stats.totalRevenue = appointments
+        .filter(a => a.status === 'completed' || a.status === 'in-progress')
+        .reduce((sum, a) => sum + (a.price || 0), 0);
 
     const customers = db.prepare('SELECT lastVisit FROM customers').all() as any[];
     const activeCustomers = customers.filter(c => c.lastVisit && c.lastVisit !== 'Never').length;
     stats.activeRate = customers.length ? Math.round((activeCustomers / customers.length) * 100) : 0;
-
-    // Basic replacement for real metric instead of faking it
     stats.newCustomers = activeCustomers;
 
     res.json(stats);
 });
 
-// Database backup loop
+// --- Reports (server-side aggregated) ---
+app.get('/api/reports', (req, res) => {
+    const { start, end } = req.query as { start?: string; end?: string };
+    const startDate = start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const endDate = end || new Date().toISOString();
+
+    // Core appointment data in range
+    const appointments = db.prepare(`
+        SELECT id, petName, ownerName, service, date, duration, status, price
+        FROM appointments
+        WHERE date BETWEEN ? AND ?
+        ORDER BY date DESC
+    `).all(startDate, endDate) as any[];
+
+    // Revenue by day (completed only)
+    const revenueByDay = db.prepare(`
+        SELECT substr(date, 1, 10) as day, SUM(price) as revenue, COUNT(*) as count
+        FROM appointments
+        WHERE date BETWEEN ? AND ? AND status = 'completed'
+        GROUP BY day
+        ORDER BY day
+    `).all(startDate, endDate) as any[];
+
+    // Service breakdown (completed)
+    const serviceBreakdown = db.prepare(`
+        SELECT service as name, COUNT(*) as count, SUM(price) as revenue
+        FROM appointments
+        WHERE date BETWEEN ? AND ? AND status = 'completed'
+        GROUP BY service
+        ORDER BY revenue DESC
+    `).all(startDate, endDate) as any[];
+
+    res.json({ appointments, revenueByDay, serviceBreakdown });
+});
+
+// ══════════════════════════════════════════════
+// MESSAGING
+// ══════════════════════════════════════════════
+
+/**
+ * Interpolate {{variable}} placeholders in a message template.
+ */
+const interpolate = (template: string, vars: Record<string, string | number | undefined>) =>
+    template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(vars[key] ?? ''));
+
+/**
+ * Log a message to the DB and (optionally) send via email/SMS.
+ * In production, set SMTP_HOST / SMTP_USER / SMTP_PASS env vars;
+ * without them the message is queued as 'simulated'.
+ */
+const dispatchMessage = (opts: {
+    customerId?: string | null;
+    appointmentId?: string | null;
+    recipientEmail?: string | null;
+    recipientPhone?: string | null;
+    channel: 'email' | 'sms';
+    templateName: string;
+    subject?: string;
+    body: string;
+}) => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    // Determine status — if SMTP is not configured we log as 'simulated'
+    const smtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+    const status = smtpConfigured ? 'sent' : 'simulated';
+
+    db.prepare(`
+        INSERT INTO messages
+            (id, customerId, appointmentId, recipientEmail, recipientPhone,
+             channel, templateName, subject, body, status, sentAt, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        id,
+        opts.customerId ?? null,
+        opts.appointmentId ?? null,
+        opts.recipientEmail ?? null,
+        opts.recipientPhone ?? null,
+        opts.channel,
+        opts.templateName,
+        opts.subject ?? null,
+        opts.body,
+        status,
+        now,
+        now,
+    );
+
+    // TODO: plug Nodemailer here when SMTP_HOST env var is set
+    // if (smtpConfigured && opts.channel === 'email') { ... }
+
+    return { id, status };
+};
+
+/**
+ * Look up active templates from localStorage-equivalent server-side store.
+ * For now templates live on the client (localStorage); we use DEFAULT_TEMPLATES
+ * copied here so the server can render them without a round-trip.
+ */
+const SERVER_TEMPLATES: Record<string, { channel: 'email' | 'sms'; subject: string; body: string }> = {
+    booking_confirmed: {
+        channel: 'email',
+        subject: 'Your appointment at Savvy Pet Spa is confirmed!',
+        body: 'Hi {{customerName}},\n\nYour appointment for {{petName}} ({{service}}) has been confirmed.\n\n📅 {{date}}\n⏰ {{time}}\n💰 £{{price}}\n\nPlease arrive 5 minutes early.\n\nSee you soon!\nSavvy Pet Spa',
+    },
+    booking_pending: {
+        channel: 'email',
+        subject: "We've received your booking request",
+        body: "Hi {{customerName}},\n\nThank you for your booking request for {{petName}} ({{service}}) on {{date}} at {{time}}.\n\nWe're reviewing it and will confirm shortly.\n\nSavvy Pet Spa",
+    },
+    ready_for_collection: {
+        channel: 'sms',
+        subject: '{{petName}} is ready for collection! 🐾',
+        body: 'Hi {{customerName}}, {{petName}} is all done and looking fabulous! You can collect them now. – Savvy Pet Spa',
+    },
+    booking_cancelled: {
+        channel: 'email',
+        subject: 'Appointment cancelled',
+        body: 'Hi {{customerName}},\n\nYour appointment for {{petName}} on {{date}} has been cancelled.\n\nIf you would like to rebook, visit our booking page.\n\nSavvy Pet Spa',
+    },
+};
+
+/** Fire an automatic notification based on appointment event. */
+const autoNotify = (
+    triggerKey: keyof typeof SERVER_TEMPLATES,
+    appointment: any,
+    customerEmail?: string | null,
+    customerPhone?: string | null,
+) => {
+    const tpl = SERVER_TEMPLATES[triggerKey];
+    if (!tpl) return;
+
+    const apptDate = new Date(appointment.date);
+    const vars = {
+        customerName: appointment.ownerName || 'Valued Customer',
+        petName: appointment.petName || 'your pet',
+        service: appointment.service || '',
+        date: apptDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
+        time: apptDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        price: appointment.price ?? '',
+    };
+
+    dispatchMessage({
+        customerId: appointment.customerId ?? null,
+        appointmentId: appointment.id ?? null,
+        recipientEmail: customerEmail ?? null,
+        recipientPhone: customerPhone ?? null,
+        channel: tpl.channel,
+        templateName: triggerKey,
+        subject: interpolate(tpl.subject, vars),
+        body: interpolate(tpl.body, vars),
+    });
+};
+
+// GET  /api/messages — list sent messages (admin/owner)
+app.get('/api/messages', requireAdmin, (req: any, res: any) => {
+    const limit = parseInt(req.query.limit as string) || 100;
+    const rows = db.prepare(
+        'SELECT * FROM messages ORDER BY createdAt DESC LIMIT ?'
+    ).all(limit);
+    res.json(rows);
+});
+
+// POST /api/messages/send — manual send (staff+)
+app.post('/api/messages/send', (req: any, res: any) => {
+    const { recipientEmail, recipientPhone, channel, subject, body, customerId, appointmentId } = req.body;
+    if (!body) return res.status(400).json({ error: 'body is required' });
+    if (channel === 'email' && !recipientEmail) return res.status(400).json({ error: 'recipientEmail required for email channel' });
+    if (channel === 'sms' && !recipientPhone) return res.status(400).json({ error: 'recipientPhone required for sms channel' });
+
+    const result = dispatchMessage({
+        customerId: customerId ?? null,
+        appointmentId: appointmentId ?? null,
+        recipientEmail: recipientEmail ?? null,
+        recipientPhone: recipientPhone ?? null,
+        channel: channel || 'email',
+        templateName: 'manual',
+        subject: subject ?? null,
+        body,
+    });
+    logAudit(req.user?.id, 'send', 'message', result.id, null, { channel, recipientEmail, recipientPhone });
+    res.json({ id: result.id, status: result.status });
+});
+
+
 if (process.env.NODE_ENV !== 'test') {
     const backupDir = path.join(process.cwd(), 'data', 'backups');
     if (!fs.existsSync(backupDir)) {
