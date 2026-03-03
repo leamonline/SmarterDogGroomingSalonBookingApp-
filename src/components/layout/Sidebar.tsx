@@ -7,7 +7,8 @@ import {
   Scissors,
   Settings,
   Dog,
-  FileText
+  FileText,
+  Mail
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
@@ -34,6 +35,7 @@ const navigation: NavItem[] = [
   { name: "Customers", href: "/customers", icon: Users, minRole: "groomer" },
   { name: "Services", href: "/services", icon: Scissors, minRole: "receptionist" },
   { name: "Forms", href: "/forms", icon: FileText, minRole: "receptionist" },
+  { name: "Messaging", href: "/messaging", icon: Mail, minRole: "receptionist" },
   { name: "Settings", href: "/settings", icon: Settings, minRole: "groomer" },
 ];
 
