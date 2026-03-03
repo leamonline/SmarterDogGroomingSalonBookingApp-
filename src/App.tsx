@@ -15,6 +15,7 @@ import { FormsManager } from "./components/FormsManager";
 import { Login } from "./pages/Login";
 import { BookingPage } from "./pages/BookingPage";
 import { MessagingPage } from "./pages/MessagingPage";
+import { ReportsPage } from "./pages/ReportsPage";
 import { AuthProvider } from "./lib/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="services" element={<Services />} />
             <Route path="forms" element={<FormsManager />} />
             <Route path="messaging" element={<MessagingPage />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
