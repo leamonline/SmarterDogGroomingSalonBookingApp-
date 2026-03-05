@@ -129,7 +129,7 @@ export function ReportsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Reports</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-purple">Reports</h1>
                     <p className="text-slate-500">Business insights and audit trail.</p>
                 </div>
                 <Button variant="outline" onClick={exportCSV}>
@@ -197,7 +197,7 @@ export function ReportsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-slate-500">Revenue</p>
-                                        <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p>
+                                        <p className="text-2xl font-bold text-accent">{formatCurrency(totalRevenue)}</p>
                                     </div>
                                     <DollarSign className="h-8 w-8 text-slate-200" />
                                 </div>
@@ -219,7 +219,7 @@ export function ReportsPage() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-slate-500">Cancel / No-show</p>
-                                        <p className="text-2xl font-bold text-red-500">{cancellationRate.toFixed(1)}%</p>
+                                        <p className="text-2xl font-bold text-coral">{cancellationRate.toFixed(1)}%</p>
                                     </div>
                                     <Users className="h-8 w-8 text-slate-200" />
                                 </div>
@@ -235,9 +235,9 @@ export function ReportsPage() {
                         <CardContent>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 {[
-                                    { label: "Completed", count: completedBookings, colour: "bg-green-100 text-green-800" },
-                                    { label: "Confirmed", count: appointments.filter(a => a.status === "confirmed" || a.status === "scheduled").length, colour: "bg-blue-100 text-blue-800" },
-                                    { label: "Cancelled", count: cancelledBookings, colour: "bg-red-100 text-red-800" },
+                                    { label: "Completed", count: completedBookings, colour: "bg-sage-light text-brand-700" },
+                                    { label: "Confirmed", count: appointments.filter(a => a.status === "confirmed" || a.status === "scheduled").length, colour: "bg-sky-light text-brand-700" },
+                                    { label: "Cancelled", count: cancelledBookings, colour: "bg-coral-light text-coral" },
                                     { label: "No Show", count: noShows, colour: "bg-orange-100 text-orange-800" },
                                 ].map(s => (
                                     <div key={s.label} className="text-center p-3 rounded-lg bg-slate-50 border border-slate-100">

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/src/components/ui/dialog";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
+import { FieldError } from "@/src/components/ui/field-error";
+import { useFormValidation, required, positiveNumber } from "@/src/lib/useFormValidation";
 import { Badge } from "@/src/components/ui/badge";
 import { PaymentPanel } from "@/src/components/PaymentPanel";
 import { format } from "date-fns";
@@ -41,20 +43,20 @@ export type Appointment = {
 
 const STATUS_CONFIG: Record<string, { label: string; colour: string; icon: any }> = {
   'pending-approval': { label: 'Pending Approval', colour: 'bg-amber-100 text-amber-800', icon: Clock },
-  'confirmed': { label: 'Confirmed', colour: 'bg-blue-100 text-blue-800', icon: CheckCircle },
-  'scheduled': { label: 'Scheduled', colour: 'bg-blue-100 text-blue-800', icon: Clock },
+  'confirmed': { label: 'Confirmed', colour: 'bg-sky-light text-brand-700', icon: CheckCircle },
+  'scheduled': { label: 'Scheduled', colour: 'bg-sky-light text-brand-700', icon: Clock },
   'deposit-pending': { label: 'Deposit Pending', colour: 'bg-orange-100 text-orange-800', icon: Clock },
   'deposit-paid': { label: 'Deposit Paid', colour: 'bg-teal-100 text-teal-800', icon: CheckCircle },
-  'checked-in': { label: 'Checked In', colour: 'bg-indigo-100 text-indigo-800', icon: UserCheck },
+  'checked-in': { label: 'Checked In', colour: 'bg-brand-50 text-brand-800', icon: UserCheck },
   'in-progress': { label: 'In Progress', colour: 'bg-purple-100 text-purple-800', icon: Play },
-  'ready-for-collection': { label: 'Ready for Collection', colour: 'bg-green-100 text-green-800', icon: Truck },
-  'completed': { label: 'Completed', colour: 'bg-green-100 text-green-800', icon: CheckCircle },
-  'cancelled-by-customer': { label: 'Cancelled (Customer)', colour: 'bg-red-100 text-red-800', icon: XCircle },
-  'cancelled-by-salon': { label: 'Cancelled (Salon)', colour: 'bg-red-100 text-red-800', icon: XCircle },
-  'no-show': { label: 'No Show', colour: 'bg-red-100 text-red-800', icon: AlertTriangle },
+  'ready-for-collection': { label: 'Ready for Collection', colour: 'bg-sage-light text-brand-700', icon: Truck },
+  'completed': { label: 'Completed', colour: 'bg-sage-light text-brand-700', icon: CheckCircle },
+  'cancelled-by-customer': { label: 'Cancelled (Customer)', colour: 'bg-coral-light text-coral', icon: XCircle },
+  'cancelled-by-salon': { label: 'Cancelled (Salon)', colour: 'bg-coral-light text-coral', icon: XCircle },
+  'no-show': { label: 'No Show', colour: 'bg-coral-light text-coral', icon: AlertTriangle },
   'rescheduled': { label: 'Rescheduled', colour: 'bg-slate-100 text-slate-800', icon: Clock },
   'incomplete': { label: 'Incomplete', colour: 'bg-orange-100 text-orange-800', icon: Pause },
-  'incident-review': { label: 'Incident Review', colour: 'bg-red-100 text-red-800', icon: AlertTriangle },
+  'incident-review': { label: 'Incident Review', colour: 'bg-coral-light text-coral', icon: AlertTriangle },
 };
 
 // Valid next-status transitions
@@ -88,6 +90,15 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
   const [formData, setFormData] = useState<Partial<Appointment>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'checkin' | 'groom' | 'checkout'>('details');
+
+  const { errors, validate, clearError, clearAll } = useFormValidation<Appointment>({
+    petName: required('Pet name'),
+    ownerName: required('Owner name'),
+    service: required('Service'),
+    date: (v: any) => (!v ? 'Date & time is required' : null),
+    duration: (v: any) => (!v || Number(v) <= 0 ? 'Duration must be greater than 0' : null),
+    price: positiveNumber('Price'),
+  });
   // Track the last appointment id we initialised for, so we only reset
   // when a *different* appointment is opened (not when the modal re-opens
   // for the same one, which would lose in-progress edits).
@@ -103,6 +114,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     lastAppointmentIdRef.current = incomingId;
     setIsEditing(!appointment);
     setActiveTab('details');
+    clearAll();
     if (appointment) {
       setFormData(appointment);
     } else {
@@ -129,6 +141,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    clearError(name as keyof Appointment);
     setFormData((prev) => ({
       ...prev,
       [name]: name === "price" || name === "duration" || name === "surcharge" || name === "finalPrice" ? Number(value) : value,
@@ -136,12 +149,14 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    clearError('date');
     const newDate = new Date(e.target.value);
     setFormData((prev) => ({ ...prev, date: newDate }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate(formData)) return;
     onSave(formData as Appointment);
     onClose();
   };
@@ -246,7 +261,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             {activeTab === 'checkin' && (
               <div className="space-y-4">
                 {formData.checkedInAt && (
-                  <div className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <div className="text-xs text-accent font-medium flex items-center gap-1">
                     <CheckCircle className="h-3.5 w-3.5" /> Checked in at {format(new Date(formData.checkedInAt), "h:mm a")}
                   </div>
                 )}
@@ -331,7 +346,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                 </div>
 
                 {formData.completedAt && (
-                  <div className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <div className="text-xs text-accent font-medium flex items-center gap-1">
                     <CheckCircle className="h-3.5 w-3.5" /> Completed at {format(new Date(formData.completedAt), "h:mm a")}
                   </div>
                 )}
@@ -384,8 +399,11 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             <div className="space-y-4">
               <h4 className="font-medium text-slate-900 border-b pb-2">Pet Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="petName" className="text-right text-sm font-medium">Pet Name</label>
-                <Input id="petName" name="petName" value={formData.petName || ""} onChange={handleChange} className="col-span-3" required />
+                <label htmlFor="petName" className="text-right text-sm font-medium">Pet Name *</label>
+                <div className="col-span-3">
+                  <Input id="petName" name="petName" value={formData.petName || ""} onChange={handleChange} aria-invalid={!!errors.petName} />
+                  <FieldError message={errors.petName} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="breed" className="text-right text-sm font-medium">Breed</label>
@@ -405,8 +423,11 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h4 className="font-medium text-slate-900 border-b pb-2">Owner Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="ownerName" className="text-right text-sm font-medium">Owner Name</label>
-                <Input id="ownerName" name="ownerName" value={formData.ownerName || ""} onChange={handleChange} className="col-span-3" required />
+                <label htmlFor="ownerName" className="text-right text-sm font-medium">Owner Name *</label>
+                <div className="col-span-3">
+                  <Input id="ownerName" name="ownerName" value={formData.ownerName || ""} onChange={handleChange} aria-invalid={!!errors.ownerName} />
+                  <FieldError message={errors.ownerName} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="phone" className="text-right text-sm font-medium">Phone</label>
@@ -418,20 +439,32 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h4 className="font-medium text-slate-900 border-b pb-2">Appointment Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="service" className="text-right text-sm font-medium">Service</label>
-                <Input id="service" name="service" value={formData.service || ""} onChange={handleChange} className="col-span-3" required />
+                <label htmlFor="service" className="text-right text-sm font-medium">Service *</label>
+                <div className="col-span-3">
+                  <Input id="service" name="service" value={formData.service || ""} onChange={handleChange} aria-invalid={!!errors.service} />
+                  <FieldError message={errors.service} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="date" className="text-right text-sm font-medium">Date & Time</label>
-                <Input id="date" name="date" type="datetime-local" value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""} onChange={handleDateChange} className="col-span-3" required />
+                <label htmlFor="date" className="text-right text-sm font-medium">Date & Time *</label>
+                <div className="col-span-3">
+                  <Input id="date" name="date" type="datetime-local" value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""} onChange={handleDateChange} aria-invalid={!!errors.date} />
+                  <FieldError message={errors.date} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="duration" className="text-right text-sm font-medium">Duration (m)</label>
-                <Input id="duration" name="duration" type="number" value={formData.duration || ""} onChange={handleChange} className="col-span-3" required />
+                <label htmlFor="duration" className="text-right text-sm font-medium">Duration (m) *</label>
+                <div className="col-span-3">
+                  <Input id="duration" name="duration" type="number" value={formData.duration || ""} onChange={handleChange} aria-invalid={!!errors.duration} />
+                  <FieldError message={errors.duration} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="price" className="text-right text-sm font-medium">Price (£)</label>
-                <Input id="price" name="price" type="number" value={formData.price || ""} onChange={handleChange} className="col-span-3" required />
+                <label htmlFor="price" className="text-right text-sm font-medium">Price (£) *</label>
+                <div className="col-span-3">
+                  <Input id="price" name="price" type="number" value={formData.price || ""} onChange={handleChange} aria-invalid={!!errors.price} />
+                  <FieldError message={errors.price} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="status" className="text-right text-sm font-medium">Status</label>

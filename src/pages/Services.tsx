@@ -81,7 +81,7 @@ export function Services() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Services</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-purple">Services</h1>
         <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" />
           Add Service
@@ -127,10 +127,10 @@ export function Services() {
                   Duration: {service.duration} mins
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600" onClick={() => handleEdit(service)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-brand-600" onClick={() => handleEdit(service)}>
                     <Edit2 className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600" onClick={() => handleDelete(service.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-coral" onClick={() => handleDelete(service.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

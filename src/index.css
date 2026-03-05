@@ -1,1 +1,66 @@
 @import "tailwindcss";
+
+@theme {
+  /* ── Smarter Dog Brand Palette ── */
+  --color-brand-50:  #edf7f6;
+  --color-brand-100: #d5eeeb;
+  --color-brand-200: #aeddd9;
+  --color-brand-300: #7ec4be;
+  --color-brand-400: #56a8a1;
+  --color-brand-500: #3d8f88;
+  --color-brand-600: #2A6F6B;
+  --color-brand-700: #245c59;
+  --color-brand-800: #1e4a48;
+  --color-brand-900: #1a3d3b;
+
+  --color-accent:       #00D94A;
+  --color-accent-hover: #00c243;
+
+  --color-coral:       #E8506A;
+  --color-coral-light: #fce8ec;
+
+  --color-sky:       #00C2FF;
+  --color-sky-light: #e6f8ff;
+
+  --color-gold:       #FFCC00;
+  --color-gold-light: #fff9e6;
+
+  --color-sage:       #7AB8A8;
+  --color-sage-light: #eef5f3;
+
+  --color-purple:       #2D004B;
+  --color-purple-light: #4a1a6b;
+
+  --color-surface: #FAF9F6;
+
+  /* ── Fonts ── */
+  --font-heading: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+  --font-body:    "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-accent:  "Caveat", cursive;
+}
+
+/* ── Base layer ── */
+html {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* ── Scrollbar refinement ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-200);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-400);
+}

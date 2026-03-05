@@ -61,9 +61,9 @@ const TRANSITIONS: Record<string, ActionDef[]> = {
 
 const STYLE_CLASSES: Record<string, string> = {
     primary: "bg-slate-900 text-white hover:bg-slate-700",
-    success: "bg-emerald-600 text-white hover:bg-emerald-700",
+    success: "bg-accent text-white hover:bg-accent/90",
     warning: "bg-amber-500 text-white hover:bg-amber-600",
-    danger: "bg-red-600 text-white hover:bg-red-700",
+    danger: "bg-coral text-white hover:bg-coral/90",
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────

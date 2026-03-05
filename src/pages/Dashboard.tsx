@@ -81,7 +81,7 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-purple">Dashboard</h1>
         <Button onClick={handleNewAppointmentClick}>New Appointment</Button>
       </div>
 
@@ -196,7 +196,7 @@ export function Dashboard() {
                                   : "outline"
                             }
                             className={
-                              appointment.status === "in-progress" ? "bg-blue-100 text-blue-700 hover:bg-blue-100" : ""
+                              appointment.status === "in-progress" ? "bg-sky-light text-brand-700 hover:bg-sky-light" : ""
                             }
                           >
                             {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -221,7 +221,7 @@ export function Dashboard() {
                   ) : (
                     appointments.slice(0, 4).map((apt, i) => (
                       <div key={apt.id || i} className="flex items-start gap-4">
-                        <div className="mt-0.5 h-2 w-2 rounded-full bg-indigo-500 flex-shrink-0" />
+                        <div className="mt-0.5 h-2 w-2 rounded-full bg-brand-500 flex-shrink-0" />
                         <div className="space-y-1 flex-1 min-w-0">
                           <p className="text-sm text-slate-900 truncate">{apt.ownerName} booked {apt.service} for {apt.petName}</p>
                           <p className="text-xs text-slate-500">Scheduled for {format(apt.date, "MMM d, yyyy h:mm a")}</p>

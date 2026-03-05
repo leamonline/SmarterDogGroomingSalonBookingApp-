@@ -226,7 +226,7 @@ export function Customers() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Customers</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-purple">Customers</h1>
         <Button onClick={handleAddCustomer}>
           <Plus className="mr-2 h-4 w-4" />
           Add Customer
@@ -300,7 +300,7 @@ export function Customers() {
                   <div className="font-medium text-slate-900 flex items-center gap-2">
                     {customer.name}
                     {customer.warnings && customer.warnings.length > 0 && (
-                      <ShieldAlert className="h-4 w-4 text-red-500" />
+                      <ShieldAlert className="h-4 w-4 text-coral" />
                     )}
                   </div>
                 </TableCell>
@@ -345,7 +345,7 @@ export function Customers() {
                         <span>Edit Customer</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => handleDeleteCustomer(e, customer.id)}>
+                      <DropdownMenuItem className="text-coral focus:text-coral" onClick={(e) => handleDeleteCustomer(e, customer.id)}>
                         <Trash className="mr-2 h-4 w-4" />
                         <span>Delete Customer</span>
                       </DropdownMenuItem>
@@ -399,11 +399,11 @@ export function Customers() {
               </DialogHeader>
 
               {selectedCustomer.warnings && selectedCustomer.warnings.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3 my-2">
-                  <ShieldAlert className="h-5 w-5 text-red-600 mt-0.5" />
+                <div className="bg-coral-light border border-coral/30 rounded-lg p-3 flex items-start gap-3 my-2">
+                  <ShieldAlert className="h-5 w-5 text-coral mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-semibold text-red-800">Client Warnings</h4>
-                    <ul className="list-disc list-inside text-sm text-red-700 mt-1">
+                    <h4 className="text-sm font-semibold text-coral">Client Warnings</h4>
+                    <ul className="list-disc list-inside text-sm text-coral/80 mt-1">
                       {selectedCustomer.warnings.map((w, i) => <li key={i}>{w}</li>)}
                     </ul>
                   </div>
@@ -443,11 +443,11 @@ export function Customers() {
                   )}
 
                   {selectedCustomer.notes && (
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                    <div className="bg-brand-50 p-4 rounded-xl border border-brand-100">
+                      <h4 className="text-sm font-semibold text-brand-800 mb-2 flex items-center gap-2">
                         <FileText className="h-4 w-4" /> General Notes
                       </h4>
-                      <p className="text-sm text-blue-800 whitespace-pre-wrap">{selectedCustomer.notes}</p>
+                      <p className="text-sm text-brand-700 whitespace-pre-wrap">{selectedCustomer.notes}</p>
                     </div>
                   )}
 
@@ -505,7 +505,7 @@ export function Customers() {
                                     <span className="font-medium text-slate-700">{vax.name}</span>
                                     <div className="flex items-center gap-2">
                                       <span className="text-slate-500">{vax.expiryDate}</span>
-                                      <div className={`h-2 w-2 rounded-full ${vax.status === 'valid' ? 'bg-emerald-500' : 'bg-red-500'}`} title={vax.status} />
+                                      <div className={`h-2 w-2 rounded-full ${vax.status === 'valid' ? 'bg-accent' : 'bg-coral'}`} title={vax.status} />
                                     </div>
                                   </div>
                                 ))}
@@ -530,11 +530,11 @@ export function Customers() {
                           <div
                             key={apt.id}
                             onClick={() => handleAppointmentClick(apt)}
-                            className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-4 text-sm cursor-pointer hover:border-indigo-300 hover:shadow-sm transition-all"
+                            className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-4 text-sm cursor-pointer hover:border-brand-300 hover:shadow-sm transition-all"
                           >
                             <div className="flex items-center justify-between font-medium text-slate-900">
                               <span className="text-base">{apt.service} <span className="text-slate-500 font-normal text-sm">({apt.petName})</span></span>
-                              <span className="font-semibold text-indigo-600">£{apt.price}</span>
+                              <span className="font-semibold text-brand-600">£{apt.price}</span>
                             </div>
                             <div className="flex items-center justify-between text-slate-500">
                               <span className="flex items-center gap-1.5">

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/src/components/ui/dialog";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
+import { FieldError } from "@/src/components/ui/field-error";
+import { useFormValidation, required, email as emailRule, phone as phoneRule } from "@/src/lib/useFormValidation";
 import { Plus, X, Trash2, ShieldAlert, FileIcon, Upload } from "lucide-react";
 import { Customer, Pet, Vaccination, Document } from "@/src/types";
 
@@ -27,6 +29,12 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
   const [newVaxDate, setNewVaxDate] = useState("");
   const [newWarning, setNewWarning] = useState("");
 
+  const { errors, validate, clearError, clearAll } = useFormValidation<Customer>({
+    name: required('Name'),
+    email: emailRule,
+    phone: phoneRule,
+  });
+
   useEffect(() => {
     if (customer) {
       setFormData(customer);
@@ -49,10 +57,12 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
     }
     setActiveTab('info');
     setIsAddingPet(false);
+    clearAll();
   }, [customer, isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    clearError(name as keyof Customer);
     if (name.startsWith("emergency_")) {
       const field = name.replace("emergency_", "");
       setFormData((prev) => ({
@@ -152,6 +162,10 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate(formData)) {
+      setActiveTab('info'); // Switch to the tab with errors
+      return;
+    }
     onSave({ ...formData, pets } as Customer);
     onClose();
   };
@@ -166,21 +180,21 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
         <div className="flex border-b border-slate-200 mb-4 overflow-x-auto">
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => setActiveTab('info')}
           >
             Client Info
           </button>
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'pets' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'pets' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => setActiveTab('pets')}
           >
             Pets ({pets.length})
           </button>
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'notes' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'notes' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => setActiveTab('notes')}
           >
             Notes & Warnings
@@ -192,15 +206,24 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
             <div className="space-y-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="name" className="text-right text-sm font-medium">Name *</label>
-                <Input id="name" name="name" value={formData.name || ""} onChange={handleChange} className="col-span-3" required />
+                <div className="col-span-3">
+                  <Input id="name" name="name" value={formData.name || ""} onChange={handleChange} aria-invalid={!!errors.name} />
+                  <FieldError message={errors.name} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="email" className="text-right text-sm font-medium">Email *</label>
-                <Input id="email" name="email" type="email" value={formData.email || ""} onChange={handleChange} className="col-span-3" required />
+                <div className="col-span-3">
+                  <Input id="email" name="email" type="email" value={formData.email || ""} onChange={handleChange} aria-invalid={!!errors.email} />
+                  <FieldError message={errors.email} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="phone" className="text-right text-sm font-medium">Phone *</label>
-                <Input id="phone" name="phone" type="tel" value={formData.phone || ""} onChange={handleChange} className="col-span-3" required />
+                <div className="col-span-3">
+                  <Input id="phone" name="phone" type="tel" value={formData.phone || ""} onChange={handleChange} aria-invalid={!!errors.phone} />
+                  <FieldError message={errors.phone} />
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="address" className="text-right text-sm font-medium">Address</label>
@@ -208,7 +231,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                <h4 className="text-sm font-medium text-slate-900 mb-3">Emergency Contact</h4>
+                <h4 className="text-sm font-medium text-purple mb-3">Emergency Contact</h4>
                 <div className="grid grid-cols-4 items-center gap-4 mb-3">
                   <label htmlFor="emergency_name" className="text-right text-sm font-medium text-slate-500">Name</label>
                   <Input id="emergency_name" name="emergency_name" value={formData.emergencyContact?.name || ""} onChange={handleChange} className="col-span-3" />
@@ -231,7 +254,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                         <div className="font-medium text-slate-900">{pet.name}</div>
                         <div className="text-xs text-slate-500">{pet.breed} • {pet.weight} lbs</div>
                       </div>
-                      <Button type="button" variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleRemovePet(pet.id)}>
+                      <Button type="button" variant="ghost" size="icon" className="text-coral hover:text-coral/80 hover:bg-coral-light" onClick={() => handleRemovePet(pet.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -326,9 +349,9 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{vax.name}</span>
                               <span className="text-slate-500">Exp: {vax.expiryDate}</span>
-                              <div className={`h-1.5 w-1.5 rounded-full ${vax.status === 'valid' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                              <div className={`h-1.5 w-1.5 rounded-full ${vax.status === 'valid' ? 'bg-accent' : 'bg-coral'}`} />
                             </div>
-                            <button type="button" onClick={() => handleRemoveVax(vax.name)} className="text-slate-400 hover:text-red-500" title="Remove vaccination">
+                            <button type="button" onClick={() => handleRemoveVax(vax.name)} className="text-slate-400 hover:text-coral" title="Remove vaccination">
                               <X className="h-3 w-3" />
                             </button>
                           </div>
@@ -354,13 +377,13 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                   name="notes"
                   value={formData.notes || ""}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full min-h-[100px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
+                  className="w-full min-h-[100px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                   placeholder="General preferences, favorite groomer, etc."
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-red-600 flex items-center gap-1">
+                <label className="text-sm font-medium text-coral flex items-center gap-1">
                   <ShieldAlert className="h-4 w-4" /> Client Warnings
                 </label>
                 <div className="flex gap-2">
@@ -381,9 +404,9 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                 {(formData.warnings || []).length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-2">
                     {(formData.warnings || []).map((warning, idx) => (
-                      <div key={idx} className="flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-md text-sm">
+                      <div key={idx} className="flex items-center gap-1 bg-coral-light text-coral border border-coral/30 px-2 py-1 rounded-md text-sm">
                         <span>{warning}</span>
-                        <button type="button" onClick={() => handleRemoveWarning(warning)} className="text-red-400 hover:text-red-600" title="Remove warning">
+                        <button type="button" onClick={() => handleRemoveWarning(warning)} className="text-coral/60 hover:text-coral" title="Remove warning">
                           <X className="h-3 w-3" />
                         </button>
                       </div>

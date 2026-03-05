@@ -27,10 +27,10 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 const TYPE_COLOURS: Record<string, string> = {
-    deposit: 'bg-teal-100 text-teal-800',
-    full: 'bg-green-100 text-green-800',
-    partial: 'bg-blue-100 text-blue-800',
-    refund: 'bg-red-100 text-red-800',
+    deposit: 'bg-brand-50 text-brand-800',
+    full: 'bg-sage-light text-brand-700',
+    partial: 'bg-sky-light text-brand-700',
+    refund: 'bg-coral-light text-coral',
     'partial-refund': 'bg-orange-100 text-orange-800',
 };
 
@@ -168,20 +168,20 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
                 )}
                 <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Paid</span>
-                    <span className="font-medium text-green-600">£{totalPaid.toFixed(2)}</span>
+                    <span className="font-medium text-accent">£{totalPaid.toFixed(2)}</span>
                 </div>
                 {totalRefunded > 0 && (
                     <div className="flex justify-between text-sm">
                         <span className="text-slate-600">Refunded</span>
-                        <span className="font-medium text-red-600">-£{totalRefunded.toFixed(2)}</span>
+                        <span className="font-medium text-coral">-£{totalRefunded.toFixed(2)}</span>
                     </div>
                 )}
                 <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2">
                     <span>{balance > 0 ? 'Balance Due' : 'Status'}</span>
                     {balance > 0 ? (
-                        <span className="text-red-600">£{balance.toFixed(2)}</span>
+                        <span className="text-coral">£{balance.toFixed(2)}</span>
                     ) : (
-                        <span className="text-green-600">✓ Paid in full</span>
+                        <span className="text-accent">✓ Paid in full</span>
                     )}
                 </div>
             </div>

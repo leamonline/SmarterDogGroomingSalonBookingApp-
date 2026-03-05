@@ -16,9 +16,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLOURS: Record<string, string> = {
-  owner: 'bg-purple-100 text-purple-800',
-  receptionist: 'bg-blue-100 text-blue-800',
-  groomer: 'bg-green-100 text-green-800',
+  owner: 'bg-purple-light/30 text-purple',
+  receptionist: 'bg-sky-light text-brand-700',
+  groomer: 'bg-sage-light text-brand-700',
   customer: 'bg-slate-100 text-slate-800',
 };
 
@@ -150,7 +150,7 @@ export function Settings() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-purple">Settings</h1>
         <p className="text-slate-500">Manage your shop preferences and account settings.</p>
       </div>
 
@@ -195,7 +195,7 @@ export function Settings() {
               {schedule.map((s) => (
                 <div key={s.day} className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                   <div className="w-32 font-medium text-slate-900 flex items-center gap-2">
-                    <input type="checkbox" checked={!s.isClosed} onChange={(e) => updateSchedule(s.day, 'isClosed', !e.target.checked)} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" />
+                    <input type="checkbox" checked={!s.isClosed} onChange={(e) => updateSchedule(s.day, 'isClosed', !e.target.checked)} className="rounded border-brand-300 text-brand-600 focus:ring-brand-600" />
                     {s.day}
                   </div>
                   <div className="flex items-center gap-2">
@@ -205,9 +205,9 @@ export function Settings() {
                   </div>
                   <div className="w-24 text-right">
                     {s.isClosed ? (
-                      <span className="text-sm text-red-500 font-medium">Closed</span>
+                      <span className="text-sm text-coral font-medium">Closed</span>
                     ) : (
-                      <span className="text-sm text-green-500 font-medium">Open</span>
+                      <span className="text-sm text-accent font-medium">Open</span>
                     )}
                   </div>
                 </div>

@@ -124,7 +124,7 @@ function TemplateEditor({ template, onSave, onClose }: {
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-700">Active</label>
                         <label className="flex items-center gap-2 text-sm cursor-pointer mt-1">
-                            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="rounded border-slate-300 text-indigo-600" />
+                            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="rounded border-brand-300 text-brand-600" />
                             Send automatically
                         </label>
                     </div>
@@ -281,15 +281,15 @@ export function MessagingPage() {
     };
 
     const CHANNEL_STYLES: Record<string, { bg: string; icon: any }> = {
-        email: { bg: "bg-blue-100 text-blue-800", icon: Mail },
-        sms: { bg: "bg-green-100 text-green-800", icon: MessageSquare },
+        email: { bg: "bg-sky-light text-brand-700", icon: Mail },
+        sms: { bg: "bg-sage-light text-brand-700", icon: MessageSquare },
     };
 
     return (
         <div className="space-y-6 max-w-4xl">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Messaging</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-purple">Messaging</h1>
                     <p className="text-slate-500">Manage notification templates and view sent messages.</p>
                 </div>
                 <div className="flex gap-2">
@@ -330,7 +330,7 @@ export function MessagingPage() {
                                                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${ch.bg}`}>
                                                             <ChannelIcon className="h-3 w-3" /> {t.channel}
                                                         </span>
-                                                        <Badge variant="outline" className={t.isActive ? "text-green-600 border-green-200 text-[10px]" : "text-slate-400 border-slate-200 text-[10px]"}>
+                                                        <Badge variant="outline" className={t.isActive ? "text-accent border-accent/30 text-[10px]" : "text-slate-400 border-slate-200 text-[10px]"}>
                                                             {t.isActive ? 'Active' : 'Inactive'}
                                                         </Badge>
                                                     </div>
@@ -392,9 +392,9 @@ export function MessagingPage() {
                                         <p className="text-xs text-slate-500 mt-0.5">{msg.recipientEmail || msg.recipientPhone || 'Unknown recipient'}</p>
                                         <p className="text-slate-500 text-xs mt-1 truncate">{msg.body.slice(0, 100)}{msg.body.length > 100 ? '…' : ''}</p>
                                         <div className="flex gap-2 mt-1">
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${msg.status === "sent" ? "bg-green-100 text-green-700" :
-                                                    msg.status === "simulated" ? "bg-blue-100 text-blue-700" :
-                                                        msg.status === "failed" ? "bg-red-100 text-red-700" :
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${msg.status === "sent" ? "bg-sage-light text-brand-700" :
+                                                    msg.status === "simulated" ? "bg-sky-light text-brand-700" :
+                                                        msg.status === "failed" ? "bg-coral-light text-coral" :
                                                             "bg-slate-100 text-slate-600"
                                                 }`}>{msg.status}</span>
                                             <span className="text-[10px] text-slate-400">{msg.channel}</span>

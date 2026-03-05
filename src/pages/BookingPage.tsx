@@ -186,16 +186,16 @@ export function BookingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
+        <div className="min-h-screen bg-gradient-to-b from-surface to-brand-50">
             {/* Header */}
-            <header className="bg-white border-b border-slate-200 shadow-sm">
+            <header className="bg-white border-b border-brand-100 shadow-sm">
                 <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-slate-900 p-2">
+                        <div className="rounded-full bg-accent p-2">
                             <Scissors className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                            <h1 className="font-bold text-slate-900">Savvy Pet Spa</h1>
+                            <h1 className="font-bold text-purple font-heading">Smarter Dog</h1>
                             <p className="text-xs text-slate-500">Book your appointment online</p>
                         </div>
                     </div>
@@ -218,14 +218,14 @@ export function BookingPage() {
                             const thisIdx = i;
                             return (
                                 <React.Fragment key={s}>
-                                    {i > 0 && <div className={`flex-1 h-0.5 ${thisIdx <= current ? "bg-slate-900" : "bg-slate-200"}`} />}
-                                    <div className={`flex items-center gap-1.5 text-xs font-medium ${thisIdx < current ? "text-green-600" :
-                                        thisIdx === current ? "text-slate-900" : "text-slate-400"
+                                    {i > 0 && <div className={`flex-1 h-0.5 ${thisIdx <= current ? "bg-brand-600" : "bg-slate-200"}`} />}
+                                    <div className={`flex items-center gap-1.5 text-xs font-medium ${thisIdx < current ? "text-accent" :
+                                        thisIdx === current ? "text-purple" : "text-slate-400"
                                         }`}>
                                         {thisIdx < current ? (
                                             <CheckCircle className="h-4 w-4" />
                                         ) : (
-                                            <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${thisIdx === current ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-500"
+                                            <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${thisIdx === current ? "bg-brand-600 text-white" : "bg-slate-200 text-slate-500"
                                                 }`}>{i + 1}</span>
                                         )}
                                         <span className="hidden sm:inline">{labels[i]}</span>
@@ -241,7 +241,7 @@ export function BookingPage() {
                 {/* ═══ Step 1: Auth ═══ */}
                 {step === "auth" && (
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-md mx-auto">
-                        <h2 className="text-lg font-bold text-slate-900 mb-1">
+                        <h2 className="text-lg font-bold text-purple mb-1">
                             {isRegister ? "Create an Account" : "Sign In to Book"}
                         </h2>
                         <p className="text-sm text-slate-500 mb-6">
@@ -277,7 +277,7 @@ export function BookingPage() {
                             <Button type="submit" className="w-full">{isRegister ? "Create Account" : "Sign In"}</Button>
                             <p className="text-center text-sm text-slate-500">
                                 {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
-                                <button type="button" onClick={() => setIsRegister(!isRegister)} className="text-slate-900 font-medium underline">
+                                <button type="button" onClick={() => setIsRegister(!isRegister)} className="text-brand-600 font-medium underline">
                                     {isRegister ? "Sign in" : "Register"}
                                 </button>
                             </p>
@@ -288,16 +288,16 @@ export function BookingPage() {
                 {/* ═══ Step 2: Service ═══ */}
                 {step === "service" && (
                     <div className="space-y-4">
-                        <h2 className="text-lg font-bold text-slate-900">Choose a Service</h2>
+                        <h2 className="text-lg font-bold text-purple">Choose a Service</h2>
                         <div className="grid gap-3 sm:grid-cols-2">
                             {services.map(svc => (
                                 <button
                                     key={svc.id}
                                     onClick={() => { setSelectedService(svc); setStep("datetime"); }}
-                                    className={`text-left rounded-xl border-2 p-4 transition-all hover:shadow-md ${selectedService?.id === svc.id ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white hover:border-slate-300"
+                                    className={`text-left rounded-xl border-2 p-4 transition-all hover:shadow-md ${selectedService?.id === svc.id ? "border-brand-600 bg-brand-50" : "border-slate-200 bg-white hover:border-brand-300"
                                         }`}
                                 >
-                                    <h3 className="font-semibold text-slate-900">{svc.name}</h3>
+                                    <h3 className="font-semibold text-purple">{svc.name}</h3>
                                     {svc.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{svc.description}</p>}
                                     <div className="flex items-center gap-3 mt-3 text-sm">
                                         <span className="flex items-center gap-1 text-slate-600">
@@ -329,7 +329,7 @@ export function BookingPage() {
                 {step === "datetime" && selectedService && (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-bold text-slate-900">Pick a Date & Time</h2>
+                            <h2 className="text-lg font-bold text-purple">Pick a Date & Time</h2>
                             <Button size="sm" variant="outline" onClick={() => setStep("service")}><ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back</Button>
                         </div>
                         <p className="text-sm text-slate-500">{selectedService.name} — {selectedService.duration} min</p>
@@ -345,9 +345,9 @@ export function BookingPage() {
                                         key={ds}
                                         onClick={() => setSelectedDate(ds)}
                                         disabled={disabled}
-                                        className={`flex-shrink-0 w-16 py-3 rounded-lg text-center transition-all ${isSelected ? "bg-slate-900 text-white shadow-md" :
+                                        className={`flex-shrink-0 w-16 py-3 rounded-lg text-center transition-all ${isSelected ? "bg-brand-600 text-white shadow-md" :
                                             disabled ? "bg-slate-100 text-slate-300 cursor-not-allowed" :
-                                                "bg-white border border-slate-200 text-slate-700 hover:border-slate-400"
+                                                "bg-white border border-slate-200 text-slate-700 hover:border-brand-400"
                                             }`}
                                     >
                                         <span className="text-[10px] font-medium uppercase block">{format(d, "EEE")}</span>
@@ -374,7 +374,7 @@ export function BookingPage() {
                                             <button
                                                 key={slot}
                                                 onClick={() => setSelectedSlot(slot)}
-                                                className={`py-2 px-1 rounded-lg text-sm font-medium transition-all ${isSelected ? "bg-slate-900 text-white shadow-md" : "bg-white border border-slate-200 text-slate-700 hover:border-slate-400"
+                                                className={`py-2 px-1 rounded-lg text-sm font-medium transition-all ${isSelected ? "bg-brand-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-700 hover:border-brand-400"
                                                     }`}
                                             >
                                                 {format(t, "h:mm a")}
@@ -399,7 +399,7 @@ export function BookingPage() {
                 {step === "pet" && (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-bold text-slate-900">Your Dog's Details</h2>
+                            <h2 className="text-lg font-bold text-purple">Your Dog's Details</h2>
                             <Button size="sm" variant="outline" onClick={() => setStep("datetime")}><ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back</Button>
                         </div>
                         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 max-w-md mx-auto">
@@ -420,7 +420,7 @@ export function BookingPage() {
                                     value={petNotes}
                                     onChange={e => setPetNotes(e.target.value)}
                                     placeholder="Any allergies, behaviour notes, or special requirements..."
-                                    className="w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                                    className="w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                                 />
                             </div>
                             <Button className="w-full" onClick={() => { if (!petName) { toast.error("Dog's name is required"); return; } setStep("confirm"); }}>
@@ -434,11 +434,11 @@ export function BookingPage() {
                 {step === "confirm" && selectedService && selectedSlot && (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-bold text-slate-900">Confirm Your Booking</h2>
+                            <h2 className="text-lg font-bold text-purple">Confirm Your Booking</h2>
                             <Button size="sm" variant="outline" onClick={() => setStep("pet")}><ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back</Button>
                         </div>
                         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden max-w-md mx-auto">
-                            <div className="bg-slate-900 text-white px-6 py-4">
+                            <div className="bg-purple text-white px-6 py-4">
                                 <h3 className="font-bold text-lg">{selectedService.name}</h3>
                                 <p className="text-slate-300 text-sm">{selectedService.duration} minutes</p>
                             </div>
@@ -476,10 +476,10 @@ export function BookingPage() {
                 {/* ═══ Done ═══ */}
                 {step === "done" && bookingResult && (
                     <div className="text-center py-12 max-w-md mx-auto">
-                        <div className="rounded-full bg-green-100 p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                            <CheckCircle className="h-8 w-8 text-green-600" />
+                        <div className="rounded-full bg-sage-light p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                            <CheckCircle className="h-8 w-8 text-accent" />
                         </div>
-                        <h2 className="text-xl font-bold text-slate-900 mb-2">
+                        <h2 className="text-xl font-bold text-purple mb-2">
                             {bookingResult.status === "pending-approval" ? "Booking Request Submitted!" : "Booking Confirmed!"}
                         </h2>
                         <p className="text-slate-500 mb-6">{bookingResult.message}</p>

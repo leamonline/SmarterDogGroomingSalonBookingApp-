@@ -82,10 +82,10 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-x-4 border-b border-slate-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-x-4 border-b border-brand-100 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       <div className="flex items-center gap-x-4 lg:hidden">
         <Button variant="ghost" size="icon" onClick={() => setSidebarOpen && setSidebarOpen(true)}>
-          <Menu className="h-6 w-6 text-slate-500" />
+          <Menu className="h-6 w-6 text-brand-600" />
         </Button>
       </div>
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 items-center">
@@ -94,13 +94,13 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
             Search
           </label>
           <Search
-            className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-slate-400"
+            className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-brand-400"
             aria-hidden="true"
           />
           <input
             ref={searchInputRef}
             id="search-field"
-            className="block h-full w-full border-0 py-0 pl-8 pr-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 sm:text-sm"
+            className="block h-full w-full border-0 py-0 pl-8 pr-0 text-slate-900 placeholder:text-brand-300 focus:ring-0 sm:text-sm bg-transparent"
             placeholder="Search appointments, customers, or pets..."
             type="search"
             name="search"
@@ -112,46 +112,46 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
             onFocus={() => setShowResults(true)}
           />
           {!query && (
-            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-500">
+            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-xs text-brand-500 font-medium">
               /
             </kbd>
           )}
           {isSearching && (
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+              <Loader2 className="h-4 w-4 animate-spin text-brand-400" />
             </div>
           )}
 
           {showResults && query.length === 0 && (
-            <div className="absolute top-full mt-2 w-full z-50 rounded-md border border-slate-200 bg-white shadow-lg overflow-hidden py-4 px-4">
-              <p className="text-sm font-medium text-slate-800">Search across customers, pets, and appointments</p>
-              <p className="mt-1 text-xs text-slate-500">Tip: press <span className="font-semibold">/</span> from anywhere to jump to search.</p>
+            <div className="absolute top-full mt-2 w-full z-50 rounded-2xl border border-brand-100 bg-white shadow-lg overflow-hidden py-4 px-4">
+              <p className="text-sm font-medium text-purple">Search across customers, pets, and appointments</p>
+              <p className="mt-1 text-xs text-slate-500">Tip: press <span className="font-semibold text-brand-600">/</span> from anywhere to jump to search.</p>
             </div>
           )}
 
           {showResults && results && query.length > 0 && (
-            <div className="absolute top-full mt-2 w-full z-50 rounded-md border border-slate-200 bg-white shadow-lg overflow-hidden py-2" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div className="absolute top-full mt-2 w-full z-50 rounded-2xl border border-brand-100 bg-white shadow-lg overflow-hidden py-2" style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {results.customers?.length > 0 && (
                 <div className="px-4 py-2">
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Customers</h3>
+                  <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2">Customers</h3>
                   {results.customers.map((c: any) => (
-                    <div key={c.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/customers', { state: { customerId: c.id } }); setShowResults(false); setQuery(""); }}>{c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span></div>
+                    <div key={c.id} className="text-sm py-1.5 hover:bg-brand-50 cursor-pointer rounded-lg px-2 transition-colors" onClick={() => { navigate('/customers', { state: { customerId: c.id } }); setShowResults(false); setQuery(""); }}>{c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span></div>
                   ))}
                 </div>
               )}
               {results.pets?.length > 0 && (
                 <div className="px-4 py-2">
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Pets</h3>
+                  <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2">Pets</h3>
                   {results.pets.map((p: any) => (
-                    <div key={p.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/customers', { state: { customerId: p.customerId } }); setShowResults(false); setQuery(""); }}>{p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span></div>
+                    <div key={p.id} className="text-sm py-1.5 hover:bg-brand-50 cursor-pointer rounded-lg px-2 transition-colors" onClick={() => { navigate('/customers', { state: { customerId: p.customerId } }); setShowResults(false); setQuery(""); }}>{p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span></div>
                   ))}
                 </div>
               )}
               {results.appointments?.length > 0 && (
                 <div className="px-4 py-2">
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Appointments</h3>
+                  <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2">Appointments</h3>
                   {results.appointments.map((a: any) => (
-                    <div key={a.id} className="text-sm py-1 hover:bg-slate-50 cursor-pointer rounded px-2" onClick={() => { navigate('/calendar', { state: { appointmentId: a.id } }); setShowResults(false); setQuery(""); }}>{a.petName} - {a.service}</div>
+                    <div key={a.id} className="text-sm py-1.5 hover:bg-brand-50 cursor-pointer rounded-lg px-2 transition-colors" onClick={() => { navigate('/calendar', { state: { appointmentId: a.id } }); setShowResults(false); setQuery(""); }}>{a.petName} - {a.service}</div>
                   ))}
                 </div>
               )}
@@ -162,14 +162,14 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
           )}
         </div>
         <div className="flex items-center gap-x-4 lg:gap-x-6">
-          <Button variant="ghost" size="icon" className="relative text-slate-400 hover:text-slate-500">
+          <Button variant="ghost" size="icon" className="relative text-brand-400 hover:text-brand-600">
             <span className="sr-only">View notifications</span>
             <Bell className="h-5 w-5" aria-hidden="true" />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+              <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-coral ring-2 ring-white" />
             )}
           </Button>
-          <div className="h-6 w-px bg-slate-200" aria-hidden="true" />
+          <div className="h-6 w-px bg-brand-100" aria-hidden="true" />
           <Button variant="outline" size="sm" onClick={() => logout()}>
             Log out
           </Button>

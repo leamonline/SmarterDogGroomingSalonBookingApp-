@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -11,6 +10,8 @@ import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import { Textarea } from "@/src/components/ui/textarea";
+import { FieldError } from "@/src/components/ui/field-error";
+import { useFormValidation, required } from "@/src/lib/useFormValidation";
 
 export interface Service {
     id: string;
@@ -40,9 +41,14 @@ interface ServiceModalProps {
 
 export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalProps) {
     const [formData, setFormData] = useState<Partial<Service>>({});
+    const { errors, validate, clearError, clearAll } = useFormValidation<Service>({
+        name: required('Service name'),
+        category: required('Category'),
+    });
 
     useEffect(() => {
         if (isOpen) {
+            clearAll();
             if (service) {
                 setFormData(service);
             } else {
@@ -67,14 +73,12 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
     }, [isOpen, service]);
 
     const handleChange = (field: keyof Service, value: string | number) => {
+        clearError(field);
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleSave = () => {
-        if (!formData.name || !formData.category) {
-            toast.error("Name and Category are required.");
-            return;
-        }
+        if (!validate(formData)) return;
         onSave(formData as Service);
         onClose();
     };
@@ -90,24 +94,30 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                         <Label htmlFor="name" className="text-right">
                             Name *
                         </Label>
-                        <Input
-                            id="name"
-                            value={formData.name || ""}
-                            onChange={(e) => handleChange("name", e.target.value)}
-                            className="col-span-3"
-                        />
+                        <div className="col-span-3">
+                            <Input
+                                id="name"
+                                value={formData.name || ""}
+                                onChange={(e) => handleChange("name", e.target.value)}
+                                aria-invalid={!!errors.name}
+                            />
+                            <FieldError message={errors.name} />
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="category" className="text-right">
                             Category *
                         </Label>
-                        <Input
-                            id="category"
-                            value={formData.category || ""}
-                            onChange={(e) => handleChange("category", e.target.value)}
-                            className="col-span-3"
-                            placeholder="e.g. Grooming, Spa, Add-ons"
-                        />
+                        <div className="col-span-3">
+                            <Input
+                                id="category"
+                                value={formData.category || ""}
+                                onChange={(e) => handleChange("category", e.target.value)}
+                                placeholder="e.g. Grooming, Spa, Add-ons"
+                                aria-invalid={!!errors.category}
+                            />
+                            <FieldError message={errors.category} />
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="price" className="text-right">
@@ -148,7 +158,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
 
                     {/* Pricing & Deposit Section */}
                     <div className="border-t border-slate-100 pt-4 mt-2">
-                        <h4 className="text-sm font-medium text-slate-900 mb-3">Pricing & Deposits</h4>
+                        <h4 className="text-sm font-medium text-purple mb-3">Pricing & Deposits</h4>
                         <div className="grid grid-cols-4 items-center gap-4 mb-3">
                             <Label className="text-right text-sm">Price Type</Label>
                             <div className="col-span-3 flex gap-2">
@@ -158,7 +168,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                                         type="button"
                                         onClick={() => handleChange('priceType' as any, pt)}
                                         className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${formData.priceType === pt
-                                                ? 'bg-slate-900 text-white border-slate-900'
+                                                ? 'bg-brand-600 text-white border-brand-600'
                                                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                                             }`}
                                     >
@@ -175,7 +185,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                                         type="checkbox"
                                         checked={!!formData.depositRequired}
                                         onChange={e => handleChange('depositRequired' as any, e.target.checked as any)}
-                                        className="rounded border-slate-300 text-indigo-600"
+                                        className="rounded border-slate-300 text-brand-600"
                                     />
                                     Required
                                 </label>
@@ -194,7 +204,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
 
                     {/* Scheduling Section */}
                     <div className="border-t border-slate-100 pt-4 mt-2">
-                        <h4 className="text-sm font-medium text-slate-900 mb-3">Scheduling</h4>
+                        <h4 className="text-sm font-medium text-purple mb-3">Scheduling</h4>
                         <div className="grid grid-cols-4 items-center gap-4 mb-3">
                             <Label className="text-right text-sm">Pre Buffer</Label>
                             <div className="col-span-3 flex items-center gap-2">
@@ -223,18 +233,18 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
 
                     {/* Options Section */}
                     <div className="border-t border-slate-100 pt-4 mt-2">
-                        <h4 className="text-sm font-medium text-slate-900 mb-3">Options</h4>
+                        <h4 className="text-sm font-medium text-purple mb-3">Options</h4>
                         <div className="space-y-2">
                             <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="checkbox" checked={formData.isOnlineBookable !== false} onChange={e => handleChange('isOnlineBookable' as any, e.target.checked as any)} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={formData.isOnlineBookable !== false} onChange={e => handleChange('isOnlineBookable' as any, e.target.checked as any)} className="rounded border-slate-300 text-brand-600" />
                                 Available for online booking
                             </label>
                             <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="checkbox" checked={!!formData.isApprovalRequired} onChange={e => handleChange('isApprovalRequired' as any, e.target.checked as any)} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={!!formData.isApprovalRequired} onChange={e => handleChange('isApprovalRequired' as any, e.target.checked as any)} className="rounded border-slate-300 text-brand-600" />
                                 Requires approval before confirming
                             </label>
                             <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                <input type="checkbox" checked={!!formData.consentFormRequired} onChange={e => handleChange('consentFormRequired' as any, e.target.checked as any)} className="rounded border-slate-300 text-indigo-600" />
+                                <input type="checkbox" checked={!!formData.consentFormRequired} onChange={e => handleChange('consentFormRequired' as any, e.target.checked as any)} className="rounded border-slate-300 text-brand-600" />
                                 Requires consent form
                             </label>
                         </div>

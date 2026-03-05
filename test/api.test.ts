@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../server/index.js';
+import { JWT_SECRET } from '../server/middleware/auth.js';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret';
 const ownerToken = jwt.sign({ id: 'test-owner', email: 'owner@example.com', role: 'owner' }, JWT_SECRET);
 const staffToken = jwt.sign({ id: 'test-staff', email: 'staff@example.com', role: 'staff' }, JWT_SECRET);
 // Alias for existing tests
@@ -53,7 +53,12 @@ describe('Appointments', () => {
     });
 
     it('creates an appointment successfully', async () => {
-        const appt = makeAppt();
+        // Use next-available to guarantee an open slot
+        const slotsRes = await request(app)
+            .get('/api/appointments/next-available?duration=60')
+            .set(auth());
+        const openSlot = slotsRes.body.data[0];
+        const appt = makeAppt({ date: openSlot });
         const res = await request(app)
             .post('/api/appointments')
             .set(auth())
@@ -79,12 +84,19 @@ describe('Appointments', () => {
     });
 
     it('updates appointment status via PUT', async () => {
-        const appt = makeAppt({ date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() });
-        await request(app).post('/api/appointments').set(auth()).send(appt);
+        // Use next-available to guarantee an open slot
+        const slotsRes = await request(app)
+            .get('/api/appointments/next-available?duration=60')
+            .set(auth());
+        const openSlot = slotsRes.body.data[0];
+        const appt = makeAppt({ date: openSlot });
+        const createRes = await request(app).post('/api/appointments').set(auth()).send(appt);
+        expect(createRes.status).toBe(200);
+        const serverId = createRes.body.id; // server generates its own UUID
 
-        const updated = { ...appt, status: 'checked-in' };
+        const updated = { ...appt, id: serverId, status: 'checked-in' };
         const res = await request(app)
-            .put(`/api/appointments/${appt.id}`)
+            .put(`/api/appointments/${serverId}`)
             .set(auth())
             .send(updated);
         expect(res.status).toBe(200);
@@ -114,13 +126,14 @@ describe('Customers', () => {
 
         const createRes = await request(app).post('/api/customers').set(auth()).send(customer);
         expect(createRes.status).toBe(200);
+        const serverId = createRes.body.id; // server generates its own UUID
 
-        const deleteRes = await request(app).delete(`/api/customers/${customer.id}`).set(auth());
+        const deleteRes = await request(app).delete(`/api/customers/${serverId}`).set(auth());
         expect(deleteRes.status).toBe(200);
 
         const listRes = await request(app).get('/api/customers').set(auth());
         const ids = (listRes.body.data as any[]).map(c => c.id);
-        expect(ids).not.toContain(customer.id);
+        expect(ids).not.toContain(serverId);
     });
 
     it('returns paginated customer list with metadata', async () => {
@@ -135,20 +148,20 @@ describe('Customers', () => {
 
     it('preserves pet ID when updating a customer (upsert safety)', async () => {
         const petId = crypto.randomUUID();
-        const customerId = crypto.randomUUID();
         const customer = {
-            id: customerId,
+            id: crypto.randomUUID(),
             name: 'Pet ID Test',
             email: `petid_${Date.now()}@example.com`,
             phone: '555-1234',
             pets: [{ id: petId, name: 'Fluffy', breed: 'Shih Tzu' }],
         };
 
-        await request(app).post('/api/customers').set(auth()).send(customer);
+        const createRes = await request(app).post('/api/customers').set(auth()).send(customer);
+        const serverId = createRes.body.id; // server generates its own UUID
 
-        // Update with same pet ID
-        const updated = { ...customer, name: 'Pet ID Test Updated' };
-        const putRes = await request(app).put(`/api/customers/${customerId}`).set(auth()).send(updated);
+        // Update with server-assigned ID
+        const updated = { ...customer, id: serverId, name: 'Pet ID Test Updated' };
+        const putRes = await request(app).put(`/api/customers/${serverId}`).set(auth()).send(updated);
         expect(putRes.status).toBe(200);
     });
 });
@@ -163,28 +176,30 @@ describe('Role Guards', () => {
             phone: '555-9999',
             pets: [],
         };
-        await request(app).post('/api/customers').set(auth()).send(customer);
+        const createRes = await request(app).post('/api/customers').set(auth()).send(customer);
+        const serverId = createRes.body.id;
 
         const res = await request(app)
-            .delete(`/api/customers/${customer.id}`)
+            .delete(`/api/customers/${serverId}`)
             .set(auth(staffToken));
         expect(res.status).toBe(403);
 
         // Cleanup
-        await request(app).delete(`/api/customers/${customer.id}`).set(auth(ownerToken));
+        await request(app).delete(`/api/customers/${serverId}`).set(auth(ownerToken));
     });
 
     it('blocks staff from deleting an appointment (403)', async () => {
         const appt = makeAppt({ date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString() });
-        await request(app).post('/api/appointments').set(auth()).send(appt);
+        const createRes = await request(app).post('/api/appointments').set(auth()).send(appt);
+        const serverId = createRes.body.id;
 
         const res = await request(app)
-            .delete(`/api/appointments/${appt.id}`)
+            .delete(`/api/appointments/${serverId}`)
             .set(auth(staffToken));
         expect(res.status).toBe(403);
 
         // Cleanup
-        await request(app).delete(`/api/appointments/${appt.id}`).set(auth(ownerToken));
+        await request(app).delete(`/api/appointments/${serverId}`).set(auth(ownerToken));
     });
 });
 
@@ -264,6 +279,195 @@ describe('Public Booking Flow', () => {
 });
 
 // ══════════════════════════════════════════════════════════
+describe('Services', () => {
+    it('creates a new service', async () => {
+        const service = {
+            id: crypto.randomUUID(),
+            name: `Test Service ${Date.now()}`,
+            description: 'A test grooming service',
+            duration: 45,
+            price: 35,
+            category: 'Grooming',
+        };
+        const res = await request(app).post('/api/services').set(auth()).send(service);
+        expect(res.status).toBe(200);
+        expect(res.body.name).toBe(service.name);
+    });
+
+    it('returns paginated service list', async () => {
+        const res = await request(app).get('/api/services?page=1&limit=5').set(auth());
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+        expect(res.body.pagination).toBeDefined();
+    });
+
+    it('updates an existing service', async () => {
+        const service = {
+            id: crypto.randomUUID(),
+            name: `Update Test ${Date.now()}`,
+            description: 'Before update',
+            duration: 30,
+            price: 20,
+            category: 'Spa',
+        };
+        const createRes = await request(app).post('/api/services').set(auth()).send(service);
+        const serverId = createRes.body.id;
+
+        const updated = { ...service, id: serverId, name: 'Updated Service Name', price: 25 };
+        const putRes = await request(app).put(`/api/services/${serverId}`).set(auth()).send(updated);
+        expect(putRes.status).toBe(200);
+        expect(putRes.body.name).toBe('Updated Service Name');
+        expect(putRes.body.price).toBe(25);
+    });
+
+    it('deletes a service (admin only)', async () => {
+        const service = {
+            id: crypto.randomUUID(),
+            name: `Delete Test ${Date.now()}`,
+            description: '',
+            duration: 15,
+            price: 10,
+            category: 'Add-ons',
+        };
+        const createRes = await request(app).post('/api/services').set(auth()).send(service);
+        const serverId = createRes.body.id;
+
+        const deleteRes = await request(app).delete(`/api/services/${serverId}`).set(auth());
+        expect(deleteRes.status).toBe(200);
+    });
+
+    it('blocks staff from deleting a service (403)', async () => {
+        const service = {
+            id: crypto.randomUUID(),
+            name: `Staff Delete ${Date.now()}`,
+            description: '',
+            duration: 15,
+            price: 10,
+            category: 'Grooming',
+        };
+        const createRes = await request(app).post('/api/services').set(auth()).send(service);
+        const serverId = createRes.body.id;
+
+        const res = await request(app).delete(`/api/services/${serverId}`).set(auth(staffToken));
+        expect(res.status).toBe(403);
+
+        // Cleanup
+        await request(app).delete(`/api/services/${serverId}`).set(auth(ownerToken));
+    });
+});
+
+// ══════════════════════════════════════════════════════════
+describe('Settings', () => {
+    it('returns settings and schedule for authenticated user', async () => {
+        const res = await request(app).get('/api/settings').set(auth());
+        expect(res.status).toBe(200);
+        expect(res.body.shopName).toBeDefined();
+        expect(Array.isArray(res.body.schedule)).toBe(true);
+    });
+
+    it('returns notifications', async () => {
+        const res = await request(app).get('/api/settings/notifications').set(auth());
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+    });
+});
+
+// ══════════════════════════════════════════════════════════
+describe('Payments', () => {
+    it('creates a payment for an appointment', async () => {
+        // Create an appointment first
+        const slotsRes = await request(app).get('/api/appointments/next-available?duration=60').set(auth());
+        const openSlot = slotsRes.body.data[0];
+        const appt = makeAppt({ date: openSlot });
+        const apptRes = await request(app).post('/api/appointments').set(auth()).send(appt);
+        const apptId = apptRes.body.id;
+
+        const payment = {
+            appointmentId: apptId,
+            amount: 50,
+            method: 'card',
+            type: 'full',
+            notes: 'Test payment',
+        };
+        const res = await request(app).post('/api/payments').set(auth()).send(payment);
+        expect(res.status).toBe(200);
+        expect(res.body.id).toBeDefined();
+        expect(res.body.amount).toBe(50);
+    });
+
+    it('lists payments with pagination', async () => {
+        const res = await request(app).get('/api/payments?page=1&limit=5').set(auth());
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+    });
+});
+
+// ══════════════════════════════════════════════════════════
+describe('Forms', () => {
+    it('creates a consent form', async () => {
+        const form = {
+            name: `Consent Form ${Date.now()}`,
+            description: 'Test consent form',
+            fields: JSON.stringify([
+                { name: 'agreement', type: 'checkbox', label: 'I agree to terms' },
+            ]),
+        };
+        const res = await request(app).post('/api/forms').set(auth()).send(form);
+        expect(res.status).toBe(200);
+        expect(res.body.id).toBeDefined();
+    });
+
+    it('lists active forms', async () => {
+        const res = await request(app).get('/api/forms').set(auth());
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+    });
+});
+
+// ══════════════════════════════════════════════════════════
+describe('Search', () => {
+    it('searches customers by name', async () => {
+        const res = await request(app).get('/api/search?q=test').set(auth());
+        expect(res.status).toBe(200);
+        expect(res.body.customers).toBeDefined();
+    });
+});
+
+// ══════════════════════════════════════════════════════════
+describe('Customer Tags', () => {
+    it('sets and retrieves customer tags', async () => {
+        // Create a customer
+        const customer = {
+            id: crypto.randomUUID(),
+            name: 'Tag Test User',
+            email: `tag_${Date.now()}@example.com`,
+            phone: '555-8888',
+            pets: [],
+        };
+        const createRes = await request(app).post('/api/customers').set(auth()).send(customer);
+        const customerId = createRes.body.id;
+
+        // Set tags
+        const tagRes = await request(app)
+            .post(`/api/customers/${customerId}/tags`)
+            .set(auth())
+            .send({ tags: ['VIP', 'Regular'] });
+        expect(tagRes.status).toBe(200);
+
+        // Get tags
+        const getRes = await request(app)
+            .get(`/api/customers/${customerId}/tags`)
+            .set(auth());
+        expect(getRes.status).toBe(200);
+        expect(getRes.body).toContain('VIP');
+        expect(getRes.body).toContain('Regular');
+
+        // Cleanup
+        await request(app).delete(`/api/customers/${customerId}`).set(auth());
+    });
+});
+
+// ══════════════════════════════════════════════════════════
 // Legacy flat describe (kept so existing CI passes)
 describe('API Endpoints Integration Tests', () => {
     it('should return error 401 for protected route without auth', async () => {
@@ -318,13 +522,14 @@ describe('API Endpoints Integration Tests', () => {
 
         const createRes = await request(app).post('/api/customers').set('Authorization', `Bearer ${testToken}`).send(customer);
         expect(createRes.status).toBe(200);
+        const serverId = createRes.body.id; // server generates its own UUID
 
-        const deleteRes = await request(app).delete(`/api/customers/${customer.id}`).set('Authorization', `Bearer ${testToken}`);
+        const deleteRes = await request(app).delete(`/api/customers/${serverId}`).set('Authorization', `Bearer ${testToken}`);
         expect(deleteRes.status).toBe(200);
 
         const getRes = await request(app).get('/api/customers').set('Authorization', `Bearer ${testToken}`);
         expect(getRes.status).toBe(200);
-        const exists = (getRes.body.data as any[]).some(c => c.id === customer.id);
+        const exists = (getRes.body.data as any[]).some(c => c.id === serverId);
         expect(exists).toBe(false);
     });
 });

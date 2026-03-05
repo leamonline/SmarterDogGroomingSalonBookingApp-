@@ -13,17 +13,17 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-semibold font-heading ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
           {
-            "bg-slate-900 text-slate-50 hover:bg-slate-900/90": variant === "default",
-            "bg-red-500 text-slate-50 hover:bg-red-500/90": variant === "destructive",
-            "border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900": variant === "outline",
-            "bg-slate-100 text-slate-900 hover:bg-slate-100/80": variant === "secondary",
-            "hover:bg-slate-100 hover:text-slate-900": variant === "ghost",
-            "text-slate-900 underline-offset-4 hover:underline": variant === "link",
-            "h-10 px-4 py-2": size === "default",
-            "h-9 rounded-md px-3": size === "sm",
-            "h-11 rounded-md px-8": size === "lg",
+            "bg-brand-600 text-white hover:bg-brand-700 shadow-sm": variant === "default",
+            "bg-coral text-white hover:bg-coral/90 shadow-sm": variant === "destructive",
+            "border border-brand-200 bg-white hover:bg-brand-50 text-brand-700": variant === "outline",
+            "bg-brand-50 text-brand-700 hover:bg-brand-100": variant === "secondary",
+            "hover:bg-brand-50 hover:text-brand-700": variant === "ghost",
+            "text-brand-600 underline-offset-4 hover:underline": variant === "link",
+            "h-10 px-5 py-2": size === "default",
+            "h-9 rounded-full px-4": size === "sm",
+            "h-11 rounded-full px-8": size === "lg",
             "h-10 w-10": size === "icon",
           },
           className

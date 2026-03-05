@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { mockAppointments, mockCustomers, mockServices } from '../src/data/mockData.js';
 
@@ -335,6 +336,43 @@ migrate(2, () => {
   safeAdd('messages', 'recipientPhone', 'TEXT');
 });
 
+// Migration 3: add performance indexes
+migrate(3, () => {
+  db.exec(`
+    -- Appointment lookups by date range (used in overlap checks and reports)
+    CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(date);
+    CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
+    CREATE INDEX IF NOT EXISTS idx_appointments_customer ON appointments(customerId);
+
+    -- Customer lookups (search, email login)
+    CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+
+    -- Foreign key lookups (used in batch queries)
+    CREATE INDEX IF NOT EXISTS idx_pets_customer ON pets(customerId);
+    CREATE INDEX IF NOT EXISTS idx_customer_warnings_customer ON customer_warnings(customerId);
+    CREATE INDEX IF NOT EXISTS idx_documents_customer ON documents(customerId);
+    CREATE INDEX IF NOT EXISTS idx_pet_behavioral_notes_pet ON pet_behavioral_notes(petId);
+    CREATE INDEX IF NOT EXISTS idx_vaccinations_pet ON vaccinations(petId);
+
+    -- Payments by appointment
+    CREATE INDEX IF NOT EXISTS idx_payments_appointment ON payments(appointmentId);
+
+    -- Audit log lookups
+    CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entityType, entityId);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(createdAt);
+
+    -- Messages
+    CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(createdAt);
+
+    -- Tags
+    CREATE INDEX IF NOT EXISTS idx_customer_tags_customer ON customer_tags(customerId);
+    CREATE INDEX IF NOT EXISTS idx_dog_tags_dog ON dog_tags(dogId);
+
+    -- Form submissions
+    CREATE INDEX IF NOT EXISTS idx_form_submissions_form ON form_submissions(formId);
+    CREATE INDEX IF NOT EXISTS idx_form_submissions_customer ON form_submissions(customerId);
+  `);
+});
 
 // Migrate existing cleartext passwords to bcrypt hashes
 const existingUsers = db.prepare('SELECT id, password FROM users').all() as { id: string, password: string }[];
@@ -355,7 +393,29 @@ const customersCount = db.prepare('SELECT COUNT(*) as count FROM customers').get
 if (customersCount.count === 0) {
   console.log('Seeding database with mock data...');
 
-  // Removed default user seeding to prevent hardcoded credentials in production
+  // First-run admin user setup
+  // Uses ADMIN_EMAIL / ADMIN_PASSWORD env vars if set, otherwise generates secure defaults.
+  const existingUserCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+  if (existingUserCount.count === 0) {
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@savvypetspa.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomUUID().slice(0, 16);
+    const hashedPassword = bcrypt.hashSync(adminPassword, 10);
+    db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(
+      crypto.randomUUID(), adminEmail, hashedPassword, 'owner'
+    );
+    console.log('');
+    console.log('╔══════════════════════════════════════════════════════╗');
+    console.log('║           INITIAL ADMIN ACCOUNT CREATED             ║');
+    console.log('╠══════════════════════════════════════════════════════╣');
+    console.log(`║  Email:    ${adminEmail.padEnd(42)}║`);
+    console.log(`║  Password: ${adminPassword.padEnd(42)}║`);
+    console.log('║                                                      ║');
+    console.log('║  ⚠  Change this password after first login!          ║');
+    console.log('║  Set ADMIN_EMAIL / ADMIN_PASSWORD env vars to        ║');
+    console.log('║  customize on fresh installs.                        ║');
+    console.log('╚══════════════════════════════════════════════════════╝');
+    console.log('');
+  }
 
   const insertCustomer = db.prepare(`
     INSERT INTO customers (id, name, email, phone, address, emergencyContactName, emergencyContactPhone, notes, lastVisit, totalSpent)

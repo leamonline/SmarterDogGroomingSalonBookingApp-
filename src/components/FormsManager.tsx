@@ -196,7 +196,7 @@ export function FormBuilderModal({ isOpen, onClose, form, onSave }: FormBuilderM
                                             <input type="checkbox" checked={field.required} onChange={e => updateField(field.id, { required: e.target.checked })} className="rounded border-slate-300" />
                                             Req
                                         </label>
-                                        <button title="Remove field" onClick={() => removeField(field.id)} className="text-slate-400 hover:text-red-500">
+                                        <button title="Remove field" onClick={() => removeField(field.id)} className="text-slate-400 hover:text-coral">
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </button>
                                     </div>
@@ -289,7 +289,7 @@ export function FormFillerModal({ isOpen, onClose, form, context, onSubmitted }:
                         <div key={field.id} className="space-y-1">
                             <label className="text-sm font-medium text-slate-700">
                                 {field.label}
-                                {field.required && <span className="text-red-500 ml-1">*</span>}
+                                {field.required && <span className="text-coral ml-1">*</span>}
                             </label>
                             {field.type === 'text' && (
                                 <Input value={values[field.id] || ""} onChange={e => setValues(prev => ({ ...prev, [field.id]: e.target.value }))} />
@@ -298,12 +298,12 @@ export function FormFillerModal({ isOpen, onClose, form, context, onSubmitted }:
                                 <textarea
                                     value={values[field.id] || ""}
                                     onChange={e => setValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                                    className="w-full min-h-[60px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                                    className="w-full min-h-[60px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                                 />
                             )}
                             {field.type === 'checkbox' && (
                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                    <input type="checkbox" title="I agree" checked={!!values[field.id]} onChange={e => setValues(prev => ({ ...prev, [field.id]: e.target.checked }))} className="rounded border-slate-300 text-indigo-600" />
+                                    <input type="checkbox" title="I agree" checked={!!values[field.id]} onChange={e => setValues(prev => ({ ...prev, [field.id]: e.target.checked }))} className="rounded border-slate-300 text-brand-600" />
                                     I agree
                                 </label>
                             )}
@@ -402,11 +402,11 @@ export function FormsManager() {
     };
 
     const FORM_TYPE_COLOURS: Record<string, string> = {
-        'intake': 'bg-blue-100 text-blue-800',
-        'grooming-consent': 'bg-green-100 text-green-800',
+        'intake': 'bg-sky-light text-brand-700',
+        'grooming-consent': 'bg-sage-light text-brand-700',
         'matting-consent': 'bg-orange-100 text-orange-800',
-        'vet-consent': 'bg-red-100 text-red-800',
-        'health-check': 'bg-purple-100 text-purple-800',
+        'vet-consent': 'bg-coral-light text-coral',
+        'health-check': 'bg-purple-light/30 text-purple',
         'custom': 'bg-slate-100 text-slate-800',
     };
 
@@ -414,7 +414,7 @@ export function FormsManager() {
         <div className="space-y-6 max-w-4xl">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Forms & Consent</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-purple">Forms & Consent</h1>
                     <p className="text-slate-500">Manage intake forms, consent forms, and view submissions.</p>
                 </div>
                 <Button onClick={handleCreate}>
@@ -482,7 +482,7 @@ export function FormsManager() {
                                             {new Date(sub.createdAt).toLocaleString('en-GB')}
                                         </span>
                                         {sub.signedAt && (
-                                            <span className="text-xs text-green-600 flex items-center gap-1">
+                                            <span className="text-xs text-accent flex items-center gap-1">
                                                 <CheckCircle className="h-3 w-3" /> Signed
                                             </span>
                                         )}

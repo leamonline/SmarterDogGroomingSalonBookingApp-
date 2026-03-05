@@ -15,11 +15,13 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     headers,
   });
 
-  if (response.status === 401) {
-    // Basic auto-logout on token expiration / unauthorized
+  if (response.status === 401 || response.status === 403) {
+    // Auto-logout on missing token (401) or expired/invalid token (403)
     localStorage.removeItem('petspa_token');
     localStorage.removeItem('petspa_user');
     window.location.href = '/login';
+    // Throw so calling code doesn't try to parse a non-JSON body
+    throw new Error('Session expired — please log in again.');
   }
 
   if (!response.ok) {

@@ -117,7 +117,7 @@ export function Calendar() {
     <div className="flex h-full flex-col space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Calendar</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-purple">Calendar</h1>
           <div className="flex items-center rounded-md border border-slate-200 bg-white shadow-sm">
             <Button variant="ghost" size="icon" onClick={prevWeek} className="h-8 w-8 rounded-none border-r border-slate-200">
               <ChevronLeft className="h-4 w-4" />
@@ -148,18 +148,18 @@ export function Calendar() {
                 key={i}
                 className={cn(
                   "border-l border-slate-200 p-4 text-center",
-                  isSameDay(day, new Date()) ? "bg-indigo-50" : ""
+                  isSameDay(day, new Date()) ? "bg-brand-50" : ""
                 )}
               >
                 <div className={cn(
                   "text-sm font-medium",
-                  isSameDay(day, new Date()) ? "text-indigo-600" : "text-slate-900"
+                  isSameDay(day, new Date()) ? "text-brand-600" : "text-slate-900"
                 )}>
                   {format(day, "EEE")}
                 </div>
                 <div className={cn(
                   "mt-1 text-2xl font-light",
-                  isSameDay(day, new Date()) ? "text-indigo-600" : "text-slate-500"
+                  isSameDay(day, new Date()) ? "text-brand-600" : "text-slate-500"
                 )}>
                   {format(day, "d")}
                 </div>
@@ -203,10 +203,10 @@ export function Calendar() {
                             className={cn(
                               "absolute left-1 right-1 rounded-md border p-2 text-xs shadow-sm transition-all hover:z-10 hover:shadow-md cursor-grab active:cursor-grabbing",
                               apt.status === "completed"
-                                ? "border-green-200 bg-green-50 text-green-700"
+                                ? "border-sage bg-sage-light text-brand-700"
                                 : apt.status === "in-progress"
-                                  ? "border-blue-200 bg-blue-50 text-blue-700"
-                                  : "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                  ? "border-sky bg-sky-light text-brand-700"
+                                  : "border-brand-200 bg-brand-50 text-brand-700"
                             )}
                             // eslint-disable-next-line react/forbid-dom-props
                             style={{
