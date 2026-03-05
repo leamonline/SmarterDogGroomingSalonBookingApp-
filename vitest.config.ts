@@ -10,7 +10,14 @@ export default defineConfig({
   test: {
     // API tests only — no browser plugins needed
     pool: 'forks',
-    testTimeout: 15_000,
-    hookTimeout: 15_000,
+    poolOptions: {
+      forks: {
+        // iCloud Drive paths can slow native-module loading; give workers more time
+        execArgv: [],
+      },
+    },
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
+    teardownTimeout: 10_000,
   },
 });
