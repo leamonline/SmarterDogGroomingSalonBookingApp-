@@ -3,41 +3,73 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Suspense, lazy } from "react";
 import { Toaster } from "sonner";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/layout/Layout";
-import { Dashboard } from "./pages/Dashboard";
-import { Calendar } from "./pages/Calendar";
-import { Customers } from "./pages/Customers";
-import { Services } from "./pages/Services";
-import { Settings } from "./pages/Settings";
-import { FormsManager } from "./components/FormsManager";
-import { Login } from "./pages/Login";
-import { BookingPage } from "./pages/BookingPage";
-import { MessagingPage } from "./pages/MessagingPage";
-import { ReportsPage } from "./pages/ReportsPage";
 import { AuthProvider } from "./lib/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+
+const Dashboard = lazy(async () => ({
+  default: (await import("./pages/Dashboard")).Dashboard,
+}));
+const Calendar = lazy(async () => ({
+  default: (await import("./pages/Calendar")).Calendar,
+}));
+const Customers = lazy(async () => ({
+  default: (await import("./pages/Customers")).Customers,
+}));
+const Services = lazy(async () => ({
+  default: (await import("./pages/Services")).Services,
+}));
+const Settings = lazy(async () => ({
+  default: (await import("./pages/Settings")).Settings,
+}));
+const FormsManager = lazy(async () => ({
+  default: (await import("./components/FormsManager")).FormsManager,
+}));
+const Login = lazy(async () => ({
+  default: (await import("./pages/Login")).Login,
+}));
+const BookingPage = lazy(async () => ({
+  default: (await import("./pages/BookingPage")).BookingPage,
+}));
+const MessagingPage = lazy(async () => ({
+  default: (await import("./pages/MessagingPage")).MessagingPage,
+}));
+const ReportsPage = lazy(async () => ({
+  default: (await import("./pages/ReportsPage")).ReportsPage,
+}));
+
+function RouteLoadingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-surface px-6 text-sm text-muted-foreground">
+      Loading PetSpa...
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <AuthProvider>
       <Toaster position="top-right" richColors />
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/book" element={<BookingPage />} />
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route index element={<Dashboard />} />
-            <Route path="calendar" element={<Calendar />} />
-            <Route path="customers" element={<Customers />} />
-            <Route path="services" element={<Services />} />
-            <Route path="forms" element={<FormsManager />} />
-            <Route path="messaging" element={<MessagingPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-        </Routes>
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/book" element={<BookingPage />} />
+            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={<Dashboard />} />
+              <Route path="calendar" element={<Calendar />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="services" element={<Services />} />
+              <Route path="forms" element={<FormsManager />} />
+              <Route path="messaging" element={<MessagingPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
+          </Routes>
+        </Suspense>
       </Router>
     </AuthProvider>
   );

@@ -3,6 +3,12 @@ import path from 'path';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { mockAppointments, mockCustomers, mockServices } from '../src/data/mockData.js';
+import {
+  BOOKING_CLOSE_TIME,
+  BOOKING_DAY_ORDER,
+  BOOKING_OPEN_TIME,
+  createDefaultSlotConfig,
+} from './helpers/schedule.js';
 
 const dbPath = path.resolve(process.cwd(), 'petspa.db');
 const db = new Database(dbPath);
@@ -108,7 +114,8 @@ db.exec(`
     day TEXT PRIMARY KEY,
     openTime TEXT,
     closeTime TEXT,
-    isClosed INTEGER
+    isClosed INTEGER,
+    slotConfig TEXT
   );
 
   CREATE TABLE IF NOT EXISTS notifications (
@@ -374,6 +381,34 @@ migrate(3, () => {
   `);
 });
 
+// Migration 4: structured booking slots on schedule rows
+migrate(4, () => {
+  const cols = db.prepare('PRAGMA table_info(schedule)').all() as { name: string }[];
+  if (!cols.some((col) => col.name === 'slotConfig')) {
+    db.exec('ALTER TABLE schedule ADD COLUMN slotConfig TEXT');
+  }
+
+  db.prepare(`
+    UPDATE schedule
+    SET openTime = ?, closeTime = ?, slotConfig = COALESCE(slotConfig, ?)
+  `).run(BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, createDefaultSlotConfig());
+});
+
+const existingScheduleDays = new Set(
+  (db.prepare('SELECT day FROM schedule').all() as { day: string }[]).map((row) => row.day),
+);
+
+const insertScheduleDay = db.prepare(`
+  INSERT INTO schedule (day, openTime, closeTime, isClosed, slotConfig)
+  VALUES (?, ?, ?, ?, ?)
+`);
+
+for (const day of BOOKING_DAY_ORDER) {
+  if (!existingScheduleDays.has(day)) {
+    insertScheduleDay.run(day, BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, 0, createDefaultSlotConfig());
+  }
+}
+
 // Migrate existing cleartext passwords to bcrypt hashes
 const existingUsers = db.prepare('SELECT id, password FROM users').all() as { id: string, password: string }[];
 if (existingUsers.length > 0) {
@@ -488,10 +523,9 @@ if (customersCount.count === 0) {
   insertSetting.run('shopPhone', '(555) 123-4567');
   insertSetting.run('shopAddress', '123 Grooming Lane, Pet City, PC 12345');
 
-  const insertSchedule = db.prepare('INSERT INTO schedule (day, openTime, closeTime, isClosed) VALUES (?, ?, ?, ?)');
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  days.forEach((day) => {
-    insertSchedule.run(day, '08:00', '17:00', day === 'Sunday' ? 1 : 0);
+  const insertSchedule = db.prepare('INSERT INTO schedule (day, openTime, closeTime, isClosed, slotConfig) VALUES (?, ?, ?, ?, ?)');
+  BOOKING_DAY_ORDER.forEach((day) => {
+    insertSchedule.run(day, BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, 0, createDefaultSlotConfig());
   });
 
   const insertNotification = db.prepare('INSERT INTO notifications (id, message, isRead, createdAt) VALUES (?, ?, ?, ?)');

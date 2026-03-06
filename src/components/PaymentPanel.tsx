@@ -6,6 +6,7 @@ import { api } from "@/src/lib/api";
 import { toast } from "sonner";
 import { CreditCard, Banknote, Building2, Plus, Receipt, Printer } from "lucide-react";
 import type { Payment } from "@/src/types";
+import { formatCurrency } from "@/src/lib/utils";
 
 interface PaymentPanelProps {
     appointmentId: string;
@@ -33,6 +34,9 @@ const TYPE_COLOURS: Record<string, string> = {
     refund: 'bg-coral-light text-coral',
     'partial-refund': 'bg-orange-100 text-orange-800',
 };
+
+const formatMoney = (amount: number) =>
+    formatCurrency(amount, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPaymentRecorded }: PaymentPanelProps) {
     const [payments, setPayments] = useState<Payment[]>([]);
@@ -82,7 +86,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
                 type,
                 notes: notes || null,
             });
-            toast.success(`£${Number(amount).toFixed(2)} ${type} payment recorded`);
+            toast.success(`${formatMoney(Number(amount))} ${type} payment recorded`);
             setAmount("");
             setNotes("");
             setShowForm(false);
@@ -124,21 +128,21 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
           <p>Receipt</p>
           <p>${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
-        <div class="line-item"><span>Service Total</span><span>£${totalDue.toFixed(2)}</span></div>
+        <div class="line-item"><span>Service Total</span><span>${formatMoney(totalDue)}</span></div>
         <div class="divider"></div>
         <div class="payments">
           <strong>Payments:</strong>
           ${payments.map(p => `
             <div class="payment-item">
               <span>${p.type} (${METHOD_LABELS[p.method] || p.method})</span>
-              <span>${p.type === 'refund' || p.type === 'partial-refund' ? '-' : ''}£${p.amount.toFixed(2)}</span>
+              <span>${p.type === 'refund' || p.type === 'partial-refund' ? '-' : ''}${formatMoney(p.amount)}</span>
             </div>
           `).join('')}
         </div>
         <div class="divider"></div>
-        <div class="line-item total"><span>Total Paid</span><span>£${totalPaid.toFixed(2)}</span></div>
-        ${totalRefunded > 0 ? `<div class="line-item"><span>Refunded</span><span>-£${totalRefunded.toFixed(2)}</span></div>` : ''}
-        ${balance > 0 ? `<div class="line-item" style="color:red"><span>Balance Due</span><span>£${balance.toFixed(2)}</span></div>` : ''}
+        <div class="line-item total"><span>Total Paid</span><span>${formatMoney(totalPaid)}</span></div>
+        ${totalRefunded > 0 ? `<div class="line-item"><span>Refunded</span><span>-${formatMoney(totalRefunded)}</span></div>` : ''}
+        ${balance > 0 ? `<div class="line-item" style="color:red"><span>Balance Due</span><span>${formatMoney(balance)}</span></div>` : ''}
         ${balance <= 0 ? `<div class="line-item" style="color:green"><span>✓ PAID IN FULL</span><span></span></div>` : ''}
         <div class="footer">
           <p>Thank you for choosing Savvy Pet Spa</p>
@@ -158,28 +162,28 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
             <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 space-y-3">
                 <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Total Due</span>
-                    <span className="font-semibold text-slate-900">£{totalDue.toFixed(2)}</span>
+                    <span className="font-semibold text-slate-900">{formatMoney(totalDue)}</span>
                 </div>
                 {depositRequired && depositRequired > 0 && (
                     <div className="flex justify-between text-sm">
                         <span className="text-slate-600">Deposit Required</span>
-                        <span className="font-medium text-orange-600">£{depositRequired.toFixed(2)}</span>
+                        <span className="font-medium text-orange-600">{formatMoney(depositRequired)}</span>
                     </div>
                 )}
                 <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Paid</span>
-                    <span className="font-medium text-accent">£{totalPaid.toFixed(2)}</span>
+                    <span className="font-medium text-accent">{formatMoney(totalPaid)}</span>
                 </div>
                 {totalRefunded > 0 && (
                     <div className="flex justify-between text-sm">
                         <span className="text-slate-600">Refunded</span>
-                        <span className="font-medium text-coral">-£{totalRefunded.toFixed(2)}</span>
+                        <span className="font-medium text-coral">-{formatMoney(totalRefunded)}</span>
                     </div>
                 )}
                 <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-2">
                     <span>{balance > 0 ? 'Balance Due' : 'Status'}</span>
                     {balance > 0 ? (
-                        <span className="text-coral">£{balance.toFixed(2)}</span>
+                        <span className="text-coral">{formatMoney(balance)}</span>
                     ) : (
                         <span className="text-accent">✓ Paid in full</span>
                     )}
@@ -204,7 +208,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="font-medium">
-                                            {p.type === 'refund' || p.type === 'partial-refund' ? '-' : ''}£{p.amount.toFixed(2)}
+                                            {p.type === 'refund' || p.type === 'partial-refund' ? '-' : ''}{formatMoney(p.amount)}
                                         </span>
                                         <span className="text-[10px] text-slate-400">
                                             {new Date(p.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
@@ -241,7 +245,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600">Amount (£)</label>
+                            <label className="text-xs font-medium text-slate-600">Amount (GBP)</label>
                             <Input
                                 type="number"
                                 step="0.01"
@@ -291,7 +295,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
                     <div className="flex gap-2 justify-end">
                         <Button type="button" size="sm" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
                         <Button type="submit" size="sm" disabled={loading}>
-                            {loading ? "Recording..." : `Record £${amount || '0'} ${type}`}
+                            {loading ? "Recording..." : `Record ${formatMoney(Number(amount || 0))} ${type}`}
                         </Button>
                     </div>
                 </form>

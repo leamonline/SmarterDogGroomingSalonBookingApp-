@@ -27,6 +27,18 @@ const makeAppt = (overrides: Record<string, any> = {}) => ({
     ...overrides,
 });
 
+const nextDateForDay = (dayName: string, minDaysAhead = 28) => {
+    const targetNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const targetIndex = targetNames.indexOf(dayName);
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + minDaysAhead);
+    while (date.getDay() !== targetIndex) {
+        date.setDate(date.getDate() + 1);
+    }
+    return date.toISOString().split('T')[0];
+};
+
 // ══════════════════════════════════════════════════════════
 describe('Authentication', () => {
     it('returns 401 for protected route without token', async () => {
@@ -67,19 +79,23 @@ describe('Appointments', () => {
         expect(res.body.petName).toBe(appt.petName);
     });
 
-    it('rejects overlapping appointment and returns suggestions', async () => {
-        // Get a clean open slot
+    it('allows two dogs in the same slot and rejects the third', async () => {
         const slotsRes = await request(app)
-            .get('/api/appointments/next-available?duration=60')
+            .get(`/api/appointments/next-available?duration=60&from=${encodeURIComponent(new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString())}`)
             .set(auth());
         const date = slotsRes.body.data[0];
 
         const first = makeAppt({ date });
         await request(app).post('/api/appointments').set(auth()).send(first);
 
-        const overlap = makeAppt({ date, id: crypto.randomUUID() });
-        const res = await request(app).post('/api/appointments').set(auth()).send(overlap);
+        const second = makeAppt({ date, id: crypto.randomUUID(), petName: 'Milo' });
+        const secondRes = await request(app).post('/api/appointments').set(auth()).send(second);
+        expect(secondRes.status).toBe(200);
+
+        const third = makeAppt({ date, id: crypto.randomUUID(), petName: 'Poppy' });
+        const res = await request(app).post('/api/appointments').set(auth()).send(third);
         expect(res.status).toBe(400);
+        expect(res.body.error).toBe('This slot is already at capacity.');
         expect(Array.isArray(res.body.suggestions)).toBe(true);
     });
 
@@ -257,6 +273,7 @@ describe('Public Booking Flow', () => {
         const res = await request(app).get('/api/public/schedule');
         expect(res.status).toBe(200);
         expect(Array.isArray(res.body)).toBe(true);
+        expect(Array.isArray(res.body[0]?.slots)).toBe(true);
     });
 
     it('returns available slots for a given date', async () => {
@@ -272,7 +289,7 @@ describe('Public Booking Flow', () => {
 
         const serviceId = services[0].id;
         const res = await request(app)
-            .get(`/api/public/available-slots?serviceId=${serviceId}&date=${dateStr}`);
+            .get(`/api/public/available-slots?serviceId=${serviceId}&date=${dateStr}&duration=60`);
         expect(res.status).toBe(200);
         expect(Array.isArray(res.body.slots)).toBe(true);
     });
@@ -363,6 +380,76 @@ describe('Settings', () => {
         expect(res.status).toBe(200);
         expect(res.body.shopName).toBeDefined();
         expect(Array.isArray(res.body.schedule)).toBe(true);
+        expect(Array.isArray(res.body.schedule[0]?.slots)).toBe(true);
+    });
+
+    it('lets staff close a day and disable individual booking starts', async () => {
+        const current = await request(app).get('/api/settings').set(auth());
+        expect(current.status).toBe(200);
+
+        const originalSchedule = current.body.schedule;
+        const monday = originalSchedule.find((day: any) => day.day === 'Monday');
+        const tuesday = originalSchedule.find((day: any) => day.day === 'Tuesday');
+
+        try {
+            const updatedSchedule = originalSchedule.map((day: any) => {
+                if (day.day === 'Monday') {
+                    return { ...day, isClosed: true };
+                }
+                if (day.day === 'Tuesday') {
+                    return {
+                        ...day,
+                        isClosed: false,
+                        slots: day.slots.map((slot: any) =>
+                            slot.time === '08:30' ? { ...slot, isAvailable: false } : slot,
+                        ),
+                    };
+                }
+                return day;
+            });
+
+            const saveRes = await request(app)
+                .post('/api/settings')
+                .set(auth())
+                .send({ schedule: updatedSchedule });
+            expect(saveRes.status).toBe(200);
+
+            const publicSchedule = await request(app).get('/api/public/schedule');
+            expect(publicSchedule.status).toBe(200);
+            expect(publicSchedule.body.find((day: any) => day.day === 'Monday')?.isClosed).toBe(true);
+            expect(
+                publicSchedule.body
+                    .find((day: any) => day.day === 'Tuesday')
+                    ?.slots.find((slot: any) => slot.time === '08:30')?.isAvailable,
+            ).toBe(false);
+
+            const closedDate = nextDateForDay('Monday');
+            const closedSlots = await request(app).get(`/api/public/available-slots?date=${closedDate}&duration=60`);
+            expect(closedSlots.status).toBe(200);
+            expect(closedSlots.body.slots).toEqual([]);
+
+            const tuesdayDate = nextDateForDay('Tuesday');
+            const tuesdaySlots = await request(app).get(`/api/public/available-slots?date=${tuesdayDate}&duration=60`);
+            expect(tuesdaySlots.status).toBe(200);
+            expect(
+                tuesdaySlots.body.slots.some((slot: string) => {
+                    const date = new Date(slot);
+                    return date.getHours() === 8 && date.getMinutes() === 30;
+                }),
+            ).toBe(false);
+        } finally {
+            const restoreRes = await request(app)
+                .post('/api/settings')
+                .set(auth())
+                .send({
+                    schedule: originalSchedule.map((day: any) => {
+                        if (day.day === 'Monday') return monday;
+                        if (day.day === 'Tuesday') return tuesday;
+                        return day;
+                    }),
+                });
+            expect(restoreRes.status).toBe(200);
+        }
     });
 
     it('returns notifications', async () => {

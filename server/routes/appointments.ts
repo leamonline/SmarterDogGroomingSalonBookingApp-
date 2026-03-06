@@ -3,7 +3,12 @@ import db from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { autoNotify } from '../helpers/messaging.js';
-import { hasOverlap, getNextAvailableSlots } from '../helpers/appointments.js';
+import {
+    getAppointmentAvailability,
+    getAvailabilityErrorMessage,
+    getAvailabilityReason,
+    getNextAvailableSlots,
+} from '../helpers/appointments.js';
 import { validateBody, appointmentSchema, clampLimit } from '../schema.js';
 
 const router = Router();
@@ -34,9 +39,11 @@ router.post('/', validateBody(appointmentSchema), (req: any, res: any) => {
     const id = crypto.randomUUID();
 
     const result = db.transaction(() => {
-        if (hasOverlap(date, duration)) {
+        const availability = getAppointmentAvailability(date, duration);
+        const conflictReason = getAvailabilityReason(availability);
+        if (conflictReason) {
             const suggestions = getNextAvailableSlots(date, duration, 3);
-            return { conflict: true, suggestions };
+            return { conflict: true, suggestions, reason: conflictReason };
         }
         db.prepare(`INSERT INTO appointments (id, petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
             .run(id, petName, breed, age || null, notes || null, ownerName, phone || null, service, date, duration, status, price, avatar);
@@ -44,7 +51,10 @@ router.post('/', validateBody(appointmentSchema), (req: any, res: any) => {
     })();
 
     if (result.conflict) {
-        return res.status(400).json({ error: 'This time slot overlaps with an existing appointment.', suggestions: result.suggestions });
+        return res.status(400).json({
+            error: getAvailabilityErrorMessage((result as any).reason),
+            suggestions: result.suggestions,
+        });
     }
 
     logAudit(req.user?.id || null, 'create', 'appointment', id, null, req.body);
@@ -61,9 +71,11 @@ router.put('/:id', validateBody(appointmentSchema), (req: any, res: any) => {
         const old = db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id) as any;
         if (!old) return { notFound: true, conflict: false, old: null as any };
 
-        if (hasOverlap(date, duration, req.params.id)) {
-            const suggestions = getNextAvailableSlots(date, duration, 3);
-            return { notFound: false, conflict: true, suggestions, old: null as any };
+        const availability = getAppointmentAvailability(date, duration, req.params.id);
+        const conflictReason = getAvailabilityReason(availability);
+        if (conflictReason) {
+            const suggestions = getNextAvailableSlots(date, duration, 3, { excludeId: req.params.id });
+            return { notFound: false, conflict: true, suggestions, reason: conflictReason, old: null as any };
         }
 
         db.prepare(`
@@ -88,7 +100,10 @@ router.put('/:id', validateBody(appointmentSchema), (req: any, res: any) => {
         return res.status(404).json({ error: 'Appointment not found' });
     }
     if (txResult.conflict) {
-        return res.status(400).json({ error: 'This time slot overlaps with an existing appointment.', suggestions: (txResult as any).suggestions });
+        return res.status(400).json({
+            error: getAvailabilityErrorMessage((txResult as any).reason),
+            suggestions: (txResult as any).suggestions,
+        });
     }
 
     const old = txResult.old;

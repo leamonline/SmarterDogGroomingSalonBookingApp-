@@ -3,6 +3,12 @@ import db from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, settingsSchema } from '../schema.js';
+import {
+    BOOKING_CLOSE_TIME,
+    BOOKING_OPEN_TIME,
+    normalizeScheduleRows,
+    serializeSlotConfig,
+} from '../helpers/schedule.js';
 
 const router = Router();
 
@@ -11,7 +17,8 @@ router.get('/', (req, res) => {
     const settingsRows = db.prepare('SELECT * FROM settings').all() as { key: string, value: string }[];
     const settings = settingsRows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
 
-    const schedule = db.prepare('SELECT * FROM schedule').all();
+    const scheduleRows = db.prepare('SELECT * FROM schedule').all() as any[];
+    const schedule = normalizeScheduleRows(scheduleRows);
     res.json({ ...settings, schedule });
 });
 
@@ -27,10 +34,24 @@ router.post('/', requireAdmin, validateBody(settingsSchema), (req: any, res: any
     if (shopAddress) updateSetting.run(shopAddress, 'shopAddress');
 
     if (schedule && Array.isArray(schedule)) {
-        const updateSched = db.prepare('UPDATE schedule SET openTime=?, closeTime=?, isClosed=? WHERE day=?');
+        const upsertSchedule = db.prepare(`
+            INSERT INTO schedule (day, openTime, closeTime, isClosed, slotConfig)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(day) DO UPDATE SET
+                openTime = excluded.openTime,
+                closeTime = excluded.closeTime,
+                isClosed = excluded.isClosed,
+                slotConfig = excluded.slotConfig
+        `);
         db.transaction(() => {
             for (const s of schedule) {
-                updateSched.run(s.openTime, s.closeTime, s.isClosed ? 1 : 0, s.day);
+                upsertSchedule.run(
+                    s.day,
+                    BOOKING_OPEN_TIME,
+                    BOOKING_CLOSE_TIME,
+                    s.isClosed ? 1 : 0,
+                    serializeSlotConfig(s.slots),
+                );
             }
         })();
     }

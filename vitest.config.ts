@@ -10,12 +10,9 @@ export default defineConfig({
   test: {
     // API tests only — no browser plugins needed
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        // iCloud Drive paths can slow native-module loading; give workers more time
-        execArgv: [],
-      },
-    },
+    // Vitest 4 moved pool-specific worker args to top-level test options.
+    // Keep this explicit so forked workers don't inherit stray Node flags.
+    execArgv: [],
     testTimeout: 30_000,
     hookTimeout: 30_000,
     teardownTimeout: 10_000,

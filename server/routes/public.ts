@@ -6,6 +6,14 @@ import db from '../db.js';
 import { JWT_SECRET, authenticateToken } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { autoNotify } from '../helpers/messaging.js';
+import {
+    getAppointmentAvailability,
+    getAvailabilityErrorMessage,
+    getAvailabilityReason,
+    getAvailableSlotsForDate,
+    getNextAvailableSlots,
+} from '../helpers/appointments.js';
+import { normalizeScheduleRows } from '../helpers/schedule.js';
 
 const router = Router();
 
@@ -27,8 +35,8 @@ router.get('/services', (req, res) => {
 
 // Public: shop schedule
 router.get('/schedule', (req, res) => {
-    const rows = db.prepare('SELECT day, openTime, closeTime, isClosed FROM schedule').all();
-    res.json(rows);
+    const rows = db.prepare('SELECT * FROM schedule').all() as any[];
+    res.json(normalizeScheduleRows(rows));
 });
 
 // Public: get available slots for a date
@@ -39,46 +47,7 @@ router.get('/available-slots', (req, res) => {
     const dateStr = date as string;
     const dur = parseInt(duration as string) || 60;
 
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const localDate = new Date(year, month - 1, day);
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayOfWeek = dayNames[localDate.getDay()];
-
-    const scheduleRow = db.prepare('SELECT * FROM schedule WHERE day = ?').get(dayOfWeek) as any;
-    if (!scheduleRow || scheduleRow.isClosed) {
-        return res.json({ slots: [], message: 'Shop is closed on this day' });
-    }
-
-    const openTime = scheduleRow.openTime || '08:00';
-    const closeTime = scheduleRow.closeTime || '17:00';
-
-    const existing = db.prepare(
-        "SELECT date, duration FROM appointments WHERE date LIKE ? AND status NOT IN ('cancelled-by-customer', 'cancelled-by-salon', 'no-show')"
-    ).all(`${dateStr}%`) as any[];
-
-    const slots: string[] = [];
-    const [openH, openM] = openTime.split(':').map(Number);
-    const [closeH, closeM] = closeTime.split(':').map(Number);
-    const openMinutes = openH * 60 + openM;
-    const closeMinutes = closeH * 60 + closeM;
-
-    for (let m = openMinutes; m + dur <= closeMinutes; m += 30) {
-        const slotH = Math.floor(m / 60);
-        const slotM = m % 60;
-        const slotStart = new Date(year, month - 1, day, slotH, slotM, 0);
-        const slotEnd = new Date(slotStart.getTime() + dur * 60000);
-
-        const hasConflict = existing.some((appt: any) => {
-            const apptStart = new Date(appt.date);
-            const apptEnd = new Date(apptStart.getTime() + (appt.duration || 60) * 60000);
-            return slotStart < apptEnd && slotEnd > apptStart;
-        });
-
-        if (!hasConflict) {
-            slots.push(slotStart.toISOString());
-        }
-    }
-
+    const slots = getAvailableSlotsForDate(dateStr, dur);
     res.json({ slots, date: dateStr, duration: dur });
 });
 
@@ -143,6 +112,15 @@ router.post('/bookings', authenticateToken, (req: any, res: any) => {
 
     const service = db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId) as any;
     if (!service) return res.status(404).json({ error: 'Service not found' });
+
+    const availability = getAppointmentAvailability(date, service.duration);
+    const conflictReason = getAvailabilityReason(availability);
+    if (conflictReason) {
+        return res.status(400).json({
+            error: getAvailabilityErrorMessage(conflictReason),
+            suggestions: getNextAvailableSlots(date, service.duration, 3),
+        });
+    }
 
     const status = service.isApprovalRequired ? 'pending-approval' : 'confirmed';
     const apptId = crypto.randomUUID();

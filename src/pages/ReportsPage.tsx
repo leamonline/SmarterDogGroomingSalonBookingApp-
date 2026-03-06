@@ -7,6 +7,7 @@ import { type AuditLogEntry } from "@/src/types";
 import { toast } from "sonner";
 import { BarChart3, TrendingUp, DollarSign, Calendar as CalendarIcon, Users, Download, Filter } from "lucide-react";
 import { format, subDays } from "date-fns";
+import { formatCurrency } from "@/src/lib/utils";
 
 // ────────────────────────────────────────────
 // Types
@@ -33,11 +34,6 @@ interface ServiceBreakdown {
     count: number;
     revenue: number;
 }
-
-// ────────────────────────────────────────────
-// Helpers
-// ────────────────────────────────────────────
-const formatCurrency = (amount: number) => `£${amount.toFixed(0)}`;
 
 // ────────────────────────────────────────────
 // Reports Page

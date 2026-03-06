@@ -225,6 +225,12 @@ export const settingsSchema = z.object({
             openTime: z.string().max(MAX_SHORT).optional().nullable(),
             closeTime: z.string().max(MAX_SHORT).optional().nullable(),
             isClosed: z.boolean().optional().nullable(),
+            slots: z.array(
+                z.object({
+                    time: z.string().max(MAX_SHORT),
+                    isAvailable: z.boolean().optional().nullable(),
+                })
+            ).max(24).optional(),
         })
     ).max(7).optional(),
 }).strip();

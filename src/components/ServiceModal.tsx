@@ -121,7 +121,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="price" className="text-right">
-                            Price ($)
+                            Price (GBP)
                         </Label>
                         <Input
                             id="price"
@@ -129,6 +129,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
                             value={formData.price || 0}
                             onChange={(e) => handleChange("price", Number(e.target.value))}
                             className="col-span-3"
+                            placeholder="0.00"
                         />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">

@@ -4,6 +4,13 @@ import { Input } from "@/src/components/ui/input";
 import { toast } from "sonner";
 import { Scissors, ArrowLeft, ArrowRight, Clock, CheckCircle, Calendar as CalendarIcon, Dog, CreditCard } from "lucide-react";
 import { format, addDays, startOfDay } from "date-fns";
+import { formatCurrency } from "@/src/lib/utils";
+import {
+    BOOKING_CLOSE_TIME,
+    BOOKING_OPEN_TIME,
+    formatScheduleTime,
+    normalizeScheduleDays,
+} from "@/src/lib/bookingSchedule";
 
 // ────────────────────────────────────────
 // Types
@@ -19,6 +26,12 @@ interface BookableService {
     depositRequired?: boolean;
     depositAmount?: number;
 }
+
+const hasDeposit = (service: Pick<BookableService, "depositRequired" | "depositAmount">) =>
+    Boolean(service.depositRequired && (service.depositAmount ?? 0) > 0);
+
+const formatServicePrice = (service: Pick<BookableService, "price" | "priceType">) =>
+    service.priceType === "from" ? `From ${formatCurrency(service.price)}` : formatCurrency(service.price);
 
 // ────────────────────────────────────────
 // API helpers (public, no auth)
@@ -44,7 +57,13 @@ async function publicFetch(url: string, options: RequestInit = {}) {
 // ────────────────────────────────────────
 type Step = "auth" | "service" | "datetime" | "pet" | "confirm" | "done";
 
+type PublicScheduleDay = {
+    isClosed: boolean;
+    availableSlots: number;
+};
+
 export function BookingPage() {
+    const defaultDate = format(addDays(new Date(), 1), "yyyy-MM-dd");
     const [step, setStep] = useState<Step>("auth");
     const [authed, setAuthed] = useState(false);
     const [customerId, setCustomerId] = useState<string | null>(null);
@@ -63,11 +82,12 @@ export function BookingPage() {
     const [selectedService, setSelectedService] = useState<BookableService | null>(null);
 
     // Date/time
-    const [schedule, setSchedule] = useState<Record<string, { isClosed: boolean }>>({});
-    const [selectedDate, setSelectedDate] = useState<string>(format(addDays(new Date(), 1), "yyyy-MM-dd"));
+    const [schedule, setSchedule] = useState<Record<string, PublicScheduleDay>>({});
+    const [selectedDate, setSelectedDate] = useState<string>(defaultDate);
     const [slots, setSlots] = useState<string[]>([]);
     const [selectedSlot, setSelectedSlot] = useState<string>("");
     const [loadingSlots, setLoadingSlots] = useState(false);
+    const [findingFirstAvailable, setFindingFirstAvailable] = useState(false);
 
     // Pet info
     const [petName, setPetName] = useState("");
@@ -76,6 +96,8 @@ export function BookingPage() {
 
     // Result
     const [bookingResult, setBookingResult] = useState<any>(null);
+    const dates = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i + 1));
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
     // Check if already authed
     useEffect(() => {
@@ -100,8 +122,13 @@ export function BookingPage() {
         fetch('/api/public/schedule')
             .then(r => r.ok ? r.json() : [])
             .then((rows: any[]) => {
-                const map: Record<string, { isClosed: boolean }> = {};
-                rows.forEach(r => { map[r.day] = { isClosed: !!r.isClosed }; });
+                const map: Record<string, PublicScheduleDay> = {};
+                normalizeScheduleDays(rows).forEach((row) => {
+                    map[row.day] = {
+                        isClosed: row.isClosed,
+                        availableSlots: row.slots.filter((slot) => slot.isAvailable).length,
+                    };
+                });
                 setSchedule(map);
             })
             .catch(() => {/* schedule not critical for booking to work */ });
@@ -114,13 +141,25 @@ export function BookingPage() {
             setLoadingSlots(true);
             publicFetch(`/api/public/available-slots?date=${selectedDate}&duration=${selectedService.duration}`)
                 .then((data) => {
-                    setSlots(data.slots || []);
-                    setSelectedSlot("");
+                    const nextSlots = data.slots || [];
+                    setSlots(nextSlots);
+                    setSelectedSlot((current) => nextSlots.includes(current) ? current : "");
                 })
                 .catch(() => setSlots([]))
                 .finally(() => setLoadingSlots(false));
         }
     }, [selectedDate, selectedService]);
+
+    useEffect(() => {
+        if (Object.keys(schedule).length === 0) return;
+        const current = dates.find((date) => format(date, "yyyy-MM-dd") === selectedDate);
+        if (current && !isDayDisabled(current)) return;
+
+        const firstAvailableDate = dates.find((date) => !isDayDisabled(date));
+        if (firstAvailableDate) {
+            setSelectedDate(format(firstAvailableDate, "yyyy-MM-dd"));
+        }
+    }, [schedule, selectedDate]);
 
     // ────── Auth Handlers ──────
     const handleAuth = async (e: React.FormEvent) => {
@@ -173,16 +212,72 @@ export function BookingPage() {
         }
     };
 
-    // ────── Render Helpers ──────
-    const dates = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i + 1));
-    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
     // A day is disabled if the schedule marks it as closed.
     // Falls back to allowing all days if the schedule hasn't loaded yet.
     const isDayDisabled = (d: Date) => {
         if (Object.keys(schedule).length === 0) return false; // schedule not yet loaded
         const dayName = DAY_NAMES[d.getDay()];
-        return schedule[dayName]?.isClosed === true;
+        const daySchedule = schedule[dayName];
+        if (!daySchedule) return false;
+        return daySchedule.isClosed === true || daySchedule.availableSlots === 0;
+    };
+
+    const resetBookingDraft = () => {
+        setSelectedService(null);
+        setSelectedDate(defaultDate);
+        setSlots([]);
+        setSelectedSlot("");
+        setPetName("");
+        setBreed("");
+        setPetNotes("");
+        setBookingResult(null);
+    };
+
+    const handleSwitchAccount = () => {
+        localStorage.removeItem("petspa_booking_token");
+        localStorage.removeItem("petspa_booking_email");
+        localStorage.removeItem("petspa_booking_customer_id");
+        setAuthed(false);
+        setCustomerId(null);
+        setUserEmail("");
+        setEmail("");
+        setPassword("");
+        setFirstName("");
+        setLastName("");
+        setPhone("");
+        setIsRegister(false);
+        resetBookingDraft();
+        setStep("auth");
+        toast.success("Signed out. You can book with a different account now.");
+    };
+
+    const findFirstAvailableSlot = async () => {
+        if (!selectedService) return;
+
+        setFindingFirstAvailable(true);
+        try {
+            for (const date of dates) {
+                if (isDayDisabled(date)) continue;
+
+                const dateKey = format(date, "yyyy-MM-dd");
+                const data = await publicFetch(`/api/public/available-slots?date=${dateKey}&duration=${selectedService.duration}`);
+                const nextSlots = data.slots || [];
+
+                if (nextSlots.length > 0) {
+                    setSelectedDate(dateKey);
+                    setSlots(nextSlots);
+                    setSelectedSlot(nextSlots[0]);
+                    toast.success(`Earliest slot selected for ${format(new Date(nextSlots[0]), "EEE d MMM • h:mm a")}`);
+                    return;
+                }
+            }
+
+            toast.error("No appointment times are available in the next two weeks.");
+        } catch (err: any) {
+            toast.error(err.message || "Couldn't find the earliest available slot.");
+        } finally {
+            setFindingFirstAvailable(false);
+        }
     };
 
     return (
@@ -200,8 +295,15 @@ export function BookingPage() {
                         </div>
                     </div>
                     {authed && (
-                        <div className="text-sm text-slate-500">
-                            {userEmail}
+                        <div className="flex items-center gap-3 text-sm">
+                            <span className="text-slate-500">{userEmail}</span>
+                            <button
+                                type="button"
+                                onClick={handleSwitchAccount}
+                                className="font-medium text-brand-600 underline underline-offset-4"
+                            >
+                                Switch account
+                            </button>
                         </div>
                     )}
                 </div>
@@ -252,26 +354,31 @@ export function BookingPage() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
                                         <label className="text-sm font-medium text-slate-700">First Name *</label>
-                                        <Input value={firstName} onChange={e => setFirstName(e.target.value)} required />
+                                        <Input value={firstName} onChange={e => setFirstName(e.target.value)} autoComplete="given-name" required />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-sm font-medium text-slate-700">Last Name</label>
-                                        <Input value={lastName} onChange={e => setLastName(e.target.value)} />
+                                        <Input value={lastName} onChange={e => setLastName(e.target.value)} autoComplete="family-name" />
                                     </div>
                                 </div>
                             )}
                             <div className="space-y-1">
                                 <label className="text-sm font-medium text-slate-700">Email *</label>
-                                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+                                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium text-slate-700">Password *</label>
-                                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete={isRegister ? "new-password" : "current-password"} required />
+                                {isRegister && (
+                                    <p className="text-xs text-slate-500">
+                                        Use at least one uppercase letter, one lowercase letter, and one number.
+                                    </p>
+                                )}
                             </div>
                             {isRegister && (
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium text-slate-700">Phone</label>
-                                    <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+                                    <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} autoComplete="tel" />
                                 </div>
                             )}
                             <Button type="submit" className="w-full">{isRegister ? "Create Account" : "Sign In"}</Button>
@@ -288,31 +395,71 @@ export function BookingPage() {
                 {/* ═══ Step 2: Service ═══ */}
                 {step === "service" && (
                     <div className="space-y-4">
-                        <h2 className="text-lg font-bold text-purple">Choose a Service</h2>
+                        <div className="space-y-1">
+                            <h2 className="text-lg font-bold text-purple">Choose a Service</h2>
+                            <p className="text-sm text-slate-500">
+                                Pick the service first and we&apos;ll guide you to the best available time.
+                            </p>
+                        </div>
+                        {authed && (
+                            <div className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Booking account</p>
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <p className="font-semibold text-slate-900">{userEmail}</p>
+                                        <p className="text-sm text-slate-500">Your appointment details will be saved against this customer profile.</p>
+                                    </div>
+                                    <Button type="button" size="sm" variant="outline" onClick={handleSwitchAccount}>
+                                        Switch account
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         <div className="grid gap-3 sm:grid-cols-2">
                             {services.map(svc => (
                                 <button
                                     key={svc.id}
-                                    onClick={() => { setSelectedService(svc); setStep("datetime"); }}
+                                    onClick={() => { setSelectedService(svc); setSelectedSlot(""); setStep("datetime"); }}
                                     className={`text-left rounded-xl border-2 p-4 transition-all hover:shadow-md ${selectedService?.id === svc.id ? "border-brand-600 bg-brand-50" : "border-slate-200 bg-white hover:border-brand-300"
                                         }`}
                                 >
-                                    <h3 className="font-semibold text-purple">{svc.name}</h3>
-                                    {svc.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{svc.description}</p>}
-                                    <div className="flex items-center gap-3 mt-3 text-sm">
-                                        <span className="flex items-center gap-1 text-slate-600">
-                                            <CreditCard className="h-3.5 w-3.5" />
-                                            {svc.priceType === "from" ? "From " : ""}£{svc.price}
-                                        </span>
-                                        <span className="flex items-center gap-1 text-slate-600">
-                                            <Clock className="h-3.5 w-3.5" /> {svc.duration}m
-                                        </span>
-                                        {svc.depositRequired && svc.depositAmount && (
-                                            <span className="text-xs text-orange-600 font-medium">
-                                                £{svc.depositAmount} deposit
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <h3 className="font-semibold text-purple">{svc.name}</h3>
+                                            {svc.description && <p className="text-sm text-slate-500 mt-1 line-clamp-2">{svc.description}</p>}
+                                        </div>
+                                        {svc.category && (
+                                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                                {svc.category}
                                             </span>
                                         )}
                                     </div>
+                                    <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+                                        <span className="rounded-lg bg-slate-50 px-3 py-2 text-slate-700">
+                                            <span className="flex items-center gap-1 text-slate-600">
+                                            <CreditCard className="h-3.5 w-3.5" />
+                                                Price
+                                            </span>
+                                            <span className="mt-1 block font-semibold text-slate-900">{formatServicePrice(svc)}</span>
+                                        </span>
+                                        <span className="rounded-lg bg-slate-50 px-3 py-2 text-slate-700">
+                                            <span className="flex items-center gap-1 text-slate-600">
+                                            <Clock className="h-3.5 w-3.5" /> {svc.duration}m
+                                            </span>
+                                            <span className="mt-1 block font-semibold text-slate-900">Duration</span>
+                                        </span>
+                                        {hasDeposit(svc) && (
+                                            <span className="rounded-lg bg-orange-50 px-3 py-2 text-orange-700">
+                                                <span className="block text-xs font-medium uppercase tracking-wide">Deposit</span>
+                                                <span className="mt-1 block font-semibold">{formatCurrency(svc.depositAmount)}</span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="mt-3 text-xs text-slate-500">
+                                        {hasDeposit(svc)
+                                            ? "We’ll confirm your slot and collect the deposit after you submit the booking."
+                                            : "No deposit is needed to request this service."}
+                                    </p>
                                 </button>
                             ))}
                         </div>
@@ -332,7 +479,35 @@ export function BookingPage() {
                             <h2 className="text-lg font-bold text-purple">Pick a Date & Time</h2>
                             <Button size="sm" variant="outline" onClick={() => setStep("service")}><ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back</Button>
                         </div>
-                        <p className="text-sm text-slate-500">{selectedService.name} — {selectedService.duration} min</p>
+                        <div className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm">
+                            <div className="flex flex-wrap items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Selected service</p>
+                                    <h3 className="mt-1 text-lg font-semibold text-slate-900">{selectedService.name}</h3>
+                                    <p className="text-sm text-slate-500">Choose a day below and we&apos;ll help you lock in a time that suits.</p>
+                                </div>
+                                <div className="grid gap-2 text-sm sm:grid-cols-2">
+                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                        <p className="text-xs uppercase tracking-wide text-slate-500">Price</p>
+                                        <p className="font-semibold text-slate-900">{formatServicePrice(selectedService)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                        <p className="text-xs uppercase tracking-wide text-slate-500">Duration</p>
+                                        <p className="font-semibold text-slate-900">{selectedService.duration} min</p>
+                                    </div>
+                                    {hasDeposit(selectedService) && (
+                                        <div className="rounded-lg bg-orange-50 px-3 py-2 sm:col-span-2">
+                                            <p className="text-xs uppercase tracking-wide text-orange-600">Deposit</p>
+                                            <p className="font-semibold text-orange-800">{formatCurrency(selectedService.depositAmount)}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                                Booking windows run from {formatScheduleTime(BOOKING_OPEN_TIME)} to {formatScheduleTime(BOOKING_CLOSE_TIME)}.
+                                Start times open in 30-minute steps, and each slot can take up to 2 dogs.
+                            </div>
+                        </div>
 
                         {/* Date picker */}
                         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -364,7 +539,13 @@ export function BookingPage() {
                             {loadingSlots ? (
                                 <p className="text-sm text-slate-400 py-4 text-center">Loading slots...</p>
                             ) : slots.length === 0 ? (
-                                <p className="text-sm text-slate-400 py-4 text-center">No available slots on this date.</p>
+                                <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center">
+                                    <p className="text-sm font-medium text-slate-900">No available slots on this date.</p>
+                                    <p className="mt-1 text-sm text-slate-500">Try another day, or let us jump to the next available appointment for you.</p>
+                                    <Button type="button" variant="outline" className="mt-4" onClick={findFirstAvailableSlot} disabled={findingFirstAvailable}>
+                                        {findingFirstAvailable ? "Finding next slot..." : "Find first available"}
+                                    </Button>
+                                </div>
                             ) : (
                                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                                     {slots.map(slot => {
@@ -386,7 +567,11 @@ export function BookingPage() {
                         </div>
 
                         {selectedSlot && (
-                            <div className="flex justify-end">
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Selected time</p>
+                                    <p className="font-semibold text-slate-900">{format(new Date(selectedSlot), "EEEE d MMMM • h:mm a")}</p>
+                                </div>
                                 <Button onClick={() => setStep("pet")}>
                                     Continue <ArrowRight className="h-3.5 w-3.5 ml-1" />
                                 </Button>
@@ -457,12 +642,18 @@ export function BookingPage() {
                                 </div>
                                 <div className="border-t border-slate-100 pt-3 flex justify-between text-sm font-bold">
                                     <span>Price</span>
-                                    <span>£{selectedService.price}</span>
+                                    <span>{formatServicePrice(selectedService)}</span>
                                 </div>
-                                {selectedService.depositRequired && selectedService.depositAmount && (
+                                {hasDeposit(selectedService) && (
                                     <div className="flex justify-between text-sm text-orange-600">
                                         <span>Deposit Required</span>
-                                        <span>£{selectedService.depositAmount}</span>
+                                        <span>{formatCurrency(selectedService.depositAmount)}</span>
+                                    </div>
+                                )}
+                                {petNotes && (
+                                    <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+                                        <p className="font-medium text-slate-900">Notes for the salon</p>
+                                        <p className="mt-1 whitespace-pre-wrap">{petNotes}</p>
                                     </div>
                                 )}
                             </div>
@@ -485,17 +676,12 @@ export function BookingPage() {
                         <p className="text-slate-500 mb-6">{bookingResult.message}</p>
                         {bookingResult.depositRequired > 0 && (
                             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 text-sm text-orange-800">
-                                <strong>Deposit Required:</strong> £{bookingResult.depositRequired} — we'll be in touch with payment details.
+                                <strong>Deposit Required:</strong> {formatCurrency(bookingResult.depositRequired)} — we'll be in touch with payment details.
                             </div>
                         )}
                         <Button variant="outline" onClick={() => {
+                            resetBookingDraft();
                             setStep("service");
-                            setSelectedService(null);
-                            setSelectedSlot("");
-                            setPetName("");
-                            setBreed("");
-                            setPetNotes("");
-                            setBookingResult(null);
                         }}>
                             Book Another Appointment
                         </Button>

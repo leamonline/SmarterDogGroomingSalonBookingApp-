@@ -9,6 +9,8 @@ import { PaymentPanel } from "@/src/components/PaymentPanel";
 import { format } from "date-fns";
 import { CheckCircle, Clock, AlertTriangle, XCircle, Truck, Play, Pause, UserCheck } from "lucide-react";
 import { APPOINTMENT_STATUSES } from "@/src/types";
+import { formatCurrency } from "@/src/lib/utils";
+import { BOOKING_CLOSE_TIME, BOOKING_OPEN_TIME, formatScheduleTime } from "@/src/lib/bookingSchedule";
 
 export type Appointment = {
   id: string;
@@ -86,6 +88,19 @@ interface AppointmentModalProps {
   onSave: (updatedAppointment: Appointment) => void;
 }
 
+function snapToHalfHour(date: Date) {
+  const snapped = new Date(date);
+  snapped.setSeconds(0, 0);
+  const minutes = snapped.getMinutes();
+  const remainder = minutes % 30;
+
+  if (remainder !== 0) {
+    snapped.setMinutes(minutes + (30 - remainder));
+  }
+
+  return snapped;
+}
+
 export function AppointmentModal({ isOpen, onClose, appointment, initialData, onSave }: AppointmentModalProps) {
   const [formData, setFormData] = useState<Partial<Appointment>>({});
   const [isEditing, setIsEditing] = useState(false);
@@ -127,7 +142,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
         ownerName: "",
         phone: "",
         service: "",
-        date: new Date(),
+        date: snapToHalfHour(new Date()),
         duration: 60,
         status: "confirmed",
         price: 0,
@@ -150,7 +165,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     clearError('date');
-    const newDate = new Date(e.target.value);
+    const newDate = snapToHalfHour(new Date(e.target.value));
     setFormData((prev) => ({ ...prev, date: newDate }));
   };
 
@@ -251,7 +266,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                     <p className="text-sm"><span className="font-medium text-slate-700">Service:</span> {formData.service}</p>
                     <p className="text-sm"><span className="font-medium text-slate-700">Duration:</span> {formData.duration}m</p>
                     <p className="text-sm"><span className="font-medium text-slate-700">Date:</span> {formData.date ? format(formData.date, "EEE d MMM, h:mm a") : ""}</p>
-                    <p className="text-sm"><span className="font-medium text-slate-700">Price:</span> £{formData.price}</p>
+                    <p className="text-sm"><span className="font-medium text-slate-700">Price:</span> {formatCurrency(formData.price)}</p>
                   </div>
                 </div>
               </div>
@@ -303,7 +318,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Surcharge (£)</label>
+                    <label className="text-sm font-medium text-slate-700">Surcharge (GBP)</label>
                     <Input name="surcharge" type="number" value={formData.surcharge || 0} onChange={handleChange} />
                   </div>
                   <div className="space-y-2">
@@ -448,7 +463,10 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="date" className="text-right text-sm font-medium">Date & Time *</label>
                 <div className="col-span-3">
-                  <Input id="date" name="date" type="datetime-local" value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""} onChange={handleDateChange} aria-invalid={!!errors.date} />
+                  <Input id="date" name="date" type="datetime-local" step={1800} value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""} onChange={handleDateChange} aria-invalid={!!errors.date} />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Booking starts are set in 30-minute slots between {formatScheduleTime(BOOKING_OPEN_TIME)} and {formatScheduleTime(BOOKING_CLOSE_TIME)}.
+                  </p>
                   <FieldError message={errors.date} />
                 </div>
               </div>
@@ -460,7 +478,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="price" className="text-right text-sm font-medium">Price (£) *</label>
+                <label htmlFor="price" className="text-right text-sm font-medium">Price (GBP) *</label>
                 <div className="col-span-3">
                   <Input id="price" name="price" type="number" value={formData.price || ""} onChange={handleChange} aria-invalid={!!errors.price} />
                   <FieldError message={errors.price} />

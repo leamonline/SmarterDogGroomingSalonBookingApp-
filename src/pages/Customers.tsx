@@ -34,6 +34,7 @@ import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal
 import { CustomerModal } from "@/src/components/CustomerModal";
 import { ConfirmDialog } from "@/src/components/ConfirmDialog";
 import { Customer, Pet } from "@/src/types";
+import { formatCurrency } from "@/src/lib/utils";
 
 export function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -319,7 +320,7 @@ export function Customers() {
                 </TableCell>
                 <TableCell className="text-slate-500">{customer.lastVisit}</TableCell>
                 <TableCell className="text-right font-medium text-slate-900">
-                  £{customer.totalSpent}
+                  {formatCurrency(customer.totalSpent)}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -460,7 +461,7 @@ export function Customers() {
                       </div>
                       <div className="flex items-center text-sm text-slate-700">
                         <DollarSign className="mr-3 h-4 w-4 text-slate-400" />
-                        Total Spent: £{selectedCustomer.totalSpent}
+                        Total Spent: {formatCurrency(selectedCustomer.totalSpent)}
                       </div>
                     </div>
                   </div>
@@ -534,7 +535,7 @@ export function Customers() {
                           >
                             <div className="flex items-center justify-between font-medium text-slate-900">
                               <span className="text-base">{apt.service} <span className="text-slate-500 font-normal text-sm">({apt.petName})</span></span>
-                              <span className="font-semibold text-brand-600">£{apt.price}</span>
+                              <span className="font-semibold text-brand-600">{formatCurrency(apt.price)}</span>
                             </div>
                             <div className="flex items-center justify-between text-slate-500">
                               <span className="flex items-center gap-1.5">

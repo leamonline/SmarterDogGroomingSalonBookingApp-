@@ -7,6 +7,13 @@ import { Badge } from "@/src/components/ui/badge";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/AuthContext";
 import { Shield, UserPlus, Users } from "lucide-react";
+import {
+  BOOKING_CLOSE_TIME,
+  BOOKING_OPEN_TIME,
+  type BookingScheduleDay,
+  formatScheduleTime,
+  normalizeScheduleDays,
+} from "@/src/lib/bookingSchedule";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: 'Owner',
@@ -28,7 +35,7 @@ export function Settings() {
   const [shopName, setShopName] = useState("");
   const [shopPhone, setShopPhone] = useState("");
   const [shopAddress, setShopAddress] = useState("");
-  const [schedule, setSchedule] = useState<any[]>([]);
+  const [schedule, setSchedule] = useState<BookingScheduleDay[]>([]);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -46,17 +53,7 @@ export function Settings() {
         setShopName(data.shopName || "");
         setShopPhone(data.shopPhone || "");
         setShopAddress(data.shopAddress || "");
-        if (data.schedule && data.schedule.length > 0) {
-          setSchedule(data.schedule);
-        } else {
-          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-          setSchedule(days.map((day) => ({
-            day,
-            openTime: "08:00",
-            closeTime: "17:00",
-            isClosed: day === 'Sunday'
-          })));
-        }
+        setSchedule(normalizeScheduleDays(data.schedule));
 
         // Only load staff list if admin
         if (isAdmin) {
@@ -83,17 +80,37 @@ export function Settings() {
     }
   };
 
-  const handleSaveHours = async () => {
+  const handleSaveSchedule = async () => {
     try {
       await api.updateSettings({ schedule });
-      toast.success("Hours saved successfully");
+      toast.success("Booking schedule saved successfully");
     } catch (err) {
-      toast.error("Failed to save hours");
+      toast.error("Failed to save booking schedule");
     }
   };
 
-  const updateSchedule = (day: string, field: string, value: any) => {
-    setSchedule((prev) => prev.map(s => s.day === day ? { ...s, [field]: value } : s));
+  const updateScheduleDay = (day: string, updater: (current: BookingScheduleDay) => BookingScheduleDay) => {
+    setSchedule((prev) => prev.map((entry) => (entry.day === day ? updater(entry) : entry)));
+  };
+
+  const toggleDayClosed = (day: string, isClosed: boolean) => {
+    updateScheduleDay(day, (current) => ({ ...current, isClosed }));
+  };
+
+  const toggleSlotAvailability = (day: string, time: string) => {
+    updateScheduleDay(day, (current) => ({
+      ...current,
+      slots: current.slots.map((slot) =>
+        slot.time === time ? { ...slot, isAvailable: !slot.isAvailable } : slot,
+      ),
+    }));
+  };
+
+  const setAllSlotsForDay = (day: string, isAvailable: boolean) => {
+    updateScheduleDay(day, (current) => ({
+      ...current,
+      slots: current.slots.map((slot) => ({ ...slot, isAvailable })),
+    }));
   };
 
   const handleChangePassword = async () => {
@@ -184,37 +201,112 @@ export function Settings() {
           </Card>
         )}
 
-        {/* Business Hours — admin only */}
+        {/* Booking Schedule — admin only */}
         {isAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle>Business Hours</CardTitle>
-              <CardDescription>Set your regular operating hours.</CardDescription>
+              <CardTitle>Booking Schedule</CardTitle>
+              <CardDescription>Choose which days are open and exactly which start times can be booked online.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {schedule.map((s) => (
-                <div key={s.day} className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0">
-                  <div className="w-32 font-medium text-slate-900 flex items-center gap-2">
-                    <input type="checkbox" checked={!s.isClosed} onChange={(e) => updateSchedule(s.day, 'isClosed', !e.target.checked)} className="rounded border-brand-300 text-brand-600 focus:ring-brand-600" />
-                    {s.day}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input type="time" value={s.openTime || ""} onChange={e => updateSchedule(s.day, 'openTime', e.target.value)} className="w-32" disabled={s.isClosed} />
-                    <span className="text-slate-500">to</span>
-                    <Input type="time" value={s.closeTime || ""} onChange={e => updateSchedule(s.day, 'closeTime', e.target.value)} className="w-32" disabled={s.isClosed} />
-                  </div>
-                  <div className="w-24 text-right">
-                    {s.isClosed ? (
-                      <span className="text-sm text-coral font-medium">Closed</span>
-                    ) : (
-                      <span className="text-sm text-accent font-medium">Open</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <CardContent className="space-y-5">
+              <div className="rounded-2xl border border-brand-100 bg-brand-50 p-4">
+                <p className="text-sm font-semibold text-slate-900">
+                  Fixed booking hours: {formatScheduleTime(BOOKING_OPEN_TIME)} to {formatScheduleTime(BOOKING_CLOSE_TIME)}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Appointments start in 30-minute increments and each half-hour slot can handle up to 2 dogs.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {schedule.map((daySchedule) => {
+                  const availableCount = daySchedule.slots.filter((slot) => slot.isAvailable).length;
+
+                  return (
+                    <div
+                      key={daySchedule.day}
+                      className={`rounded-2xl border p-4 transition-colors ${daySchedule.isClosed ? "border-slate-200 bg-slate-50" : "border-brand-100 bg-white"}`}
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold text-slate-900">{daySchedule.day}</h3>
+                            <Badge variant={daySchedule.isClosed ? "outline" : "secondary"}>
+                              {daySchedule.isClosed ? "Closed" : "Open"}
+                            </Badge>
+                            <Badge variant="outline">
+                              {availableCount}/{daySchedule.slots.length} starts bookable
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-slate-500">
+                            {daySchedule.isClosed
+                              ? "Online booking is blocked for the full day until you reopen it."
+                              : `Customers can book between ${formatScheduleTime(daySchedule.openTime || BOOKING_OPEN_TIME)} and ${formatScheduleTime(daySchedule.closeTime || BOOKING_CLOSE_TIME)}.`}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={daySchedule.isClosed ? "secondary" : "outline"}
+                            onClick={() => toggleDayClosed(daySchedule.day, false)}
+                          >
+                            Open Day
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={daySchedule.isClosed ? "outline" : "secondary"}
+                            onClick={() => toggleDayClosed(daySchedule.day, true)}
+                          >
+                            Close Day
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setAllSlotsForDay(daySchedule.day, true)}
+                          >
+                            All Slots On
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setAllSlotsForDay(daySchedule.day, false)}
+                          >
+                            All Slots Off
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5 ${daySchedule.isClosed ? "opacity-70" : ""}`}>
+                        {daySchedule.slots.map((slot) => (
+                          <button
+                            key={`${daySchedule.day}-${slot.time}`}
+                            type="button"
+                            onClick={() => toggleSlotAvailability(daySchedule.day, slot.time)}
+                            className={`rounded-xl border px-3 py-3 text-left transition-colors ${
+                              slot.isAvailable
+                                ? "border-brand-200 bg-brand-50 text-brand-800 hover:border-brand-300"
+                                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                            }`}
+                          >
+                            <div className="text-sm font-semibold">{formatScheduleTime(slot.time)}</div>
+                            <div className="mt-1 text-xs">
+                              {slot.isAvailable ? "Available to book" : "Unavailable"}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </CardContent>
             <CardFooter className="border-t border-slate-100 bg-slate-50 px-6 py-4">
-              <Button onClick={handleSaveHours}>Save Hours</Button>
+              <Button onClick={handleSaveSchedule}>Save Booking Schedule</Button>
             </CardFooter>
           </Card>
         )}
