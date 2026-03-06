@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { handleError } from "@/src/lib/handleError";
 import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText, ChevronDown, Users } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
@@ -35,6 +36,7 @@ import { CustomerModal } from "@/src/components/CustomerModal";
 import { ConfirmDialog } from "@/src/components/ConfirmDialog";
 import { Customer, Pet } from "@/src/types";
 import { formatCurrency } from "@/src/lib/utils";
+import { CustomersSkeleton } from "@/src/components/ui/skeleton";
 
 export function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,6 +57,7 @@ export function Customers() {
   const [page, setPage] = useState(1);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 50;
 
@@ -96,7 +99,9 @@ export function Customers() {
         ]);
         setAppointments(aptData.map((a: any) => ({ ...a, date: new Date(a.date) })));
       } catch (err) {
-        console.error('Failed to load data', err);
+        handleError(err, "Failed to load data");
+      } finally {
+        setLoading(false);
       }
     }
     loadData();
@@ -169,8 +174,7 @@ export function Customers() {
       }
       toast.success('Customer deleted.');
     } catch (err: any) {
-      console.error("Failed to delete customer", err);
-      toast.error(err.message || 'Failed to delete customer.');
+      handleError(err, "Failed to delete customer");
     } finally {
       setCustomerToDelete(null);
     }
@@ -195,7 +199,7 @@ export function Customers() {
         setSelectedCustomer(updatedCustomer);
       }
     } catch (err) {
-      console.error("Failed to save customer", err);
+      handleError(err, "Failed to save customer");
     }
   };
 
@@ -210,12 +214,11 @@ export function Customers() {
         setAppointments((prev) => [...prev, updatedAppointment]);
       }
     } catch (err: any) {
-      console.error("Failed to save appointment", err);
       const suggestions: string[] = err?.details?.suggestions || [];
       if (suggestions.length > 0) {
         toast.error(`${err.message} Next openings: ${suggestions.map((s) => format(new Date(s), "EEE h:mm a")).join(', ')}`);
       } else {
-        toast.error(err.message || 'Failed to save due to an error.');
+        handleError(err, "Failed to save appointment");
       }
     }
   };
@@ -223,6 +226,8 @@ export function Customers() {
   const customerAppointments = selectedCustomer
     ? appointments.filter((apt) => apt.ownerName === selectedCustomer.name)
     : [];
+
+  if (loading) return <CustomersSkeleton />;
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,6 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
+import { type AuthenticatedRequest } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, formSchema, formSubmissionSchema } from '../schema.js';
 
@@ -11,22 +12,24 @@ router.get('/', (req, res) => {
     res.json(forms);
 });
 
-router.post('/', validateBody(formSchema), (req: any, res: any) => {
+router.post('/', validateBody(formSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { name, description, version, fields, isActive } = req.body;
     const id = crypto.randomUUID(); // Always generate server-side
     const createdAt = new Date().toISOString();
     db.prepare(`INSERT INTO forms (id, name, description, version, fields, isActive, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run(id, name, description || null, version || 1, fields, isActive !== false ? 1 : 0, createdAt);
-    logAudit(req.user?.id || null, 'create', 'form', id, null, req.body);
+    logAudit(authReq.user?.id || null, 'create', 'form', id, null, req.body);
     res.json({ ...req.body, id, createdAt });
 });
 
-router.put('/:id', validateBody(formSchema), (req: any, res: any) => {
+router.put('/:id', validateBody(formSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { name, description, version, fields, isActive } = req.body;
     const old = db.prepare('SELECT * FROM forms WHERE id = ?').get(req.params.id);
     db.prepare(`UPDATE forms SET name=?, description=?, version=?, fields=?, isActive=?, updatedAt=? WHERE id=?`)
         .run(name, description || null, version || 1, fields, isActive !== false ? 1 : 0, new Date().toISOString(), req.params.id);
-    logAudit(req.user?.id || null, 'update', 'form', req.params.id, old, req.body);
+    logAudit(authReq.user?.id || null, 'update', 'form', req.params.id, old, req.body);
     res.json({ id: req.params.id, ...req.body });
 });
 
@@ -36,25 +39,26 @@ export const formSubmissionsRouter = Router();
 formSubmissionsRouter.get('/', (req, res) => {
     const { formId, customerId, dogId, appointmentId } = req.query;
     let query = 'SELECT * FROM form_submissions';
-    const params: any[] = [];
+    const params: string[] = [];
     const conditions: string[] = [];
-    if (formId) { conditions.push('formId = ?'); params.push(formId); }
-    if (customerId) { conditions.push('customerId = ?'); params.push(customerId); }
-    if (dogId) { conditions.push('dogId = ?'); params.push(dogId); }
-    if (appointmentId) { conditions.push('appointmentId = ?'); params.push(appointmentId); }
+    if (formId) { conditions.push('formId = ?'); params.push(formId as string); }
+    if (customerId) { conditions.push('customerId = ?'); params.push(customerId as string); }
+    if (dogId) { conditions.push('dogId = ?'); params.push(dogId as string); }
+    if (appointmentId) { conditions.push('appointmentId = ?'); params.push(appointmentId as string); }
     if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY submittedAt DESC';
     const submissions = db.prepare(query).all(...params);
     res.json(submissions);
 });
 
-formSubmissionsRouter.post('/', validateBody(formSubmissionSchema), (req: any, res: any) => {
+formSubmissionsRouter.post('/', validateBody(formSubmissionSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { formId, customerId, dogId, appointmentId, data, signature } = req.body;
     const id = crypto.randomUUID(); // Always generate server-side
     const submittedAt = new Date().toISOString();
     db.prepare(`INSERT INTO form_submissions (id, formId, customerId, dogId, appointmentId, data, signature, submittedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
         .run(id, formId, customerId || null, dogId || null, appointmentId || null, data, signature || null, submittedAt);
-    logAudit(req.user?.id || null, 'create', 'form_submission', id, null, req.body);
+    logAudit(authReq.user?.id || null, 'create', 'form_submission', id, null, req.body);
     res.json({ ...req.body, id, submittedAt });
 });
 

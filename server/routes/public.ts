@@ -1,11 +1,14 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import db from '../db.js';
-import { JWT_SECRET, authenticateToken } from '../middleware/auth.js';
+import { JWT_SECRET, authenticateToken, type AuthenticatedRequest } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
+import { validatePasswordStrength } from '../helpers/password.js';
 import { autoNotify } from '../helpers/messaging.js';
+import type { UserRow, ServiceRow } from '../types.js';
+import type { RawScheduleRow } from '../helpers/schedule.js';
 import {
     getAppointmentAvailability,
     getAvailabilityErrorMessage,
@@ -35,7 +38,7 @@ router.get('/services', (req, res) => {
 
 // Public: shop schedule
 router.get('/schedule', (req, res) => {
-    const rows = db.prepare('SELECT * FROM schedule').all() as any[];
+    const rows = db.prepare('SELECT * FROM schedule').all() as RawScheduleRow[];
     res.json(normalizeScheduleRows(rows));
 });
 
@@ -57,12 +60,8 @@ router.post('/register', (req, res) => {
     if (!email || !password || !firstName) {
         return res.status(400).json({ error: 'Email, password, and first name are required' });
     }
-    if (password.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    }
-    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
-        return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number' });
-    }
+    const pwError = validatePasswordStrength(password);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     try {
         const userId = crypto.randomUUID();
@@ -76,8 +75,8 @@ router.post('/register', (req, res) => {
 
         const token = jwt.sign({ id: userId, email, role: 'customer' }, JWT_SECRET!, { expiresIn: '24h' });
         res.json({ token, user: { id: userId, email, role: 'customer', customerId } });
-    } catch (err: any) {
-        if (err.message.includes('UNIQUE')) {
+    } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('UNIQUE')) {
             return res.status(400).json({ error: 'Email already exists' });
         }
         res.status(500).json({ error: 'Registration failed' });
@@ -87,13 +86,13 @@ router.post('/register', (req, res) => {
 // Public: customer login
 router.post('/login', loginLimiter, (req, res) => {
     const { email, password } = req.body;
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as UserRow | undefined;
 
     if (user && bcrypt.compareSync(password, user.password)) {
         const role = user.role || 'customer';
         const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET!, { expiresIn: '24h' });
 
-        const customer = db.prepare('SELECT id FROM customers WHERE email = ?').get(email) as any;
+        const customer = db.prepare('SELECT id FROM customers WHERE email = ?').get(email) as { id: string } | undefined;
         res.json({
             token,
             user: { id: user.id, email: user.email, role, customerId: customer?.id || null }
@@ -104,13 +103,14 @@ router.post('/login', loginLimiter, (req, res) => {
 });
 
 // Public: submit a booking (requires customer auth token)
-router.post('/bookings', authenticateToken, (req: any, res: any) => {
+router.post('/bookings', authenticateToken, (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { serviceId, date, petName, breed, notes, customerId } = req.body;
     if (!serviceId || !date || !petName) {
         return res.status(400).json({ error: 'serviceId, date, and petName are required' });
     }
 
-    const service = db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId) as any;
+    const service = db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId) as ServiceRow | undefined;
     if (!service) return res.status(404).json({ error: 'Service not found' });
 
     const availability = getAppointmentAvailability(date, service.duration);
@@ -134,7 +134,7 @@ router.post('/bookings', authenticateToken, (req: any, res: any) => {
         customerId || null, notes || '', service.depositRequired ? 1 : 0, service.depositAmount || 0
     );
 
-    logAudit(req.user.id, 'book', 'appointment', apptId, null, { serviceId, petName, status });
+    logAudit(authReq.user.id, 'book', 'appointment', apptId, null, { serviceId, petName, status });
 
     const triggerKey = status === 'pending-approval' ? 'booking_pending' : 'booking_confirmed';
     autoNotify(

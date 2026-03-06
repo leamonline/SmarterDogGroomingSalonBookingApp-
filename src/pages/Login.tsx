@@ -32,13 +32,18 @@ export function Login() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
+                credentials: 'include',
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                login(data.token, data.user);
-                navigate('/');
+                login(data.token, data.user, data.passwordChangeRequired);
+                if (data.passwordChangeRequired) {
+                    navigate('/settings');
+                } else {
+                    navigate('/');
+                }
             } else {
                 setError(data.error || 'Login failed');
             }
@@ -55,7 +60,7 @@ export function Login() {
             <div className="absolute top-[-120px] right-[-80px] h-[400px] w-[400px] rounded-full bg-white/10" />
             <div className="absolute bottom-[-100px] left-[-60px] h-[300px] w-[300px] rounded-full bg-white/10" />
 
-            <div className="relative w-full max-w-md space-y-8 bg-white p-10 rounded-3xl shadow-xl">
+            <div className="relative w-full max-w-md space-y-8 bg-white p-10 rounded-2xl shadow-xl">
                 <div className="flex flex-col items-center justify-center">
                     <div className="rounded-2xl bg-accent p-3 shadow-lg">
                         <Dog className="h-8 w-8 text-white" />
@@ -85,7 +90,16 @@ export function Login() {
                             <FieldError message={errors.email} />
                         </div>
                         <div>
-                            <label className="text-sm font-medium text-slate-700 mb-1 block" htmlFor="password">Password</label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="text-sm font-medium text-slate-700" htmlFor="password">Password</label>
+                                <button
+                                    type="button"
+                                    className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
+                                    onClick={() => alert('Please contact the salon to reset your password.')}
+                                >
+                                    Forgot password?
+                                </button>
+                            </div>
                             <Input
                                 id="password"
                                 name="password"
@@ -109,7 +123,7 @@ export function Login() {
                     <div>
                         <Button
                             type="submit"
-                            className="w-full bg-accent hover:bg-accent-hover text-white font-bold shadow-md"
+                            className="w-full font-bold shadow-md"
                             disabled={isLoading}
                         >
                             {isLoading ? 'Signing in...' : 'Sign in'}

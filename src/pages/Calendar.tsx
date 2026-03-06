@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import {
@@ -16,8 +16,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/ca
 import { Badge } from "@/src/components/ui/badge";
 import { api } from "@/src/lib/api";
 import { cn, formatCurrency } from "@/src/lib/utils";
+import { handleError } from "@/src/lib/handleError";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { AppointmentStatusBar } from "@/src/components/AppointmentStatusBar";
+import { CalendarSkeleton } from "@/src/components/ui/skeleton";
 import { useLocation } from "react-router-dom";
 
 type CalendarFilter = "all" | "needs-action" | "in-salon" | "done";
@@ -88,6 +90,7 @@ export function Calendar() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<CalendarFilter>("all");
+  const [loading, setLoading] = useState(true);
 
   const location = useLocation();
 
@@ -97,7 +100,9 @@ export function Calendar() {
         const data = await api.getAppointments();
         setAppointments(data.map((item: any) => ({ ...item, date: new Date(item.date) })));
       } catch (err) {
-        console.error("Failed to load appointments", err);
+        handleError(err, "Failed to load appointments");
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -117,28 +122,37 @@ export function Calendar() {
     }
   }, [location.state, appointments]);
 
-  const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekEndExclusive = addDays(startDate, 7);
-  const weekDays = Array.from({ length: 7 }).map((_, index) => addDays(startDate, index));
-  const hours = Array.from({ length: 10 }).map((_, index) => index + 8);
-  const allWeekAppointments = appointments
-    .filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive)
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
-  const weekAppointments = allWeekAppointments.filter((appointment) => matchesFilter(appointment, activeFilter));
-  const selectedDayAppointments = weekAppointments.filter((appointment) => isSameDay(appointment.date, selectedDay));
+  const startDate = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
+  const weekEndExclusive = useMemo(() => addDays(startDate, 7), [startDate]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }).map((_, index) => addDays(startDate, index)), [startDate]);
+  const hours = useMemo(() => Array.from({ length: 10 }).map((_, index) => index + 8), []);
+  const allWeekAppointments = useMemo(
+    () => appointments
+      .filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive)
+      .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    [appointments, startDate, weekEndExclusive],
+  );
+  const weekAppointments = useMemo(
+    () => allWeekAppointments.filter((appointment) => matchesFilter(appointment, activeFilter)),
+    [allWeekAppointments, activeFilter],
+  );
+  const selectedDayAppointments = useMemo(
+    () => weekAppointments.filter((appointment) => isSameDay(appointment.date, selectedDay)),
+    [weekAppointments, selectedDay],
+  );
 
-  const handleAppointmentClick = (appointment: Appointment) => {
+  const handleAppointmentClick = useCallback((appointment: Appointment) => {
     setSelectedDay(appointment.date);
     setSelectedAppointment(appointment);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleNewAppointmentClick = () => {
+  const handleNewAppointmentClick = useCallback(() => {
     setSelectedAppointment(null);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleSaveAppointment = async (
+  const handleSaveAppointment = useCallback(async (
     updatedAppointment: Appointment,
     options?: { successMessage?: string },
   ) => {
@@ -159,30 +173,29 @@ export function Calendar() {
       }
 
       return true;
-    } catch (err: any) {
-      console.error("Failed to save appointment", err);
-      toast.error(err.message || "Failed to save due to an error.");
+    } catch (err) {
+      handleError(err, "Failed to save appointment");
       return false;
     }
-  };
+  }, [appointments]);
 
-  const handleStatusUpdate = (updatedAppointment: Appointment) => {
+  const handleStatusUpdate = useCallback((updatedAppointment: Appointment) => {
     setAppointments((prev) =>
       prev.map((appointment) => (appointment.id === updatedAppointment.id ? updatedAppointment : appointment)),
     );
-  };
+  }, []);
 
-  const handleDragStart = (event: React.DragEvent, appointmentId: string) => {
+  const handleDragStart = useCallback((event: React.DragEvent, appointmentId: string) => {
     event.dataTransfer.setData("appointmentId", appointmentId);
     event.dataTransfer.effectAllowed = "move";
-  };
+  }, []);
 
-  const handleDragOver = (event: React.DragEvent) => {
+  const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-  };
+  }, []);
 
-  const handleDrop = async (event: React.DragEvent, targetDay: Date) => {
+  const handleDrop = useCallback(async (event: React.DragEvent, targetDay: Date) => {
     event.preventDefault();
     const appointmentId = event.dataTransfer.getData("appointmentId");
     if (!appointmentId) return;
@@ -207,32 +220,37 @@ export function Calendar() {
         setSelectedDay(targetDay);
       }
     }
-  };
+  }, [appointments, handleSaveAppointment]);
 
-  const shiftWeek = (days: number) => {
+  const shiftWeek = useCallback((days: number) => {
     setCurrentDate((prev) => addDays(prev, days));
     setSelectedDay((prev) => addDays(prev, days));
-  };
+  }, []);
 
-  const goToToday = () => {
+  const goToToday = useCallback(() => {
     const now = new Date();
     setCurrentDate(now);
     setSelectedDay(now);
-  };
+  }, []);
 
-  const weeklyInSalon = weekAppointments.filter((appointment) => LIVE_STATUSES.has(appointment.status)).length;
-  const weeklyNeedsAction = weekAppointments.filter((appointment) => NEEDS_ACTION_STATUSES.has(appointment.status)).length;
-  const weeklyDone = weekAppointments.filter((appointment) => DONE_STATUSES.has(appointment.status)).length;
-  const selectedDayRevenue = selectedDayAppointments
-    .filter((appointment) => !appointment.status.includes("cancelled") && appointment.status !== "no-show")
-    .reduce((sum, appointment) => sum + (appointment.price || 0), 0);
+  const weeklyInSalon = useMemo(() => weekAppointments.filter((a) => LIVE_STATUSES.has(a.status)).length, [weekAppointments]);
+  const weeklyNeedsAction = useMemo(() => weekAppointments.filter((a) => NEEDS_ACTION_STATUSES.has(a.status)).length, [weekAppointments]);
+  const weeklyDone = useMemo(() => weekAppointments.filter((a) => DONE_STATUSES.has(a.status)).length, [weekAppointments]);
+  const selectedDayRevenue = useMemo(
+    () => selectedDayAppointments
+      .filter((a) => !a.status.includes("cancelled") && a.status !== "no-show")
+      .reduce((sum, a) => sum + (a.price || 0), 0),
+    [selectedDayAppointments],
+  );
 
-  const filterOptions: Array<{ value: CalendarFilter; label: string; count: number }> = [
+  const filterOptions = useMemo<Array<{ value: CalendarFilter; label: string; count: number }>>(() => [
     { value: "all", label: "All", count: allWeekAppointments.length },
-    { value: "needs-action", label: "Needs Action", count: allWeekAppointments.filter((appointment) => matchesFilter(appointment, "needs-action")).length },
-    { value: "in-salon", label: "In Salon", count: allWeekAppointments.filter((appointment) => matchesFilter(appointment, "in-salon")).length },
-    { value: "done", label: "Done", count: allWeekAppointments.filter((appointment) => matchesFilter(appointment, "done")).length },
-  ];
+    { value: "needs-action", label: "Needs Action", count: allWeekAppointments.filter((a) => matchesFilter(a, "needs-action")).length },
+    { value: "in-salon", label: "In Salon", count: allWeekAppointments.filter((a) => matchesFilter(a, "in-salon")).length },
+    { value: "done", label: "Done", count: allWeekAppointments.filter((a) => matchesFilter(a, "done")).length },
+  ], [allWeekAppointments]);
+
+  if (loading) return <CalendarSkeleton />;
 
   return (
     <div className="flex h-full flex-col space-y-4">

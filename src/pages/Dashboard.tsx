@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { handleError } from "@/src/lib/handleError";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
 import { Button } from "@/src/components/ui/button";
@@ -20,6 +21,7 @@ import {
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { AppointmentStatusBar } from "@/src/components/AppointmentStatusBar";
 import { formatCurrency } from "@/src/lib/utils";
+import { DashboardSkeleton } from "@/src/components/ui/skeleton";
 
 type ScheduleFilter = "all" | "upcoming" | "active" | "done";
 
@@ -79,8 +81,7 @@ export function Dashboard() {
         setAppointments(aptData.map((d: any) => ({ ...d, date: new Date(d.date) })));
         setAnalytics(analyticsData);
       } catch (err) {
-        console.error("Failed to load dashboard data", err);
-        toast.error("Failed to load dashboard data");
+        handleError(err, "Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
@@ -152,12 +153,11 @@ export function Dashboard() {
         setAppointments((prev) => [...prev, updatedAppointment].sort((a, b) => a.date.getTime() - b.date.getTime()));
       }
     } catch (err: any) {
-      console.error("Failed to save appointment", err);
       const suggestions: string[] = err?.details?.suggestions || [];
       if (suggestions.length > 0) {
         toast.error(`${err.message} Next openings: ${suggestions.map((slot) => format(new Date(slot), "EEE h:mm a")).join(", ")}`);
       } else {
-        toast.error(err.message || "Failed to save due to an error.");
+        handleError(err, "Failed to save appointment");
       }
     }
   };
@@ -203,10 +203,7 @@ export function Dashboard() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-slate-400">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
-          <span className="ml-3 text-sm">Loading dashboard…</span>
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -280,12 +277,12 @@ export function Dashboard() {
               <CardContent>
                 <div className="space-y-3">
                   {visibleTodayAppointments.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-12 text-center">
-                      <div className="rounded-full bg-slate-100 p-3">
-                        <Calendar className="h-6 w-6 text-slate-400" />
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-brand-200 bg-brand-50/30 py-12 text-center">
+                      <div className="rounded-full bg-brand-100 p-4">
+                        <Dog className="h-7 w-7 text-brand-500" />
                       </div>
-                      <h3 className="mt-4 text-sm font-semibold text-slate-900">Nothing in this view right now</h3>
-                      <p className="mt-1 text-sm text-slate-500">Switch the filter or create a new appointment for today.</p>
+                      <h3 className="mt-4 text-sm font-semibold text-slate-900">All clear — no appointments here!</h3>
+                      <p className="mt-1 text-sm text-slate-500 max-w-xs">Try a different filter, or head to the calendar to schedule something new.</p>
                     </div>
                   ) : (
                     visibleTodayAppointments.map((appointment) => {

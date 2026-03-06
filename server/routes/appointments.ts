@@ -1,6 +1,6 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { autoNotify } from '../helpers/messaging.js';
 import {
@@ -10,6 +10,11 @@ import {
     getNextAvailableSlots,
 } from '../helpers/appointments.js';
 import { validateBody, appointmentSchema, clampLimit } from '../schema.js';
+import type { AppointmentRow, CountRow } from '../types.js';
+import type { AvailabilityReason } from '../helpers/appointments.js';
+
+interface TxCreateResult { conflict: boolean; suggestions?: string[]; reason?: AvailabilityReason; }
+interface TxUpdateResult { notFound: boolean; conflict: boolean; suggestions?: string[]; reason?: AvailabilityReason; old: AppointmentRow | null; }
 
 const router = Router();
 
@@ -18,7 +23,7 @@ router.get('/', (req, res) => {
     const limit = clampLimit(req.query.limit as string);
     const offset = (page - 1) * limit;
 
-    const total = (db.prepare('SELECT COUNT(*) as count FROM appointments').get() as any).count;
+    const total = (db.prepare('SELECT COUNT(*) as count FROM appointments').get() as CountRow).count;
     const appointments = db.prepare('SELECT * FROM appointments ORDER BY date DESC LIMIT ? OFFSET ?').all(limit, offset);
 
     res.json({
@@ -34,11 +39,12 @@ router.get('/next-available', (req, res) => {
     res.json({ data: slots });
 });
 
-router.post('/', validateBody(appointmentSchema), (req: any, res: any) => {
+router.post('/', validateBody(appointmentSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar } = req.body;
     const id = crypto.randomUUID();
 
-    const result = db.transaction(() => {
+    const result: TxCreateResult = db.transaction(() => {
         const availability = getAppointmentAvailability(date, duration);
         const conflictReason = getAvailabilityReason(availability);
         if (conflictReason) {
@@ -52,30 +58,31 @@ router.post('/', validateBody(appointmentSchema), (req: any, res: any) => {
 
     if (result.conflict) {
         return res.status(400).json({
-            error: getAvailabilityErrorMessage((result as any).reason),
+            error: getAvailabilityErrorMessage(result.reason),
             suggestions: result.suggestions,
         });
     }
 
-    logAudit(req.user?.id || null, 'create', 'appointment', id, null, req.body);
+    logAudit(authReq.user?.id || null, 'create', 'appointment', id, null, req.body);
     res.json({ ...req.body, id });
 });
 
-router.put('/:id', validateBody(appointmentSchema), (req: any, res: any) => {
+router.put('/:id', validateBody(appointmentSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar,
         checkedInAt, checkedInNotes, groomNotes, productsUsed, behaviourDuringGroom,
         completedAt, aftercareNotes, readyForCollectionAt, surcharge, surchargeReason, finalPrice,
         cancelledAt, cancellationReason, customerId } = req.body;
 
-    const txResult = db.transaction(() => {
-        const old = db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id) as any;
-        if (!old) return { notFound: true, conflict: false, old: null as any };
+    const txResult: TxUpdateResult = db.transaction(() => {
+        const old = db.prepare('SELECT * FROM appointments WHERE id = ?').get(req.params.id) as AppointmentRow | undefined;
+        if (!old) return { notFound: true, conflict: false, old: null };
 
         const availability = getAppointmentAvailability(date, duration, req.params.id);
         const conflictReason = getAvailabilityReason(availability);
         if (conflictReason) {
             const suggestions = getNextAvailableSlots(date, duration, 3, { excludeId: req.params.id });
-            return { notFound: false, conflict: true, suggestions, reason: conflictReason, old: null as any };
+            return { notFound: false, conflict: true, suggestions, reason: conflictReason, old: null };
         }
 
         db.prepare(`
@@ -101,13 +108,13 @@ router.put('/:id', validateBody(appointmentSchema), (req: any, res: any) => {
     }
     if (txResult.conflict) {
         return res.status(400).json({
-            error: getAvailabilityErrorMessage((txResult as any).reason),
-            suggestions: (txResult as any).suggestions,
+            error: getAvailabilityErrorMessage(txResult.reason),
+            suggestions: txResult.suggestions,
         });
     }
 
     const old = txResult.old;
-    logAudit(req.user?.id, 'update', 'appointment', req.params.id, old, req.body);
+    logAudit(authReq.user?.id, 'update', 'appointment', req.params.id, old, req.body);
 
     // Auto-notify on key status transitions
     if (old && old.status !== status) {
@@ -122,12 +129,13 @@ router.put('/:id', validateBody(appointmentSchema), (req: any, res: any) => {
     res.json(req.body);
 });
 
-router.delete('/:id', requireAdmin, (req: any, res: any) => {
-    const existing = db.prepare('SELECT id FROM appointments WHERE id = ?').get(req.params.id);
+router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const existing = db.prepare('SELECT id FROM appointments WHERE id = ?').get(req.params.id) as Pick<AppointmentRow, 'id'> | undefined;
     if (!existing) return res.status(404).json({ error: 'Appointment not found' });
 
     db.prepare('DELETE FROM appointments WHERE id=?').run(req.params.id);
-    logAudit(req.user.id, 'delete', 'appointment', req.params.id, null, null);
+    logAudit(authReq.user.id, 'delete', 'appointment', req.params.id, null, null);
     res.json({ success: true });
 });
 

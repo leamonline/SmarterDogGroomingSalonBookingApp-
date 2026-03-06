@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useMemo } from 'react';
+import { api } from '@/src/lib/api';
 import type { UserRole } from '@/src/types';
 
 interface User {
@@ -7,10 +8,17 @@ interface User {
     role: UserRole;
 }
 
+interface LoginResponse {
+    token: string;
+    user: User;
+    passwordChangeRequired?: boolean;
+}
+
 interface AuthContextType {
     user: User | null;
     token: string | null;
-    login: (token: string, user: User) => void;
+    passwordChangeRequired: boolean;
+    login: (token: string, user: User, passwordChangeRequired?: boolean) => void;
     logout: () => void;
     hasRole: (...roles: UserRole[]) => boolean;
     isStaff: boolean;
@@ -34,18 +42,30 @@ const getInitialUser = () => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(getInitialUser);
+    // Token kept in state for backward compat but httpOnly cookie is the primary auth mechanism
     const [token, setToken] = useState<string | null>(() => localStorage.getItem('petspa_token'));
+    const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
 
-    const login = (newToken: string, newUser: User) => {
+    const login = (newToken: string, newUser: User, needsPasswordChange?: boolean) => {
         setToken(newToken);
         setUser(newUser);
-        localStorage.setItem('petspa_token', newToken);
+        setPasswordChangeRequired(!!needsPasswordChange);
+        // Store user info (non-sensitive) for display; token is now in httpOnly cookie
         localStorage.setItem('petspa_user', JSON.stringify(newUser));
+        // Keep token in localStorage for backward compat during migration period
+        // TODO: Remove localStorage token storage once fully migrated to cookies
+        localStorage.setItem('petspa_token', newToken);
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await api.logout(); // Clear server-side cookie
+        } catch {
+            // Best-effort; clear local state regardless
+        }
         setToken(null);
         setUser(null);
+        setPasswordChangeRequired(false);
         localStorage.removeItem('petspa_token');
         localStorage.removeItem('petspa_user');
     };
@@ -63,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isOwner = useMemo(() => !!user && user.role === 'owner', [user]);
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, hasRole, isStaff, isAdmin, isOwner }}>
+        <AuthContext.Provider value={{ user, token, passwordChangeRequired, login, logout, hasRole, isStaff, isAdmin, isOwner }}>
             {children}
         </AuthContext.Provider>
     );

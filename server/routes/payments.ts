@@ -1,7 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
+import { type AuthenticatedRequest } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, paymentSchema, clampLimit } from '../schema.js';
+import type { CountRow } from '../types.js';
 
 const router = Router();
 
@@ -14,7 +16,7 @@ router.get('/', (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = clampLimit(req.query.limit as string);
     const offset = (page - 1) * limit;
-    const total = (db.prepare('SELECT COUNT(*) as count FROM payments').get() as any).count;
+    const total = (db.prepare('SELECT COUNT(*) as count FROM payments').get() as CountRow).count;
     const payments = db.prepare('SELECT * FROM payments ORDER BY createdAt DESC LIMIT ? OFFSET ?').all(limit, offset);
     res.json({
         data: payments,
@@ -22,7 +24,8 @@ router.get('/', (req, res) => {
     });
 });
 
-router.post('/', validateBody(paymentSchema), (req: any, res: any) => {
+router.post('/', validateBody(paymentSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { appointmentId, customerId, amount, method, type, status, notes } = req.body;
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -33,7 +36,7 @@ router.post('/', validateBody(paymentSchema), (req: any, res: any) => {
         db.prepare('UPDATE appointments SET depositPaid = 1 WHERE id = ?').run(appointmentId);
     }
 
-    logAudit(req.user?.id || null, 'create', 'payment', id, null, req.body);
+    logAudit(authReq.user?.id || null, 'create', 'payment', id, null, req.body);
     res.json({ ...req.body, id, createdAt });
 });
 

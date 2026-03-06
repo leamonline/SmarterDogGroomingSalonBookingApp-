@@ -55,7 +55,7 @@ async function publicFetch(url: string, options: RequestInit = {}) {
 // ────────────────────────────────────────
 // Main Booking Page
 // ────────────────────────────────────────
-type Step = "auth" | "service" | "datetime" | "pet" | "confirm" | "done";
+type Step = "service" | "auth" | "datetime" | "pet" | "confirm" | "done";
 
 type PublicScheduleDay = {
     isClosed: boolean;
@@ -64,7 +64,7 @@ type PublicScheduleDay = {
 
 export function BookingPage() {
     const defaultDate = format(addDays(new Date(), 1), "yyyy-MM-dd");
-    const [step, setStep] = useState<Step>("auth");
+    const [step, setStep] = useState<Step>("service");
     const [authed, setAuthed] = useState(false);
     const [customerId, setCustomerId] = useState<string | null>(null);
     const [userEmail, setUserEmail] = useState("");
@@ -99,7 +99,7 @@ export function BookingPage() {
     const dates = Array.from({ length: 14 }, (_, i) => addDays(startOfDay(new Date()), i + 1));
     const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-    // Check if already authed
+    // Check if already authed (no step change — user starts on service regardless)
     useEffect(() => {
         const token = localStorage.getItem("petspa_booking_token");
         const savedEmail = localStorage.getItem("petspa_booking_email");
@@ -108,7 +108,6 @@ export function BookingPage() {
             setAuthed(true);
             setUserEmail(savedEmail);
             setCustomerId(savedCustId);
-            setStep("service");
         }
     }, []);
 
@@ -183,7 +182,7 @@ export function BookingPage() {
             }
             setAuthed(true);
             setUserEmail(data.user.email);
-            setStep("service");
+            setStep("datetime");
             toast.success(isRegister ? "Account created!" : "Logged in!");
         } catch (err: any) {
             toast.error(err.message);
@@ -247,7 +246,7 @@ export function BookingPage() {
         setPhone("");
         setIsRegister(false);
         resetBookingDraft();
-        setStep("auth");
+        setStep("service");
         toast.success("Signed out. You can book with a different account now.");
     };
 
@@ -313,9 +312,9 @@ export function BookingPage() {
             {step !== "done" && (
                 <div className="max-w-3xl mx-auto px-4 py-6">
                     <div className="flex items-center gap-2">
-                        {(["auth", "service", "datetime", "pet", "confirm"] as const).map((s, i) => {
-                            const labels = ["Account", "Service", "Date & Time", "Pet Details", "Confirm"];
-                            const stepOrder = ["auth", "service", "datetime", "pet", "confirm"];
+                        {(["service", "auth", "datetime", "pet", "confirm"] as const).map((s, i) => {
+                            const labels = ["Service", "Account", "Date & Time", "Pet Details", "Confirm"];
+                            const stepOrder = ["service", "auth", "datetime", "pet", "confirm"];
                             const current = stepOrder.indexOf(step);
                             const thisIdx = i;
                             return (
@@ -343,9 +342,12 @@ export function BookingPage() {
                 {/* ═══ Step 1: Auth ═══ */}
                 {step === "auth" && (
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-md mx-auto">
-                        <h2 className="text-lg font-bold text-purple mb-1">
-                            {isRegister ? "Create an Account" : "Sign In to Book"}
-                        </h2>
+                        <div className="flex items-center justify-between mb-1">
+                            <h2 className="text-lg font-bold text-purple">
+                                {isRegister ? "Create an Account" : "Sign In to Book"}
+                            </h2>
+                            <Button size="sm" variant="outline" onClick={() => setStep("service")}><ArrowLeft className="h-3.5 w-3.5 mr-1" /> Services</Button>
+                        </div>
                         <p className="text-sm text-slate-500 mb-6">
                             {isRegister ? "Create an account to manage your bookings." : "Sign in with your existing account."}
                         </p>
@@ -419,7 +421,7 @@ export function BookingPage() {
                             {services.map(svc => (
                                 <button
                                     key={svc.id}
-                                    onClick={() => { setSelectedService(svc); setSelectedSlot(""); setStep("datetime"); }}
+                                    onClick={() => { setSelectedService(svc); setSelectedSlot(""); setStep(authed ? "datetime" : "auth"); }}
                                     className={`text-left rounded-xl border-2 p-4 transition-all hover:shadow-md ${selectedService?.id === svc.id ? "border-brand-600 bg-brand-50" : "border-slate-200 bg-white hover:border-brand-300"
                                         }`}
                                 >
@@ -510,7 +512,10 @@ export function BookingPage() {
                         </div>
 
                         {/* Date picker */}
-                        <div className="flex gap-2 overflow-x-auto pb-2">
+                        <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-white to-transparent z-10 rounded-l-xl" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white to-transparent z-10 rounded-r-xl" />
+                        <div className="flex gap-2 overflow-x-auto pb-2 scroll-smooth" role="radiogroup" aria-label="Select a date">
                             {dates.map(d => {
                                 const ds = format(d, "yyyy-MM-dd");
                                 const isSelected = ds === selectedDate;
@@ -531,6 +536,7 @@ export function BookingPage() {
                                     </button>
                                 );
                             })}
+                        </div>
                         </div>
 
                         {/* Time slots */}

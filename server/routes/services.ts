@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, serviceSchema, addOnSchema, serviceAddOnLinkSchema, clampLimit } from '../schema.js';
+import type { ServiceRow, AddOnRow, CountRow } from '../types.js';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ router.get('/', (req, res) => {
     const limit = clampLimit(req.query.limit as string);
     const offset = (page - 1) * limit;
 
-    const total = (db.prepare('SELECT COUNT(*) as count FROM services').get() as any).count;
+    const total = (db.prepare('SELECT COUNT(*) as count FROM services').get() as CountRow).count;
     const services = db.prepare('SELECT * FROM services LIMIT ? OFFSET ?').all(limit, offset);
 
     res.json({
@@ -21,33 +22,36 @@ router.get('/', (req, res) => {
     });
 });
 
-router.post('/', validateBody(serviceSchema), (req: any, res: any) => {
+router.post('/', validateBody(serviceSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { name, description, duration, price, category, priceType, depositRequired, depositAmount, preBuffer, postBuffer, isOnlineBookable, isApprovalRequired, consentFormRequired, isActive } = req.body;
     const id = crypto.randomUUID();
     db.prepare('INSERT INTO services (id, name, description, duration, price, category, priceType, depositRequired, depositAmount, preBuffer, postBuffer, isOnlineBookable, isApprovalRequired, consentFormRequired, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .run(id, name, description, duration, price, category, priceType || 'fixed', depositRequired ? 1 : 0, depositAmount || 0, preBuffer || 0, postBuffer || 0, isOnlineBookable !== false ? 1 : 0, isApprovalRequired ? 1 : 0, consentFormRequired ? 1 : 0, isActive !== false ? 1 : 0);
-    logAudit(req.user?.id || null, 'create', 'service', id, null, req.body);
+    logAudit(authReq.user?.id || null, 'create', 'service', id, null, req.body);
     res.json({ ...req.body, id });
 });
 
-router.put('/:id', validateBody(serviceSchema), (req: any, res: any) => {
+router.put('/:id', validateBody(serviceSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { name, description, duration, price, category, priceType, depositRequired, depositAmount, preBuffer, postBuffer, isOnlineBookable, isApprovalRequired, consentFormRequired, isActive } = req.body;
 
-    const old = db.prepare('SELECT * FROM services WHERE id = ?').get(req.params.id);
+    const old = db.prepare('SELECT * FROM services WHERE id = ?').get(req.params.id) as ServiceRow | undefined;
     if (!old) return res.status(404).json({ error: 'Service not found' });
 
     db.prepare('UPDATE services SET name=?, description=?, duration=?, price=?, category=?, priceType=?, depositRequired=?, depositAmount=?, preBuffer=?, postBuffer=?, isOnlineBookable=?, isApprovalRequired=?, consentFormRequired=?, isActive=? WHERE id=?')
         .run(name, description, duration, price, category, priceType || 'fixed', depositRequired ? 1 : 0, depositAmount || 0, preBuffer || 0, postBuffer || 0, isOnlineBookable !== false ? 1 : 0, isApprovalRequired ? 1 : 0, consentFormRequired ? 1 : 0, isActive !== false ? 1 : 0, req.params.id);
-    logAudit(req.user?.id || null, 'update', 'service', req.params.id, old, req.body);
+    logAudit(authReq.user?.id || null, 'update', 'service', req.params.id, old, req.body);
     res.json(req.body);
 });
 
-router.delete('/:id', requireAdmin, (req: any, res: any) => {
-    const existing = db.prepare('SELECT id FROM services WHERE id = ?').get(req.params.id);
+router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const existing = db.prepare('SELECT id FROM services WHERE id = ?').get(req.params.id) as Pick<ServiceRow, 'id'> | undefined;
     if (!existing) return res.status(404).json({ error: 'Service not found' });
 
     db.prepare('DELETE FROM services WHERE id=?').run(req.params.id);
-    logAudit(req.user.id, 'delete', 'service', req.params.id, null, null);
+    logAudit(authReq.user.id, 'delete', 'service', req.params.id, null, null);
     res.json({ success: true });
 });
 
@@ -61,7 +65,8 @@ router.get('/:id/add-ons', (req, res) => {
     res.json(addOns);
 });
 
-router.post('/:id/add-ons', validateBody(serviceAddOnLinkSchema), (req: any, res: any) => {
+router.post('/:id/add-ons', validateBody(serviceAddOnLinkSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { addOnIds } = req.body;
     const del = db.prepare('DELETE FROM service_add_ons WHERE serviceId = ?');
     const ins = db.prepare('INSERT INTO service_add_ons (serviceId, addOnId) VALUES (?, ?)');
@@ -69,7 +74,7 @@ router.post('/:id/add-ons', validateBody(serviceAddOnLinkSchema), (req: any, res
         del.run(req.params.id);
         for (const addOnId of addOnIds) { ins.run(req.params.id, addOnId); }
     })();
-    logAudit(req.user?.id || null, 'update', 'service_add_ons', req.params.id, null, { addOnIds });
+    logAudit(authReq.user?.id || null, 'update', 'service_add_ons', req.params.id, null, { addOnIds });
     res.json({ success: true });
 });
 
@@ -81,32 +86,35 @@ addOnRouter.get('/', (req, res) => {
     res.json(addOns);
 });
 
-addOnRouter.post('/', validateBody(addOnSchema), (req: any, res: any) => {
+addOnRouter.post('/', validateBody(addOnSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { name, description, price, duration, isOptional, isActive } = req.body;
     const id = crypto.randomUUID();
     db.prepare(`INSERT INTO add_ons (id, name, description, price, duration, isOptional, isActive) VALUES (?, ?, ?, ?, ?, ?, ?)`)
         .run(id, name, description || null, price || 0, duration || 0, isOptional !== false ? 1 : 0, isActive !== false ? 1 : 0);
-    logAudit(req.user?.id || null, 'create', 'add_on', id, null, req.body);
+    logAudit(authReq.user?.id || null, 'create', 'add_on', id, null, req.body);
     res.json({ ...req.body, id });
 });
 
-addOnRouter.put('/:id', validateBody(addOnSchema), (req: any, res: any) => {
+addOnRouter.put('/:id', validateBody(addOnSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { name, description, price, duration, isOptional, isActive } = req.body;
-    const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id);
+    const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id) as AddOnRow | undefined;
     if (!old) return res.status(404).json({ error: 'Add-on not found' });
 
     db.prepare(`UPDATE add_ons SET name=?, description=?, price=?, duration=?, isOptional=?, isActive=? WHERE id=?`)
         .run(name, description || null, price || 0, duration || 0, isOptional !== false ? 1 : 0, isActive !== false ? 1 : 0, req.params.id);
-    logAudit(req.user?.id || null, 'update', 'add_on', req.params.id, old, req.body);
+    logAudit(authReq.user?.id || null, 'update', 'add_on', req.params.id, old, req.body);
     res.json({ id: req.params.id, ...req.body });
 });
 
-addOnRouter.delete('/:id', (req: any, res: any) => {
-    const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id);
+addOnRouter.delete('/:id', (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const old = db.prepare('SELECT * FROM add_ons WHERE id = ?').get(req.params.id) as AddOnRow | undefined;
     if (!old) return res.status(404).json({ error: 'Add-on not found' });
 
     db.prepare('UPDATE add_ons SET isActive = 0 WHERE id = ?').run(req.params.id);
-    logAudit(req.user?.id || null, 'archive', 'add_on', req.params.id, old, null);
+    logAudit(authReq.user?.id || null, 'archive', 'add_on', req.params.id, old, null);
     res.json({ success: true });
 });
 

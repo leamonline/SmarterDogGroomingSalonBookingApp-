@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireOwner } from '../middleware/auth.js';
+import { requireOwner, type AuthenticatedRequest } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, tagsSchema, clampLimit } from '../schema.js';
+import type { CountRow } from '../types.js';
 
 const router = Router();
 
@@ -27,7 +28,8 @@ router.get('/dogs/:id/tags', (req, res) => {
     res.json(tags.map(t => t.tag));
 });
 
-router.post('/dogs/:id/tags', validateBody(tagsSchema), (req: any, res: any) => {
+router.post('/dogs/:id/tags', validateBody(tagsSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { tags } = req.body;
     const del = db.prepare('DELETE FROM dog_tags WHERE dogId = ?');
     const ins = db.prepare('INSERT INTO dog_tags (dogId, tag) VALUES (?, ?)');
@@ -35,7 +37,7 @@ router.post('/dogs/:id/tags', validateBody(tagsSchema), (req: any, res: any) => 
         del.run(req.params.id);
         for (const tag of tags) { ins.run(req.params.id, tag); }
     })();
-    logAudit(req.user?.id || null, 'update', 'dog_tags', req.params.id, null, { tags });
+    logAudit(authReq.user?.id || null, 'update', 'dog_tags', req.params.id, null, { tags });
     res.json({ success: true });
 });
 
@@ -48,7 +50,7 @@ router.get('/audit-log', requireOwner, (req, res) => {
     const entityId = req.query.entityId as string;
 
     let query = 'SELECT * FROM audit_log';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     const conditions: string[] = [];
 
     if (entityType) { conditions.push('entityType = ?'); params.push(entityType); }
@@ -56,7 +58,7 @@ router.get('/audit-log', requireOwner, (req, res) => {
     if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
 
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as count');
-    const total = (db.prepare(countQuery).get(...params) as any).count;
+    const total = (db.prepare(countQuery).get(...params) as CountRow).count;
 
     query += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
@@ -70,20 +72,20 @@ router.get('/audit-log', requireOwner, (req, res) => {
 
 // --- Analytics ---
 router.get('/analytics', (req, res) => {
-    const stats: any = {
+    const stats = {
         totalRevenue: 0,
         appointments: 0,
         activeRate: 0,
         newCustomers: 0
     };
 
-    const appointments = db.prepare('SELECT price, status FROM appointments').all() as any[];
+    const appointments = db.prepare('SELECT price, status FROM appointments').all() as { price: number; status: string }[];
     stats.appointments = appointments.length;
     stats.totalRevenue = appointments
         .filter(a => a.status === 'completed' || a.status === 'in-progress')
         .reduce((sum, a) => sum + (a.price || 0), 0);
 
-    const customers = db.prepare('SELECT lastVisit FROM customers').all() as any[];
+    const customers = db.prepare('SELECT lastVisit FROM customers').all() as { lastVisit: string | null }[];
     const activeCustomers = customers.filter(c => c.lastVisit && c.lastVisit !== 'Never').length;
     stats.activeRate = customers.length ? Math.round((activeCustomers / customers.length) * 100) : 0;
     stats.newCustomers = activeCustomers;
@@ -100,19 +102,19 @@ router.get('/reports', (req, res) => {
     const appointments = db.prepare(`
         SELECT id, petName, ownerName, service, date, duration, status, price
         FROM appointments WHERE date BETWEEN ? AND ? ORDER BY date DESC
-    `).all(startDate, endDate) as any[];
+    `).all(startDate, endDate) as { id: string; petName: string; ownerName: string; service: string; date: string; duration: number; status: string; price: number }[];
 
     const revenueByDay = db.prepare(`
         SELECT substr(date, 1, 10) as day, SUM(price) as revenue, COUNT(*) as count
         FROM appointments WHERE date BETWEEN ? AND ? AND status = 'completed'
         GROUP BY day ORDER BY day
-    `).all(startDate, endDate) as any[];
+    `).all(startDate, endDate) as { day: string; revenue: number; count: number }[];
 
     const serviceBreakdown = db.prepare(`
         SELECT service as name, COUNT(*) as count, SUM(price) as revenue
         FROM appointments WHERE date BETWEEN ? AND ? AND status = 'completed'
         GROUP BY service ORDER BY revenue DESC
-    `).all(startDate, endDate) as any[];
+    `).all(startDate, endDate) as { name: string; count: number; revenue: number }[];
 
     res.json({ appointments, revenueByDay, serviceBreakdown });
 });

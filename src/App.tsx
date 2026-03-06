@@ -9,6 +9,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/layout/Layout";
 import { AuthProvider } from "./lib/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Dashboard = lazy(async () => ({
   default: (await import("./pages/Dashboard")).Dashboard,
@@ -51,9 +52,11 @@ function RouteLoadingFallback() {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <Toaster position="top-right" richColors />
       <Router>
+        <ErrorBoundary>
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -70,7 +73,9 @@ export default function App() {
             </Route>
           </Routes>
         </Suspense>
+        </ErrorBoundary>
       </Router>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }

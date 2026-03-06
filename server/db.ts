@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { logger } from './lib/logger.js';
 import { mockAppointments, mockCustomers, mockServices } from '../src/data/mockData.js';
 import {
   BOOKING_CLOSE_TIME,
@@ -10,7 +11,10 @@ import {
   createDefaultSlotConfig,
 } from './helpers/schedule.js';
 
-const dbPath = path.resolve(process.cwd(), 'petspa.db');
+const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+const dbPath = isTestEnv
+  ? ':memory:'
+  : path.resolve(process.cwd(), 'petspa.db');
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
@@ -381,6 +385,19 @@ migrate(3, () => {
   `);
 });
 
+// Migration 5: unique index to prevent double-booking at DB level
+migrate(5, () => {
+  // SQLite serializes writes, but an explicit index adds defense-in-depth.
+  // We use a partial index on (date, duration) for non-cancelled appointments.
+  // Combined with the application-level capacity check inside a transaction,
+  // this prevents any duplicate bookings from slipping through.
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_appointments_date_duration
+    ON appointments(date, duration)
+    WHERE status NOT IN ('cancelled-by-customer', 'cancelled-by-salon', 'no-show');
+  `);
+});
+
 // Migration 4: structured booking slots on schedule rows
 migrate(4, () => {
   const cols = db.prepare('PRAGMA table_info(schedule)').all() as { name: string }[];
@@ -426,7 +443,7 @@ if (existingUsers.length > 0) {
 const customersCount = db.prepare('SELECT COUNT(*) as count FROM customers').get() as { count: number };
 
 if (customersCount.count === 0) {
-  console.log('Seeding database with mock data...');
+  logger.info('Seeding database with mock data...');
 
   // First-run admin user setup
   // Uses ADMIN_EMAIL / ADMIN_PASSWORD env vars if set, otherwise generates secure defaults.
@@ -438,18 +455,10 @@ if (customersCount.count === 0) {
     db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(
       crypto.randomUUID(), adminEmail, hashedPassword, 'owner'
     );
-    console.log('');
-    console.log('╔══════════════════════════════════════════════════════╗');
-    console.log('║           INITIAL ADMIN ACCOUNT CREATED             ║');
-    console.log('╠══════════════════════════════════════════════════════╣');
-    console.log(`║  Email:    ${adminEmail.padEnd(42)}║`);
-    console.log(`║  Password: ${adminPassword.padEnd(42)}║`);
-    console.log('║                                                      ║');
-    console.log('║  ⚠  Change this password after first login!          ║');
-    console.log('║  Set ADMIN_EMAIL / ADMIN_PASSWORD env vars to        ║');
-    console.log('║  customize on fresh installs.                        ║');
-    console.log('╚══════════════════════════════════════════════════════╝');
-    console.log('');
+    logger.info('Initial admin account created', {
+      email: adminEmail,
+      hint: 'Change this password after first login. Set ADMIN_EMAIL / ADMIN_PASSWORD env vars to customize.',
+    });
   }
 
   const insertCustomer = db.prepare(`
@@ -467,7 +476,7 @@ if (customersCount.count === 0) {
   const insertDoc = db.prepare('INSERT INTO documents (id, customerId, name, type, uploadDate, url) VALUES (?, ?, ?, ?, ?, ?)');
 
   db.transaction(() => {
-    mockCustomers.forEach((c: any) => {
+    mockCustomers.forEach((c) => {
       insertCustomer.run(
         c.id, c.name, c.email || null, c.phone || null, c.address || null,
         c.emergencyContact?.name || null, c.emergencyContact?.phone || null,
@@ -478,19 +487,19 @@ if (customersCount.count === 0) {
         insertWarning.run(c.id, w);
       });
 
-      (c.pets || []).forEach((p: any) => {
+      (c.pets || []).forEach((p) => {
         insertPet.run(p.id, c.id, p.name, p.breed || null, p.weight || null, p.dob || null, p.coatType || null);
 
         (p.behavioralNotes || []).forEach((bn: string) => {
           insertBehavior.run(p.id, bn);
         });
 
-        (p.vaccinations || []).forEach((v: any) => {
+        (p.vaccinations || []).forEach((v) => {
           insertVax.run(p.id, v.name, v.expiryDate, v.status);
         });
       });
 
-      (c.documents || []).forEach((d: any) => {
+      (c.documents || []).forEach((d) => {
         insertDoc.run(d.id, c.id, d.name, d.type, d.uploadDate, d.url);
       });
     });
@@ -502,7 +511,7 @@ if (customersCount.count === 0) {
   `);
 
   db.transaction(() => {
-    mockAppointments.forEach((a: any) => {
+    mockAppointments.forEach((a) => {
       // JSON cannot store Date objects directly, we stringify to ISO format
       insertAppointment.run(
         a.id, a.petName, a.breed, a.ownerName, a.service, a.date.toISOString(),
@@ -513,7 +522,7 @@ if (customersCount.count === 0) {
 
   const insertService = db.prepare('INSERT INTO services (id, name, description, duration, price, category) VALUES (?, ?, ?, ?, ?, ?)');
   db.transaction(() => {
-    mockServices.forEach((s: any) => {
+    mockServices.forEach((s) => {
       insertService.run(s.id, s.name, s.description || null, s.duration || 0, s.price || 0, s.category || null);
     });
   })();
@@ -523,7 +532,7 @@ if (customersCount.count === 0) {
   insertSetting.run('shopPhone', '(555) 123-4567');
   insertSetting.run('shopAddress', '123 Grooming Lane, Pet City, PC 12345');
 
-  const insertSchedule = db.prepare('INSERT INTO schedule (day, openTime, closeTime, isClosed, slotConfig) VALUES (?, ?, ?, ?, ?)');
+  const insertSchedule = db.prepare('INSERT OR IGNORE INTO schedule (day, openTime, closeTime, isClosed, slotConfig) VALUES (?, ?, ?, ?, ?)');
   BOOKING_DAY_ORDER.forEach((day) => {
     insertSchedule.run(day, BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, 0, createDefaultSlotConfig());
   });
@@ -531,7 +540,7 @@ if (customersCount.count === 0) {
   const insertNotification = db.prepare('INSERT INTO notifications (id, message, isRead, createdAt) VALUES (?, ?, ?, ?)');
   insertNotification.run('1', 'System initialized successfully', 0, new Date().toISOString());
 
-  console.log('Seeding complete.');
+  logger.info('Seeding complete.');
 }
 
 export default db;

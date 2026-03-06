@@ -8,12 +8,15 @@ import { Badge } from "@/src/components/ui/badge";
 import { ServiceModal, Service } from "@/src/components/ServiceModal";
 import { ConfirmDialog } from "@/src/components/ConfirmDialog";
 import { toast } from "sonner";
+import { handleError } from "@/src/lib/handleError";
 import { formatCurrency } from "@/src/lib/utils";
+import { ServicesSkeleton } from "@/src/components/ui/skeleton";
 
 export function Services() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
@@ -24,7 +27,9 @@ export function Services() {
         const data = await api.getServices();
         setServices(data);
       } catch (err) {
-        console.error("Failed to load services", err);
+        handleError(err, "Failed to load services");
+      } finally {
+        setLoading(false);
       }
     }
     loadData();
@@ -63,8 +68,7 @@ export function Services() {
       setServices(services.filter((s) => s.id !== serviceToDelete));
       toast.success("Service deleted.");
     } catch (err) {
-      console.error("Failed to delete service", err);
-      toast.error("Failed to delete service.");
+      handleError(err, "Failed to delete service");
     } finally {
       setServiceToDelete(null);
     }
@@ -84,9 +88,11 @@ export function Services() {
         setServices((prev) => [...prev, service]);
       }
     } catch (err) {
-      console.error("Failed to save service", err);
+      handleError(err, "Failed to save service");
     }
   };
+
+  if (loading) return <ServicesSkeleton />;
 
   return (
     <div className="space-y-6">

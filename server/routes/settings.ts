@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, settingsSchema } from '../schema.js';
+import type { RawScheduleRow } from '../helpers/schedule.js';
 import {
     BOOKING_CLOSE_TIME,
     BOOKING_OPEN_TIME,
@@ -17,12 +18,13 @@ router.get('/', (req, res) => {
     const settingsRows = db.prepare('SELECT * FROM settings').all() as { key: string, value: string }[];
     const settings = settingsRows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
 
-    const scheduleRows = db.prepare('SELECT * FROM schedule').all() as any[];
+    const scheduleRows = db.prepare('SELECT * FROM schedule').all() as RawScheduleRow[];
     const schedule = normalizeScheduleRows(scheduleRows);
     res.json({ ...settings, schedule });
 });
 
-router.post('/', requireAdmin, validateBody(settingsSchema), (req: any, res: any) => {
+router.post('/', requireAdmin, validateBody(settingsSchema), (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { shopName, shopPhone, shopAddress, schedule } = req.body;
 
     const oldSettings = db.prepare('SELECT * FROM settings').all() as { key: string, value: string }[];
@@ -56,7 +58,7 @@ router.post('/', requireAdmin, validateBody(settingsSchema), (req: any, res: any
         })();
     }
 
-    logAudit(req.user?.id || null, 'update', 'settings', null, oldMap, req.body);
+    logAudit(authReq.user?.id || null, 'update', 'settings', null, oldMap, req.body);
     res.json({ success: true });
 });
 

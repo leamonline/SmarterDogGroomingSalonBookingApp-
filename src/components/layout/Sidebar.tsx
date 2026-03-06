@@ -12,6 +12,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { useHealthCheck } from "@/src/hooks/useHealthCheck";
 
 import { useAuth } from "@/src/lib/AuthContext";
 import type { UserRole } from "@/src/types";
@@ -44,6 +45,7 @@ const navigation: NavItem[] = [
 export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boolean) => void }) {
   const location = useLocation();
   const { user } = useAuth();
+  const health = useHealthCheck();
   const userLevel = ROLE_LEVEL[(user?.role as UserRole) || 'groomer'] ?? 1;
   const visibleNav = navigation.filter(item => userLevel >= ROLE_LEVEL[item.minRole]);
 
@@ -62,7 +64,7 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
           </div>
           <div className="flex flex-col">
             <span className="font-heading text-base font-bold tracking-tight text-white">Smarter Dog</span>
-            <span className="font-accent text-xs text-white/60">Grooming Salon</span>
+            <span className="font-accent text-xs text-white/70">Grooming Salon</span>
           </div>
         </div>
 
@@ -85,7 +87,7 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
                   <item.icon
                     className={cn(
                       "mr-3 h-5 w-5 shrink-0 transition-colors",
-                      isActive ? "text-accent" : "text-white/50 group-hover:text-white/80"
+                      isActive ? "text-accent" : "text-white/70 group-hover:text-white/90"
                     )}
                     aria-hidden="true"
                   />
@@ -104,8 +106,12 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-medium text-white">{user?.email?.split('@')[0] || "User"}</span>
-              <span className="text-xs text-white/50 capitalize">{(user as any)?.role || "Staff"}</span>
+              <span className="text-xs text-white/70 capitalize">{(user as any)?.role || "Staff"}</span>
             </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-white/60">
+            <span className={cn("h-2 w-2 rounded-full", health.status === "connected" ? "bg-emerald-400" : health.status === "disconnected" ? "bg-red-400 animate-pulse" : "bg-yellow-400")} />
+            {health.status === "connected" ? "Server online" : health.status === "disconnected" ? "Server offline" : "Checking…"}
           </div>
         </div>
       </div>

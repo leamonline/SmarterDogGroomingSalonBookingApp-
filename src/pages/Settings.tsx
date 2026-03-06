@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { handleError } from "@/src/lib/handleError";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
@@ -65,7 +66,7 @@ export function Settings() {
           }
         }
       } catch (err) {
-        console.error("Failed to load settings", err);
+        handleError(err, "Failed to load settings");
       }
     }
     loadSettings();

@@ -1,5 +1,6 @@
 import db from '../db.js';
 import nodemailer from 'nodemailer';
+import { logger } from '../lib/logger.js';
 
 /**
  * Interpolate {{variable}} placeholders in a message template.
@@ -74,7 +75,7 @@ export const dispatchMessage = (opts: {
             subject: opts.subject || '(no subject)',
             text: opts.body,
         }).catch((err: any) => {
-            console.error(`Failed to send email ${id}:`, err.message);
+            logger.error('Failed to send email', { messageId: id, error: err.message });
             db.prepare('UPDATE messages SET status = ? WHERE id = ?').run('failed', id);
         });
     }

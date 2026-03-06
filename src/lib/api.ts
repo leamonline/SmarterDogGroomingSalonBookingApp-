@@ -1,11 +1,13 @@
-// API fetch wrapper that automatically includes the auth token
+// API fetch wrapper that automatically includes auth (httpOnly cookie + fallback header)
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('petspa_token');
-
   const headers = new Headers(options.headers);
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+
+  // Fallback: if a token is still in localStorage (pre-migration), send it as a header
+  const legacyToken = localStorage.getItem('petspa_token');
+  if (legacyToken) {
+    headers.set('Authorization', `Bearer ${legacyToken}`);
   }
+
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
@@ -13,6 +15,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'include', // Send httpOnly cookies
   });
 
   if (response.status === 401 || response.status === 403) {
@@ -26,7 +29,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    const error: any = new Error(errorBody?.error || `API Request failed: ${response.statusText}`);
+    const error = new Error(errorBody?.error || `API Request failed: ${response.statusText}`) as Error & { details?: Record<string, unknown> | object };
     if (errorBody) {
       error.details = errorBody;
     }
@@ -40,17 +43,21 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
 export const api = {
   // Auth
-  login: async (credentials: any) => {
+  login: async (credentials: { email: string; password: string }) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
+      credentials: 'include', // Receive httpOnly cookie
     });
     if (!res.ok) {
       const error = await res.json();
       throw new Error(error.error || 'Login failed');
     }
     return res.json();
+  },
+  logout: async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
   },
   updatePassword: (currentPassword: string, newPassword: string) => fetchWithAuth('/api/auth/password', {
     method: 'POST',
@@ -59,7 +66,7 @@ export const api = {
 
   // Staff
   getStaff: () => fetchWithAuth('/api/staff'),
-  createStaff: (data: any) => fetchWithAuth('/api/staff', {
+  createStaff: (data: Record<string, unknown> | object) => fetchWithAuth('/api/staff', {
     method: 'POST',
     body: JSON.stringify(data)
   }),
@@ -74,11 +81,11 @@ export const api = {
     const res = await fetchWithAuth(`/api/customers?page=${page}&limit=${limit}`);
     return res.data ? res.data : res;
   },
-  createCustomer: (data: any) => fetchWithAuth('/api/customers', {
+  createCustomer: (data: Record<string, unknown> | object) => fetchWithAuth('/api/customers', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  updateCustomer: (id: string, data: any) => fetchWithAuth(`/api/customers/${id}`, {
+  updateCustomer: (id: string, data: Record<string, unknown> | object) => fetchWithAuth(`/api/customers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -108,11 +115,11 @@ export const api = {
 
   getNextAvailableSlots: (duration = 60, from = new Date().toISOString()) =>
     fetchWithAuth(`/api/appointments/next-available?duration=${duration}&from=${encodeURIComponent(from)}`),
-  createAppointment: (data: any) => fetchWithAuth('/api/appointments', {
+  createAppointment: (data: Record<string, unknown> | object) => fetchWithAuth('/api/appointments', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  updateAppointment: (id: string, data: any) => fetchWithAuth(`/api/appointments/${id}`, {
+  updateAppointment: (id: string, data: Record<string, unknown> | object) => fetchWithAuth(`/api/appointments/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -125,11 +132,11 @@ export const api = {
     const res = await fetchWithAuth(`/api/services?page=${page}&limit=${limit}`);
     return res.data ? res.data : res;
   },
-  createService: (data: any) => fetchWithAuth('/api/services', {
+  createService: (data: Record<string, unknown> | object) => fetchWithAuth('/api/services', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  updateService: (id: string, data: any) => fetchWithAuth(`/api/services/${id}`, {
+  updateService: (id: string, data: Record<string, unknown> | object) => fetchWithAuth(`/api/services/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -146,11 +153,11 @@ export const api = {
 
   // Add-ons
   getAddOns: () => fetchWithAuth('/api/add-ons'),
-  createAddOn: (data: any) => fetchWithAuth('/api/add-ons', {
+  createAddOn: (data: Record<string, unknown> | object) => fetchWithAuth('/api/add-ons', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  updateAddOn: (id: string, data: any) => fetchWithAuth(`/api/add-ons/${id}`, {
+  updateAddOn: (id: string, data: Record<string, unknown> | object) => fetchWithAuth(`/api/add-ons/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -163,18 +170,18 @@ export const api = {
     appointmentId
       ? fetchWithAuth(`/api/payments?appointmentId=${appointmentId}`)
       : fetchWithAuth('/api/payments'),
-  createPayment: (data: any) => fetchWithAuth('/api/payments', {
+  createPayment: (data: Record<string, unknown> | object) => fetchWithAuth('/api/payments', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
 
   // Forms & Consent
   getForms: () => fetchWithAuth('/api/forms'),
-  createForm: (data: any) => fetchWithAuth('/api/forms', {
+  createForm: (data: Record<string, unknown> | object) => fetchWithAuth('/api/forms', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  updateForm: (id: string, data: any) => fetchWithAuth(`/api/forms/${id}`, {
+  updateForm: (id: string, data: Record<string, unknown> | object) => fetchWithAuth(`/api/forms/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
@@ -188,7 +195,7 @@ export const api = {
     if (filters?.appointmentId) params.set('appointmentId', filters.appointmentId);
     return fetchWithAuth(`/api/form-submissions?${params.toString()}`);
   },
-  submitForm: (data: any) => fetchWithAuth('/api/form-submissions', {
+  submitForm: (data: Record<string, unknown> | object) => fetchWithAuth('/api/form-submissions', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
@@ -220,7 +227,7 @@ export const api = {
 
   // Settings & Schedule
   getSettings: () => fetchWithAuth('/api/settings'),
-  updateSettings: (data: any) => fetchWithAuth('/api/settings', {
+  updateSettings: (data: Record<string, unknown> | object) => fetchWithAuth('/api/settings', {
     method: 'POST',
     body: JSON.stringify(data),
   }),

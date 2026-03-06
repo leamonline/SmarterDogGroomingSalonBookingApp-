@@ -4,11 +4,13 @@ import './env.js';
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
 import db from './db.js';
+import { logger } from './lib/logger.js';
 
 // Middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -35,7 +37,21 @@ app.use(cors({
 if (process.env.NODE_ENV !== 'test') {
     app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
+app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
+
+// --- Security headers ---
+app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if (process.env.NODE_ENV === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+});
 
 // ══════════════════════════════════════════════
 // Health check (no auth required)
@@ -81,11 +97,10 @@ app.use('/api/messages', messagingRouter);
 // Global error handler — catches unhandled errors in routes
 // ══════════════════════════════════════════════
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    if (process.env.NODE_ENV !== 'production') {
-        console.error('Unhandled route error:', err);
-    } else {
-        console.error('Unhandled route error:', err.message);
-    }
+    logger.error('Unhandled route error', {
+        message: err.message,
+        stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+    });
     const status = err.status || err.statusCode || 500;
     res.status(status).json({
         error: process.env.NODE_ENV === 'production'
@@ -113,10 +128,10 @@ if (process.env.NODE_ENV !== 'test') {
             while (files.length > MAX_BACKUPS) {
                 const oldest = files.shift()!;
                 fs.unlinkSync(path.join(backupDir, oldest));
-                console.log(`Pruned old backup: ${oldest}`);
+                logger.info('Pruned old backup', { file: oldest });
             }
         } catch (err) {
-            console.error('Backup pruning failed:', err);
+            logger.error('Backup pruning failed', { error: (err as Error).message });
         }
     };
 
@@ -125,11 +140,11 @@ if (process.env.NODE_ENV !== 'test') {
         const backupPath = path.join(backupDir, `database_backup_${timestamp}.db`);
         try {
             db.backup(backupPath).then(() => {
-                console.log(`Database backed up to ${backupPath}`);
+                logger.info('Database backed up', { path: backupPath });
                 pruneOldBackups();
             });
         } catch (err) {
-            console.error('Database backup failed:', err);
+            logger.error('Database backup failed', { error: (err as Error).message });
         }
     }, 6 * 60 * 60 * 1000);
 }
@@ -137,7 +152,7 @@ if (process.env.NODE_ENV !== 'test') {
 const PORT = process.env.PORT || 3001;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
-        console.log(`API server running on port ${PORT}`);
+        logger.info(`API server running on port ${PORT}`);
     });
 }
 export default app;
