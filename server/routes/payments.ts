@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { type AuthenticatedRequest } from '../middleware/auth.js';
+import { getUser } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, paymentSchema, clampLimit } from '../schema.js';
 import type { CountRow } from '../types.js';
@@ -25,7 +25,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', validateBody(paymentSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { appointmentId, customerId, amount, method, type, status, notes } = req.body;
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -36,7 +36,7 @@ router.post('/', validateBody(paymentSchema), (req: Request, res: Response) => {
         db.prepare('UPDATE appointments SET depositPaid = 1 WHERE id = ?').run(appointmentId);
     }
 
-    logAudit(authReq.user?.id || null, 'create', 'payment', id, null, req.body);
+    logAudit(user.id, 'create', 'payment', id, null, req.body);
     res.json({ ...req.body, id, createdAt });
 });
 

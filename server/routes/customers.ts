@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js';
+import { requireAdmin, getUser } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, customerSchema, tagsSchema, clampLimit } from '../schema.js';
 import type { CustomerRow, PetRow, VaccinationRow, DocumentRow, WarningRow, BehavioralNoteRow, CountRow } from '../types.js';
@@ -9,6 +9,19 @@ import type { CustomerRow, PetRow, VaccinationRow, DocumentRow, WarningRow, Beha
 interface PetInput { id?: string; name?: string; breed?: string; weight?: number; dob?: string; coatType?: string; behavioralNotes?: string[]; vaccinations?: VaxInput[]; }
 interface VaxInput { name?: string; expiryDate?: string; status?: string; }
 interface DocInput { id?: string; name?: string; type?: string; uploadDate?: string; url?: string; }
+
+/** Convert undefined to null (SQLite doesn't understand undefined). */
+const noUndef = (val: unknown) => val === undefined ? null : val;
+
+/** Group an array of items by a key function into a Record. */
+function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]> {
+    const result: Record<string, T[]> = {};
+    for (const item of items) {
+        const key = keyFn(item);
+        (result[key] ??= []).push(item);
+    }
+    return result;
+}
 
 const router = Router();
 
@@ -43,28 +56,19 @@ router.get('/', (req, res) => {
         ? db.prepare(`SELECT * FROM vaccinations WHERE petId IN (${petPlaceholders})`).all(...petIds) as VaccinationRow[]
         : [];
 
-    const warningsByCustomer: Record<string, string[]> = {};
-    for (const w of warnings) { warningsByCustomer[w.customerId] = warningsByCustomer[w.customerId] || []; warningsByCustomer[w.customerId].push(w.warning); }
+    const warningsByCustomer = groupBy(warnings, w => w.customerId);
+    const notesByPet = groupBy(behavioralNotes, n => n.petId);
+    const vaxByPet = groupBy(vaccinations, v => v.petId);
+    const docsByCustomer = groupBy(documents, d => d.customerId);
 
-    const notesByPet: Record<string, string[]> = {};
-    for (const n of behavioralNotes) { notesByPet[n.petId] = notesByPet[n.petId] || []; notesByPet[n.petId].push(n.note); }
-
-    const vaxByPet: Record<string, VaccinationRow[]> = {};
-    for (const v of vaccinations) { vaxByPet[v.petId] = vaxByPet[v.petId] || []; vaxByPet[v.petId].push(v); }
-
-    const petsByCustomer: Record<string, (PetRow & { behavioralNotes?: string[]; vaccinations?: VaccinationRow[] })[]> = {};
     for (const p of pets) {
-        p.behavioralNotes = notesByPet[p.id] || [];
-        p.vaccinations = vaxByPet[p.id] || [];
-        petsByCustomer[p.customerId] = petsByCustomer[p.customerId] || [];
-        petsByCustomer[p.customerId].push(p);
+        p.behavioralNotes = (notesByPet[p.id] || []).map(n => n.note);
+        p.vaccinations = (vaxByPet[p.id] || []) as VaccinationRow[];
     }
-
-    const docsByCustomer: Record<string, DocumentRow[]> = {};
-    for (const d of documents) { docsByCustomer[d.customerId] = docsByCustomer[d.customerId] || []; docsByCustomer[d.customerId].push(d); }
+    const petsByCustomer = groupBy(pets, p => p.customerId);
 
     for (const c of customers) {
-        c.warnings = warningsByCustomer[c.id] || [];
+        c.warnings = (warningsByCustomer[c.id] || []).map(w => w.warning);
         c.pets = petsByCustomer[c.id] || [];
         c.documents = docsByCustomer[c.id] || [];
         c.emergencyContact = { name: c.emergencyContactName, phone: c.emergencyContactPhone };
@@ -77,10 +81,9 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', validateBody(customerSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { name, email, phone, address, emergencyContact, notes, lastVisit, totalSpent, warnings, pets, documents } = req.body;
     const id = crypto.randomUUID();
-    const noUndef = (val: unknown) => val === undefined ? null : val;
 
     db.transaction(() => {
         db.prepare(`INSERT INTO customers (id, name, email, phone, address, emergencyContactName, emergencyContactPhone, notes, lastVisit, totalSpent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -104,15 +107,14 @@ router.post('/', validateBody(customerSchema), (req: Request, res: Response) => 
         (documents || []).forEach((d: DocInput) => insertDoc.run(crypto.randomUUID(), id, noUndef(d.name), noUndef(d.type), noUndef(d.uploadDate), noUndef(d.url)));
     })();
 
-    logAudit(authReq.user?.id || null, 'create', 'customer', id, null, req.body);
+    logAudit(user.id, 'create', 'customer', id, null, req.body);
     res.json({ ...req.body, id });
 });
 
 router.put('/:id', validateBody(customerSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const customerId = req.params.id;
     const { name, email, phone, address, emergencyContact, notes, lastVisit, totalSpent, warnings, pets, documents } = req.body;
-    const noUndef = (val: unknown) => val === undefined ? null : val;
 
     const old = db.prepare('SELECT * FROM customers WHERE id = ?').get(customerId) as CustomerRow | undefined;
     if (!old) return res.status(404).json({ error: 'Customer not found' });
@@ -152,17 +154,17 @@ router.put('/:id', validateBody(customerSchema), (req: Request, res: Response) =
         (documents || []).forEach((d: DocInput) => insertDoc.run(noUndef(d.id), noUndef(customerId), noUndef(d.name), noUndef(d.type), noUndef(d.uploadDate), noUndef(d.url)));
     })();
 
-    logAudit(authReq.user?.id || null, 'update', 'customer', customerId, old, req.body);
+    logAudit(user.id, 'update', 'customer', customerId, old, req.body);
     res.json(req.body);
 });
 
 router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const existing = db.prepare('SELECT id FROM customers WHERE id = ?').get(req.params.id) as Pick<CustomerRow, 'id'> | undefined;
     if (!existing) return res.status(404).json({ error: 'Customer not found' });
 
     db.prepare('DELETE FROM customers WHERE id=?').run(req.params.id);
-    logAudit(authReq.user.id, 'delete', 'customer', req.params.id, null, null);
+    logAudit(user.id, 'delete', 'customer', req.params.id, null, null);
     res.json({ success: true });
 });
 
@@ -173,7 +175,7 @@ router.get('/:id/tags', (req, res) => {
 });
 
 router.post('/:id/tags', validateBody(tagsSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { tags } = req.body;
     const del = db.prepare('DELETE FROM customer_tags WHERE customerId = ?');
     const ins = db.prepare('INSERT INTO customer_tags (customerId, tag) VALUES (?, ?)');
@@ -181,7 +183,7 @@ router.post('/:id/tags', validateBody(tagsSchema), (req: Request, res: Response)
         del.run(req.params.id);
         for (const tag of tags) { ins.run(req.params.id, tag); }
     })();
-    logAudit(authReq.user?.id || null, 'update', 'customer_tags', req.params.id, null, { tags });
+    logAudit(user.id, 'update', 'customer_tags', req.params.id, null, { tags });
     res.json({ success: true });
 });
 

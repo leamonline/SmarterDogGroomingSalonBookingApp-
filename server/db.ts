@@ -255,96 +255,91 @@ const migrate = (version: number, fn: () => void) => {
   appliedVersions.add(version);
 };
 
+/** Add a column to a table only if it doesn't already exist. */
+const safeAddColumn = (table: string, column: string, type: string) => {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some(c => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
+};
+
 // Migration 1: roles, expanded customer/pet/appointment/service columns
 migrate(1, () => {
-  const safeAdd = (table: string, column: string, type: string) => {
-    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-    if (!cols.some(c => c.name === column)) {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-    }
-  };
-
   // Users
-  safeAdd('users', 'role', "TEXT DEFAULT 'staff'");
+  safeAddColumn('users', 'role', "TEXT DEFAULT 'staff'");
 
   // Customers
-  safeAdd('customers', 'preferredName', 'TEXT');
-  safeAdd('customers', 'postcode', 'TEXT');
-  safeAdd('customers', 'preferredContact', "TEXT DEFAULT 'email'");
-  safeAdd('customers', 'marketingConsent', 'INTEGER DEFAULT 0');
+  safeAddColumn('customers', 'preferredName', 'TEXT');
+  safeAddColumn('customers', 'postcode', 'TEXT');
+  safeAddColumn('customers', 'preferredContact', "TEXT DEFAULT 'email'");
+  safeAddColumn('customers', 'marketingConsent', 'INTEGER DEFAULT 0');
 
   // Pets
-  safeAdd('pets', 'photo', 'TEXT');
-  safeAdd('pets', 'sex', 'TEXT');
-  safeAdd('pets', 'neuteredStatus', 'TEXT');
-  safeAdd('pets', 'coatLength', 'TEXT');
-  safeAdd('pets', 'colour', 'TEXT');
-  safeAdd('pets', 'vetName', 'TEXT');
-  safeAdd('pets', 'vetPhone', 'TEXT');
-  safeAdd('pets', 'sizeCategory', 'TEXT');
-  safeAdd('pets', 'estimatedGroomDuration', 'INTEGER');
-  safeAdd('pets', 'dryingTolerance', 'TEXT');
-  safeAdd('pets', 'clipperTolerance', 'TEXT');
-  safeAdd('pets', 'scissorTolerance', 'TEXT');
-  safeAdd('pets', 'nailTrimTolerance', 'TEXT');
-  safeAdd('pets', 'mattingTendency', 'TEXT');
-  safeAdd('pets', 'medicalNotes', 'TEXT');
-  safeAdd('pets', 'allergies', 'TEXT');
-  safeAdd('pets', 'mobilityNotes', 'TEXT');
-  safeAdd('pets', 'seniorCareNotes', 'TEXT');
-  safeAdd('pets', 'biteRisk', 'TEXT');
-  safeAdd('pets', 'approvalRequired', 'INTEGER DEFAULT 0');
-  safeAdd('pets', 'stylePreferences', 'TEXT');
-  safeAdd('pets', 'isArchived', 'INTEGER DEFAULT 0');
+  safeAddColumn('pets', 'photo', 'TEXT');
+  safeAddColumn('pets', 'sex', 'TEXT');
+  safeAddColumn('pets', 'neuteredStatus', 'TEXT');
+  safeAddColumn('pets', 'coatLength', 'TEXT');
+  safeAddColumn('pets', 'colour', 'TEXT');
+  safeAddColumn('pets', 'vetName', 'TEXT');
+  safeAddColumn('pets', 'vetPhone', 'TEXT');
+  safeAddColumn('pets', 'sizeCategory', 'TEXT');
+  safeAddColumn('pets', 'estimatedGroomDuration', 'INTEGER');
+  safeAddColumn('pets', 'dryingTolerance', 'TEXT');
+  safeAddColumn('pets', 'clipperTolerance', 'TEXT');
+  safeAddColumn('pets', 'scissorTolerance', 'TEXT');
+  safeAddColumn('pets', 'nailTrimTolerance', 'TEXT');
+  safeAddColumn('pets', 'mattingTendency', 'TEXT');
+  safeAddColumn('pets', 'medicalNotes', 'TEXT');
+  safeAddColumn('pets', 'allergies', 'TEXT');
+  safeAddColumn('pets', 'mobilityNotes', 'TEXT');
+  safeAddColumn('pets', 'seniorCareNotes', 'TEXT');
+  safeAddColumn('pets', 'biteRisk', 'TEXT');
+  safeAddColumn('pets', 'approvalRequired', 'INTEGER DEFAULT 0');
+  safeAddColumn('pets', 'stylePreferences', 'TEXT');
+  safeAddColumn('pets', 'isArchived', 'INTEGER DEFAULT 0');
 
   // Appointments
-  safeAdd('appointments', 'age', 'TEXT');
-  safeAdd('appointments', 'notes', 'TEXT');
-  safeAdd('appointments', 'phone', 'TEXT');
-  safeAdd('appointments', 'customerId', 'TEXT');
-  safeAdd('appointments', 'dogId', 'TEXT');
-  safeAdd('appointments', 'staffId', 'TEXT');
-  safeAdd('appointments', 'depositAmount', 'REAL DEFAULT 0');
-  safeAdd('appointments', 'depositPaid', 'INTEGER DEFAULT 0');
-  safeAdd('appointments', 'cancelledAt', 'TEXT');
-  safeAdd('appointments', 'cancelledBy', 'TEXT');
-  safeAdd('appointments', 'cancellationReason', 'TEXT');
-  safeAdd('appointments', 'checkedInAt', 'TEXT');
-  safeAdd('appointments', 'checkedInNotes', 'TEXT');
-  safeAdd('appointments', 'groomNotes', 'TEXT');
-  safeAdd('appointments', 'productsUsed', 'TEXT');
-  safeAdd('appointments', 'behaviourDuringGroom', 'TEXT');
-  safeAdd('appointments', 'completedAt', 'TEXT');
-  safeAdd('appointments', 'aftercareNotes', 'TEXT');
-  safeAdd('appointments', 'readyForCollectionAt', 'TEXT');
-  safeAdd('appointments', 'surcharge', 'REAL DEFAULT 0');
-  safeAdd('appointments', 'surchargeReason', 'TEXT');
-  safeAdd('appointments', 'finalPrice', 'REAL');
-  safeAdd('appointments', 'beforePhotos', 'TEXT');
-  safeAdd('appointments', 'afterPhotos', 'TEXT');
+  safeAddColumn('appointments', 'age', 'TEXT');
+  safeAddColumn('appointments', 'notes', 'TEXT');
+  safeAddColumn('appointments', 'phone', 'TEXT');
+  safeAddColumn('appointments', 'customerId', 'TEXT');
+  safeAddColumn('appointments', 'dogId', 'TEXT');
+  safeAddColumn('appointments', 'staffId', 'TEXT');
+  safeAddColumn('appointments', 'depositAmount', 'REAL DEFAULT 0');
+  safeAddColumn('appointments', 'depositPaid', 'INTEGER DEFAULT 0');
+  safeAddColumn('appointments', 'cancelledAt', 'TEXT');
+  safeAddColumn('appointments', 'cancelledBy', 'TEXT');
+  safeAddColumn('appointments', 'cancellationReason', 'TEXT');
+  safeAddColumn('appointments', 'checkedInAt', 'TEXT');
+  safeAddColumn('appointments', 'checkedInNotes', 'TEXT');
+  safeAddColumn('appointments', 'groomNotes', 'TEXT');
+  safeAddColumn('appointments', 'productsUsed', 'TEXT');
+  safeAddColumn('appointments', 'behaviourDuringGroom', 'TEXT');
+  safeAddColumn('appointments', 'completedAt', 'TEXT');
+  safeAddColumn('appointments', 'aftercareNotes', 'TEXT');
+  safeAddColumn('appointments', 'readyForCollectionAt', 'TEXT');
+  safeAddColumn('appointments', 'surcharge', 'REAL DEFAULT 0');
+  safeAddColumn('appointments', 'surchargeReason', 'TEXT');
+  safeAddColumn('appointments', 'finalPrice', 'REAL');
+  safeAddColumn('appointments', 'beforePhotos', 'TEXT');
+  safeAddColumn('appointments', 'afterPhotos', 'TEXT');
 
   // Services
-  safeAdd('services', 'isOnlineBookable', 'INTEGER DEFAULT 1');
-  safeAdd('services', 'isApprovalRequired', 'INTEGER DEFAULT 0');
-  safeAdd('services', 'depositRequired', 'INTEGER DEFAULT 0');
-  safeAdd('services', 'depositAmount', 'REAL DEFAULT 0');
-  safeAdd('services', 'consentFormRequired', 'INTEGER DEFAULT 0');
-  safeAdd('services', 'preBuffer', 'INTEGER DEFAULT 0');
-  safeAdd('services', 'postBuffer', 'INTEGER DEFAULT 0');
-  safeAdd('services', "priceType", "TEXT DEFAULT 'fixed'");
-  safeAdd('services', 'isActive', 'INTEGER DEFAULT 1');
+  safeAddColumn('services', 'isOnlineBookable', 'INTEGER DEFAULT 1');
+  safeAddColumn('services', 'isApprovalRequired', 'INTEGER DEFAULT 0');
+  safeAddColumn('services', 'depositRequired', 'INTEGER DEFAULT 0');
+  safeAddColumn('services', 'depositAmount', 'REAL DEFAULT 0');
+  safeAddColumn('services', 'consentFormRequired', 'INTEGER DEFAULT 0');
+  safeAddColumn('services', 'preBuffer', 'INTEGER DEFAULT 0');
+  safeAddColumn('services', 'postBuffer', 'INTEGER DEFAULT 0');
+  safeAddColumn('services', "priceType", "TEXT DEFAULT 'fixed'");
+  safeAddColumn('services', 'isActive', 'INTEGER DEFAULT 1');
 });
 
 // Migration 2: add recipient fields to messages table
 migrate(2, () => {
-  const safeAdd = (table: string, column: string, type: string) => {
-    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-    if (!cols.some(c => c.name === column)) {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-    }
-  };
-  safeAdd('messages', 'recipientEmail', 'TEXT');
-  safeAdd('messages', 'recipientPhone', 'TEXT');
+  safeAddColumn('messages', 'recipientEmail', 'TEXT');
+  safeAddColumn('messages', 'recipientPhone', 'TEXT');
 });
 
 // Migration 3: add performance indexes
@@ -400,10 +395,7 @@ migrate(5, () => {
 
 // Migration 4: structured booking slots on schedule rows
 migrate(4, () => {
-  const cols = db.prepare('PRAGMA table_info(schedule)').all() as { name: string }[];
-  if (!cols.some((col) => col.name === 'slotConfig')) {
-    db.exec('ALTER TABLE schedule ADD COLUMN slotConfig TEXT');
-  }
+  safeAddColumn('schedule', 'slotConfig', 'TEXT');
 
   db.prepare(`
     UPDATE schedule
