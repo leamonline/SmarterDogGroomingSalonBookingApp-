@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js';
+import { requireAdmin, getUser } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { autoNotify } from '../helpers/messaging.js';
 import {
@@ -40,7 +40,7 @@ router.get('/next-available', (req, res) => {
 });
 
 router.post('/', validateBody(appointmentSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar } = req.body;
     const id = crypto.randomUUID();
 
@@ -63,12 +63,12 @@ router.post('/', validateBody(appointmentSchema), (req: Request, res: Response) 
         });
     }
 
-    logAudit(authReq.user?.id || null, 'create', 'appointment', id, null, req.body);
+    logAudit(user.id, 'create', 'appointment', id, null, req.body);
     res.json({ ...req.body, id });
 });
 
 router.put('/:id', validateBody(appointmentSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { petName, breed, age, notes, ownerName, phone, service, date, duration, status, price, avatar,
         checkedInAt, checkedInNotes, groomNotes, productsUsed, behaviourDuringGroom,
         completedAt, aftercareNotes, readyForCollectionAt, surcharge, surchargeReason, finalPrice,
@@ -114,7 +114,7 @@ router.put('/:id', validateBody(appointmentSchema), (req: Request, res: Response
     }
 
     const old = txResult.old;
-    logAudit(authReq.user?.id, 'update', 'appointment', req.params.id, old, req.body);
+    logAudit(user.id, 'update', 'appointment', req.params.id, old, req.body);
 
     // Auto-notify on key status transitions
     if (old && old.status !== status) {
@@ -130,12 +130,12 @@ router.put('/:id', validateBody(appointmentSchema), (req: Request, res: Response
 });
 
 router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const existing = db.prepare('SELECT id FROM appointments WHERE id = ?').get(req.params.id) as Pick<AppointmentRow, 'id'> | undefined;
     if (!existing) return res.status(404).json({ error: 'Appointment not found' });
 
     db.prepare('DELETE FROM appointments WHERE id=?').run(req.params.id);
-    logAudit(authReq.user.id, 'delete', 'appointment', req.params.id, null, null);
+    logAudit(user.id, 'delete', 'appointment', req.params.id, null, null);
     res.json({ success: true });
 });
 

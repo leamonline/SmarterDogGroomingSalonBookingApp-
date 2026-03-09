@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js';
+import { requireAdmin, getUser } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, settingsSchema } from '../schema.js';
 import type { RawScheduleRow } from '../helpers/schedule.js';
@@ -24,7 +24,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', requireAdmin, validateBody(settingsSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { shopName, shopPhone, shopAddress, schedule } = req.body;
 
     const oldSettings = db.prepare('SELECT * FROM settings').all() as { key: string, value: string }[];
@@ -58,7 +58,7 @@ router.post('/', requireAdmin, validateBody(settingsSchema), (req: Request, res:
         })();
     }
 
-    logAudit(authReq.user?.id || null, 'update', 'settings', null, oldMap, req.body);
+    logAudit(user.id, 'update', 'settings', null, oldMap, req.body);
     res.json({ success: true });
 });
 

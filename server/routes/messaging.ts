@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireAdmin, type AuthenticatedRequest } from '../middleware/auth.js';
+import { requireAdmin, getUser } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { dispatchMessage } from '../helpers/messaging.js';
 import { validateBody, manualMessageSchema, clampLimit } from '../schema.js';
@@ -16,7 +16,7 @@ router.get('/', requireAdmin, (req: Request, res: Response) => {
 
 // POST /api/messages/send — manual send (staff+)
 router.post('/send', validateBody(manualMessageSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { recipientEmail, recipientPhone, channel, subject, body, customerId, appointmentId } = req.body;
 
     if (channel === 'email' && !recipientEmail) return res.status(400).json({ error: 'recipientEmail required for email channel' });
@@ -32,7 +32,7 @@ router.post('/send', validateBody(manualMessageSchema), (req: Request, res: Resp
         subject: subject ?? null,
         body,
     });
-    logAudit(authReq.user?.id, 'send', 'message', result.id, null, { channel, recipientEmail, recipientPhone });
+    logAudit(user.id, 'send', 'message', result.id, null, { channel, recipientEmail, recipientPhone });
     res.json({ id: result.id, status: result.status });
 });
 

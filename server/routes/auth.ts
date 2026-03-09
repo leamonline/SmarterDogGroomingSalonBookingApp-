@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import db from '../db.js';
-import { JWT_SECRET, authenticateToken, requireAdmin, requireOwner, type AuthenticatedRequest, type Role } from '../middleware/auth.js';
+import { JWT_SECRET, authenticateToken, requireAdmin, requireOwner, getUser, type Role } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validatePasswordStrength, isWeakPassword } from '../helpers/password.js';
 import { logger } from '../lib/logger.js';
@@ -65,16 +65,16 @@ router.post('/auth/password', authenticateToken, (req: Request, res: Response) =
     const pwError = validatePasswordStrength(newPassword);
     if (pwError) return res.status(400).json({ error: pwError });
 
-    const authReq = req as AuthenticatedRequest;
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(authReq.user.id) as UserRow | undefined;
+    const currentUser = getUser(req);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(currentUser.id) as UserRow | undefined;
     if (!user) return res.status(401).json({ error: 'User not found' });
 
     const match = bcrypt.compareSync(currentPassword, user.password);
     if (!match) return res.status(400).json({ error: 'Incorrect current password' });
 
     const hash = bcrypt.hashSync(newPassword, 10);
-    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, authReq.user.id);
-    logAudit(authReq.user.id, 'update', 'user_password', authReq.user.id, null, null);
+    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, currentUser.id);
+    logAudit(currentUser.id, 'update', 'user_password', currentUser.id, null, null);
     res.json({ success: true });
 });
 
@@ -126,12 +126,8 @@ router.post('/auth/password-reset/confirm', (req, res) => {
         return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
-    if (newPassword.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    }
-    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-        return res.status(400).json({ error: 'Password must contain uppercase, lowercase, and a number' });
-    }
+    const pwError = validatePasswordStrength(newPassword);
+    if (pwError) return res.status(400).json({ error: pwError });
 
     const hash = bcrypt.hashSync(newPassword, 10);
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, entry.userId);
@@ -146,8 +142,8 @@ router.post('/auth/logout', (_req, res) => {
 });
 
 router.get('/auth/me', authenticateToken, (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
-    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(authReq.user.id) as Pick<UserRow, 'id' | 'email' | 'role'> | undefined;
+    const currentUser = getUser(req);
+    const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(currentUser.id) as Pick<UserRow, 'id' | 'email' | 'role'> | undefined;
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ id: user.id, email: user.email, role: user.role || 'owner' });
 });
@@ -159,7 +155,7 @@ router.get('/staff', authenticateToken, requireAdmin, (req, res) => {
 });
 
 router.post('/staff', authenticateToken, requireAdmin, (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { email, password, role } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     const pwError = validatePasswordStrength(password);
@@ -168,7 +164,7 @@ router.post('/staff', authenticateToken, requireAdmin, (req: Request, res: Respo
     const validRoles: Role[] = ['customer', 'groomer', 'receptionist', 'owner'];
     const assignedRole = validRoles.includes(role) ? role : 'groomer';
 
-    if (assignedRole === 'owner' && authReq.user.role !== 'owner') {
+    if (assignedRole === 'owner' && user.role !== 'owner') {
         return res.status(403).json({ error: 'Only owners can create owner accounts' });
     }
 
@@ -176,7 +172,7 @@ router.post('/staff', authenticateToken, requireAdmin, (req: Request, res: Respo
         const id = crypto.randomUUID();
         const hash = bcrypt.hashSync(password, 10);
         db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(id, email, hash, assignedRole);
-        logAudit(authReq.user.id, 'create', 'user', id, null, { email, role: assignedRole });
+        logAudit(user.id, 'create', 'user', id, null, { email, role: assignedRole });
         res.json({ success: true, id, email, role: assignedRole });
     } catch (err: unknown) {
         if (err instanceof Error && err.message.includes('UNIQUE')) {
@@ -187,7 +183,7 @@ router.post('/staff', authenticateToken, requireAdmin, (req: Request, res: Respo
 });
 
 router.put('/staff/:id/role', authenticateToken, requireOwner, (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { role } = req.body;
     const validRoles: Role[] = ['customer', 'groomer', 'receptionist', 'owner'];
     if (!validRoles.includes(role)) return res.status(400).json({ error: 'Invalid role' });
@@ -196,7 +192,7 @@ router.put('/staff/:id/role', authenticateToken, requireOwner, (req: Request, re
     if (!target) return res.status(404).json({ error: 'User not found' });
 
     db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id);
-    logAudit(authReq.user.id, 'update_role', 'user', req.params.id, { role: target.role }, { role });
+    logAudit(user.id, 'update_role', 'user', req.params.id, { role: target.role }, { role });
     res.json({ success: true, id: req.params.id, role });
 });
 

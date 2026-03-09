@@ -138,27 +138,6 @@ export function getAvailabilityReason(availability: AvailabilityCheck) {
   return 'reason' in availability ? availability.reason : null;
 }
 
-export function hasOverlap(dateString: string, duration: number, excludeId?: string) {
-  const startDate = new Date(dateString);
-  if (Number.isNaN(startDate.getTime())) {
-    return true;
-  }
-
-  const dayStart = new Date(startDate);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setHours(23, 59, 59, 999);
-
-  const availability = checkAvailabilityAgainstData(
-    dateString,
-    duration,
-    loadAppointmentsInRange(dayStart.toISOString(), dayEnd.toISOString(), excludeId),
-    loadScheduleByDay(),
-  );
-
-  return !availability.ok;
-}
-
 export function getAvailableSlotsForDate(dateStr: string, duration: number, excludeId?: string) {
   const [year, month, day] = dateStr.split('-').map(Number);
   const localDate = new Date(year, month - 1, day);

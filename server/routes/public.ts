@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import db from '../db.js';
-import { JWT_SECRET, authenticateToken, type AuthenticatedRequest } from '../middleware/auth.js';
+import { JWT_SECRET, authenticateToken, getUser } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validatePasswordStrength } from '../helpers/password.js';
 import { autoNotify } from '../helpers/messaging.js';
@@ -104,7 +104,7 @@ router.post('/login', loginLimiter, (req, res) => {
 
 // Public: submit a booking (requires customer auth token)
 router.post('/bookings', authenticateToken, (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { serviceId, date, petName, breed, notes, customerId } = req.body;
     if (!serviceId || !date || !petName) {
         return res.status(400).json({ error: 'serviceId, date, and petName are required' });
@@ -134,7 +134,7 @@ router.post('/bookings', authenticateToken, (req: Request, res: Response) => {
         customerId || null, notes || '', service.depositRequired ? 1 : 0, service.depositAmount || 0
     );
 
-    logAudit(authReq.user.id, 'book', 'appointment', apptId, null, { serviceId, petName, status });
+    logAudit(user.id, 'book', 'appointment', apptId, null, { serviceId, petName, status });
 
     const triggerKey = status === 'pending-approval' ? 'booking_pending' : 'booking_confirmed';
     autoNotify(

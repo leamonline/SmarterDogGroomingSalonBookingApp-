@@ -39,6 +39,12 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   return response.json();
 }
 
+/** Unwrap paginated responses: extract `.data` array if present, otherwise return as-is. */
+async function fetchPaginatedData(url: string) {
+  const res = await fetchWithAuth(url);
+  return res.data ? res.data : res;
+}
+
 // --- API Methods ---
 
 export const api = {
@@ -77,10 +83,8 @@ export const api = {
   getMe: () => fetchWithAuth('/api/auth/me'),
 
   // Customers
-  getCustomers: async (page = 1, limit = 50) => {
-    const res = await fetchWithAuth(`/api/customers?page=${page}&limit=${limit}`);
-    return res.data ? res.data : res;
-  },
+  getCustomers: (page = 1, limit = 50) =>
+    fetchPaginatedData(`/api/customers?page=${page}&limit=${limit}`),
   createCustomer: (data: Record<string, unknown> | object) => fetchWithAuth('/api/customers', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -108,10 +112,8 @@ export const api = {
   }),
 
   // Appointments
-  getAppointments: async (page = 1, limit = 50) => {
-    const res = await fetchWithAuth(`/api/appointments?page=${page}&limit=${limit}`);
-    return res.data ? res.data : res;
-  },
+  getAppointments: (page = 1, limit = 50) =>
+    fetchPaginatedData(`/api/appointments?page=${page}&limit=${limit}`),
 
   getNextAvailableSlots: (duration = 60, from = new Date().toISOString()) =>
     fetchWithAuth(`/api/appointments/next-available?duration=${duration}&from=${encodeURIComponent(from)}`),
@@ -128,10 +130,8 @@ export const api = {
   }),
 
   // Services
-  getServices: async (page = 1, limit = 50) => {
-    const res = await fetchWithAuth(`/api/services?page=${page}&limit=${limit}`);
-    return res.data ? res.data : res;
-  },
+  getServices: (page = 1, limit = 50) =>
+    fetchPaginatedData(`/api/services?page=${page}&limit=${limit}`),
   createService: (data: Record<string, unknown> | object) => fetchWithAuth('/api/services', {
     method: 'POST',
     body: JSON.stringify(data),
