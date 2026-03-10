@@ -53,6 +53,7 @@ See `.env.example` for the supported variables.
 - `JWT_SECRET` is required
 - `PORT` defaults to `3001`
 - `CORS_ORIGIN` should match the frontend origin in non-local environments
+- `APP_URL` sets the public frontend URL used in password reset emails
 - `ADMIN_EMAIL` and `ADMIN_PASSWORD` customize the first seeded owner account on a fresh database
 - SMTP variables are optional; without them, outgoing messages are simulated and logged
 - `MAX_BACKUPS` controls retained SQLite backups

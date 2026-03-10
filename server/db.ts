@@ -217,6 +217,14 @@ db.exec(`
     FOREIGN KEY(appointmentId) REFERENCES appointments(id)
   );
 
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    expiresAt INTEGER NOT NULL,
+    createdAt TEXT NOT NULL,
+    FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   -- Sprint 1: Tags
   CREATE TABLE IF NOT EXISTS customer_tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -390,6 +398,14 @@ migrate(5, () => {
     CREATE INDEX IF NOT EXISTS idx_appointments_date_duration
     ON appointments(date, duration)
     WHERE status NOT IN ('cancelled-by-customer', 'cancelled-by-salon', 'no-show');
+  `);
+});
+
+// Migration 6: password reset token indexes
+migrate(6, () => {
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(userId);
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires ON password_reset_tokens(expiresAt);
   `);
 });
 

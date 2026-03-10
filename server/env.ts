@@ -32,6 +32,7 @@ const envSchema = z.object({
     JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long'),
     PORT: z.coerce.number().int().positive().max(65535).default(3001),
     CORS_ORIGIN: z.string().trim().optional(),
+    APP_URL: z.string().trim().optional(),
     MAX_BACKUPS: z.coerce.number().int().positive().default(20),
 });
 
@@ -40,6 +41,7 @@ const parsedEnv = envSchema.safeParse({
     JWT_SECRET: process.env.JWT_SECRET,
     PORT: process.env.PORT ?? '3001',
     CORS_ORIGIN: process.env.CORS_ORIGIN,
+    APP_URL: process.env.APP_URL,
     MAX_BACKUPS: process.env.MAX_BACKUPS ?? '20',
 });
 

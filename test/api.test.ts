@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import app from '../server/index.js';
+import db from '../server/db.js';
 import { JWT_SECRET } from '../server/middleware/auth.js';
 import crypto from 'crypto';
 
@@ -55,6 +57,48 @@ describe('Authentication', () => {
             .post('/api/auth/login')
             .send({ email: 'nobody@example.com', password: 'wrong' });
         expect(res.status).toBe(401);
+    });
+
+    it('requests a password reset, confirms it, and allows login with the new password', async () => {
+        const userId = crypto.randomUUID();
+        const email = `reset_${Date.now()}@example.com`;
+        const oldPassword = 'OldPassword1';
+        const newPassword = 'BetterPassword2';
+
+        db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(
+            userId,
+            email,
+            bcrypt.hashSync(oldPassword, 10),
+            'owner',
+        );
+
+        const requestRes = await request(app)
+            .post('/api/auth/password-reset/request')
+            .send({ email });
+        expect(requestRes.status).toBe(200);
+        expect(requestRes.body.success).toBe(true);
+
+        const tokenRow = db.prepare('SELECT token FROM password_reset_tokens WHERE userId = ?').get(userId) as { token: string } | undefined;
+        expect(tokenRow?.token).toBeDefined();
+
+        const confirmRes = await request(app)
+            .post('/api/auth/password-reset/confirm')
+            .send({ token: tokenRow!.token, newPassword });
+        expect(confirmRes.status).toBe(200);
+        expect(confirmRes.body.success).toBe(true);
+
+        const oldLoginRes = await request(app)
+            .post('/api/auth/login')
+            .send({ email, password: oldPassword });
+        expect(oldLoginRes.status).toBe(401);
+
+        const newLoginRes = await request(app)
+            .post('/api/auth/login')
+            .send({ email, password: newPassword });
+        expect(newLoginRes.status).toBe(200);
+
+        const usedTokenRow = db.prepare('SELECT token FROM password_reset_tokens WHERE userId = ?').get(userId);
+        expect(usedTokenRow).toBeUndefined();
     });
 });
 

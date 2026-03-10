@@ -70,11 +70,7 @@ export function Customers() {
     const setter = replace ? setLoadingMore : setLoadingMore;
     setter(true);
     try {
-      const res = await fetch(`/api/customers?page=${targetPage}&limit=${PAGE_SIZE}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('petspa_token')}` }
-      });
-      if (!res.ok) throw new Error('Failed to fetch customers');
-      const json = await res.json();
+      const json = await api.getCustomersPage(targetPage, PAGE_SIZE);
       const items: Customer[] = json.data ?? json;
       const total: number = json.pagination?.total ?? items.length;
       setTotalCustomers(total);

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { FieldError } from '@/src/components/ui/field-error';
 import { useAuth } from '@/src/lib/AuthContext';
+import { api } from '@/src/lib/api';
 import { useFormValidation, email as emailRule, required } from '@/src/lib/useFormValidation';
 import { Dog } from 'lucide-react';
 
@@ -12,10 +13,15 @@ export function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [showForgotMsg, setShowForgotMsg] = useState(false);
+    const [showForgotPanel, setShowForgotPanel] = useState(false);
+    const [forgotPasswordError, setForgotPasswordError] = useState('');
+    const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+    const [isRequestingReset, setIsRequestingReset] = useState(false);
 
     const { login } = useAuth();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const resetSuccess = searchParams.get('reset') === 'success';
 
     const { errors, validate, clearError } = useFormValidation<{ email: string; password: string }>({
         email: emailRule,
@@ -29,29 +35,39 @@ export function Login() {
         setError('');
 
         try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-                credentials: 'include',
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                login(data.token, data.user, data.passwordChangeRequired);
-                if (data.passwordChangeRequired) {
-                    navigate('/settings');
-                } else {
-                    navigate('/');
-                }
+            const data = await api.login({ email, password });
+            login(data.token, data.user, data.passwordChangeRequired);
+            if (data.passwordChangeRequired) {
+                navigate('/settings');
             } else {
-                setError(data.error || 'Login failed');
+                navigate('/');
             }
         } catch (err) {
-            setError('Network error. Is the server running?');
+            setError(err instanceof Error ? err.message : 'Login failed');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleRequestPasswordReset = async () => {
+        const emailValidationError = emailRule(email);
+        if (emailValidationError) {
+            setForgotPasswordError(emailValidationError);
+            setForgotPasswordMessage('');
+            return;
+        }
+
+        setForgotPasswordError('');
+        setForgotPasswordMessage('');
+        setIsRequestingReset(true);
+
+        try {
+            const response = await api.requestPasswordReset(email);
+            setForgotPasswordMessage(response.message || 'If an account with that email exists, a reset link has been sent.');
+        } catch (err) {
+            setForgotPasswordError(err instanceof Error ? err.message : 'Unable to send reset link right now.');
+        } finally {
+            setIsRequestingReset(false);
         }
     };
 
@@ -75,6 +91,12 @@ export function Login() {
                 </div>
 
                 <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+                    {resetSuccess && (
+                        <div className="text-sm text-brand-700 font-medium text-center bg-brand-50 px-3 py-2 rounded-xl">
+                            Password updated. Sign in with your new password.
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         <div>
                             <label className="text-sm font-medium text-slate-700 mb-1 block" htmlFor="email-address">Email</label>
@@ -96,7 +118,11 @@ export function Login() {
                                 <button
                                     type="button"
                                     className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
-                                    onClick={() => setShowForgotMsg(true)}
+                                    onClick={() => {
+                                        setShowForgotPanel((current) => !current);
+                                        setForgotPasswordError('');
+                                        setForgotPasswordMessage('');
+                                    }}
                                 >
                                     Forgot password?
                                 </button>
@@ -115,9 +141,30 @@ export function Login() {
                         </div>
                     </div>
 
-                    {showForgotMsg && (
-                        <div className="text-sm text-brand-700 font-medium text-center bg-brand-50 px-3 py-2 rounded-xl">
-                            Please contact the salon to reset your password.
+                    {showForgotPanel && (
+                        <div className="space-y-3 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-4">
+                            <p className="text-sm text-slate-700">
+                                Enter your account email above and we&apos;ll send you a password reset link.
+                            </p>
+                            {forgotPasswordMessage && (
+                                <div className="text-sm text-brand-700 font-medium rounded-xl bg-white/80 px-3 py-2">
+                                    {forgotPasswordMessage}
+                                </div>
+                            )}
+                            {forgotPasswordError && (
+                                <div className="text-sm text-coral font-medium rounded-xl bg-white/80 px-3 py-2">
+                                    {forgotPasswordError}
+                                </div>
+                            )}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full"
+                                onClick={handleRequestPasswordReset}
+                                disabled={isRequestingReset}
+                            >
+                                {isRequestingReset ? 'Sending reset link...' : 'Send reset link'}
+                            </Button>
                         </div>
                     )}
 

@@ -39,6 +39,31 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   return response.json();
 }
 
+async function fetchPublicJson(url: string, options: RequestInit = {}) {
+  const headers = new Headers(options.headers);
+
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const error = new Error(errorBody?.error || `API Request failed: ${response.statusText}`) as Error & { details?: Record<string, unknown> | object };
+    if (errorBody) {
+      error.details = errorBody;
+    }
+    throw error;
+  }
+
+  return response.json();
+}
+
 /** Unwrap paginated responses: extract `.data` array if present, otherwise return as-is. */
 async function fetchPaginatedData(url: string) {
   const res = await fetchWithAuth(url);
@@ -49,22 +74,24 @@ async function fetchPaginatedData(url: string) {
 
 export const api = {
   // Auth
-  login: async (credentials: { email: string; password: string }) => {
-    const res = await fetch('/api/auth/login', {
+  login: (credentials: { email: string; password: string }) =>
+    fetchPublicJson('/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
-      credentials: 'include', // Receive httpOnly cookie
-    });
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || 'Login failed');
-    }
-    return res.json();
-  },
+    }),
   logout: async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
   },
+  requestPasswordReset: (email: string) =>
+    fetchPublicJson('/api/auth/password-reset/request', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  confirmPasswordReset: (token: string, newPassword: string) =>
+    fetchPublicJson('/api/auth/password-reset/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    }),
   updatePassword: (currentPassword: string, newPassword: string) => fetchWithAuth('/api/auth/password', {
     method: 'POST',
     body: JSON.stringify({ currentPassword, newPassword })
@@ -83,6 +110,8 @@ export const api = {
   getMe: () => fetchWithAuth('/api/auth/me'),
 
   // Customers
+  getCustomersPage: (page = 1, limit = 50) =>
+    fetchWithAuth(`/api/customers?page=${page}&limit=${limit}`),
   getCustomers: (page = 1, limit = 50) =>
     fetchPaginatedData(`/api/customers?page=${page}&limit=${limit}`),
   createCustomer: (data: Record<string, unknown> | object) => fetchWithAuth('/api/customers', {

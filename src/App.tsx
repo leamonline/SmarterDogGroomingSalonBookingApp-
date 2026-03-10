@@ -32,6 +32,9 @@ const FormsManager = lazy(async () => ({
 const Login = lazy(async () => ({
   default: (await import("./pages/Login")).Login,
 }));
+const ResetPassword = lazy(async () => ({
+  default: (await import("./pages/ResetPassword")).ResetPassword,
+}));
 const BookingPage = lazy(async () => ({
   default: (await import("./pages/BookingPage")).BookingPage,
 }));
@@ -60,6 +63,7 @@ export default function App() {
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/book" element={<BookingPage />} />
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />

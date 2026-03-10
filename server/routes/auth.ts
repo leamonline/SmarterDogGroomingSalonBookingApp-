@@ -4,9 +4,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import db from '../db.js';
+import { env } from '../env.js';
 import { JWT_SECRET, authenticateToken, requireAdmin, requireOwner, getUser, type Role } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validatePasswordStrength, isWeakPassword } from '../helpers/password.js';
+import { dispatchMessage } from '../helpers/messaging.js';
 import { logger } from '../lib/logger.js';
 import type { UserRow } from '../types.js';
 
@@ -88,25 +90,56 @@ const resetLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// In-memory store for reset tokens (production: use DB table or Redis)
-const resetTokens = new Map<string, { userId: string; expiresAt: number }>();
+const pruneExpiredResetTokens = () => {
+    db.prepare('DELETE FROM password_reset_tokens WHERE expiresAt < ?').run(Date.now());
+};
+
+const buildResetUrl = (req: Request, token: string) => {
+    const baseUrl = (env.APP_URL || env.CORS_ORIGIN || `${req.protocol}://${req.get('host') || 'localhost'}`)
+        .replace(/\/+$/, '');
+
+    return `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+};
 
 router.post('/auth/password-reset/request', resetLimiter, (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
+    pruneExpiredResetTokens();
+
     // Always return success to prevent email enumeration
     const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as Pick<UserRow, 'id'> | undefined;
     if (user) {
         const token = crypto.randomUUID();
-        resetTokens.set(token, {
-            userId: user.id,
-            expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
+        const resetUrl = buildResetUrl(req, token);
+        const expiresAt = Date.now() + 30 * 60 * 1000;
+
+        db.prepare('DELETE FROM password_reset_tokens WHERE userId = ?').run(user.id);
+        db.prepare(`
+            INSERT INTO password_reset_tokens (token, userId, expiresAt, createdAt)
+            VALUES (?, ?, ?, ?)
+        `).run(token, user.id, expiresAt, new Date().toISOString());
+
+        dispatchMessage({
+            recipientEmail: email,
+            channel: 'email',
+            templateName: 'password_reset',
+            subject: 'Reset your Smarter Dog password',
+            body: [
+                'Hi,',
+                '',
+                'We received a request to reset your Smarter Dog Grooming Salon password.',
+                `Open this link to choose a new password: ${resetUrl}`,
+                '',
+                'This link expires in 30 minutes.',
+                'If you did not request this, you can safely ignore this email.',
+                '',
+                'Smarter Dog Grooming Salon',
+            ].join('\n'),
         });
-        // TODO: send email with reset link containing token
-        // For now, log to console in development for testing
+
         if (process.env.NODE_ENV !== 'production') {
-            logger.info('Password reset token generated', { email, token });
+            logger.info('Password reset link generated', { email, resetUrl });
         }
         logAudit(null, 'password_reset_request', 'user', user.id, null, null);
     }
@@ -120,9 +153,16 @@ router.post('/auth/password-reset/confirm', (req, res) => {
         return res.status(400).json({ error: 'Token and new password are required' });
     }
 
-    const entry = resetTokens.get(token);
+    pruneExpiredResetTokens();
+
+    const entry = db.prepare(`
+        SELECT userId, expiresAt
+        FROM password_reset_tokens
+        WHERE token = ?
+    `).get(token) as { userId: string; expiresAt: number } | undefined;
+
     if (!entry || entry.expiresAt < Date.now()) {
-        resetTokens.delete(token);
+        db.prepare('DELETE FROM password_reset_tokens WHERE token = ?').run(token);
         return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
@@ -131,7 +171,7 @@ router.post('/auth/password-reset/confirm', (req, res) => {
 
     const hash = bcrypt.hashSync(newPassword, 10);
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, entry.userId);
-    resetTokens.delete(token);
+    db.prepare('DELETE FROM password_reset_tokens WHERE userId = ?').run(entry.userId);
     logAudit(null, 'password_reset_complete', 'user', entry.userId, null, null);
     res.json({ success: true });
 });

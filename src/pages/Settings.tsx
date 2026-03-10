@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/src/components/ui/input";
 import { Badge } from "@/src/components/ui/badge";
 import { api } from "@/src/lib/api";
+import { validatePasswordStrength } from "@/src/lib/passwordValidation";
 import { useAuth } from "@/src/lib/AuthContext";
 import { Shield, UserPlus, Users } from "lucide-react";
 import {
@@ -119,8 +120,9 @@ export function Settings() {
       toast.error("New passwords do not match");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    const passwordError = validatePasswordStrength(newPassword);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
     try {
@@ -139,8 +141,9 @@ export function Settings() {
       toast.error("Email and password required.");
       return;
     }
-    if (newStaffPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    const passwordError = validatePasswordStrength(newStaffPassword);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
     try {
