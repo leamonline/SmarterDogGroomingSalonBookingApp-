@@ -139,6 +139,7 @@ export function BookingPage() {
     useEffect(() => {
         if (selectedDate && selectedService) {
             setLoadingSlots(true);
+            setNoAvailability(false);
             publicFetch(`/api/public/available-slots?date=${selectedDate}&duration=${selectedService.duration}`)
                 .then((data) => {
                     const nextSlots = data.slots || [];
@@ -227,6 +228,7 @@ export function BookingPage() {
         setSelectedDate(defaultDate);
         setSlots([]);
         setSelectedSlot("");
+        setNoAvailability(false);
         setPetName("");
         setBreed("");
         setPetNotes("");
@@ -552,14 +554,20 @@ export function BookingPage() {
                             {loadingSlots ? (
                                 <p className="text-sm text-slate-400 py-4 text-center">Loading slots...</p>
                             ) : slots.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center">
+                                <div
+                                    className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center"
+                                    data-testid="booking-no-slots-card"
+                                >
                                     <p className="text-sm font-medium text-slate-900">No available slots on this date.</p>
                                     <p className="mt-1 text-sm text-slate-500">Try another day, or let us jump to the next available appointment for you.</p>
                                     <Button type="button" variant="outline" className="mt-4" onClick={findFirstAvailableSlot} disabled={findingFirstAvailable}>
                                         {findingFirstAvailable ? "Finding next slot..." : "Find first available"}
                                     </Button>
                                     {noAvailability && (
-                                        <div className="mt-4 rounded-xl border border-gold bg-gold-light p-4 text-left">
+                                        <div
+                                            className="mt-4 rounded-xl border border-gold bg-gold-light p-4 text-left"
+                                            data-testid="booking-no-availability-banner"
+                                        >
                                             <p className="text-sm font-semibold text-purple">No appointments available in the next two weeks</p>
                                             <p className="mt-1 text-sm text-slate-600">
                                                 We're fully booked right now. Give us a call and we'll find the perfect slot for you.
@@ -588,7 +596,10 @@ export function BookingPage() {
                         </div>
 
                         {selectedSlot && (
-                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3">
+                            <div
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3"
+                                data-testid="booking-selected-slot-summary"
+                            >
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Selected time</p>
                                     <p className="font-semibold text-slate-900">{format(new Date(selectedSlot), "EEEE d MMMM • h:mm a")}</p>

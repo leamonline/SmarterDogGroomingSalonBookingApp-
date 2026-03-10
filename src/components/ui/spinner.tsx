@@ -11,7 +11,7 @@ const spinnerVariants = cva(
         md: "h-6 w-6",
         lg: "h-8 w-8",
       },
-      color: {
+      tone: {
         brand: "text-brand-600",
         white: "text-white",
         muted: "text-slate-400",
@@ -19,7 +19,7 @@ const spinnerVariants = cva(
     },
     defaultVariants: {
       size: "md",
-      color: "brand",
+      tone: "brand",
     },
   }
 )
@@ -32,13 +32,13 @@ export interface SpinnerProps
 }
 
 const Spinner = React.forwardRef<HTMLDivElement, SpinnerProps>(
-  ({ className, size, color, label = "Loading", ...props }, ref) => {
+  ({ className, size, tone, label = "Loading", ...props }, ref) => {
     return (
       <div
         ref={ref}
         role="status"
         aria-label={label}
-        className={cn(spinnerVariants({ size, color }), className)}
+        className={cn(spinnerVariants({ size, tone }), className)}
         {...props}
       >
         <span className="sr-only">{label}</span>

@@ -1,6 +1,6 @@
-// env.ts MUST be the first import — it runs dotenv.config() so that
-// process.env is populated before any other module reads it (ESM ordering).
-import './env.js';
+// env.ts MUST be the first import — it loads and validates runtime config
+// before any other module reads process.env (ESM ordering).
+import { env } from './env.js';
 
 import express from 'express';
 import cors from 'cors';
@@ -9,6 +9,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import db from './db.js';
 import { logger } from './lib/logger.js';
 
@@ -28,14 +29,16 @@ import reportsRouter from './routes/reports.js';
 import messagingRouter from './routes/messaging.js';
 
 const app = express();
+const isTestEnv = env.NODE_ENV === 'test';
+const isProduction = env.NODE_ENV === 'production';
 
 // --- Global middleware ---
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? false : 'http://localhost:3000'),
+    origin: env.CORS_ORIGIN || (isProduction ? false : 'http://localhost:3000'),
     credentials: true,
 }));
-if (process.env.NODE_ENV !== 'test') {
-    app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+if (!isTestEnv) {
+    app.use(morgan(isProduction ? 'combined' : 'dev'));
 }
 app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
@@ -47,7 +50,7 @@ app.use((_req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    if (process.env.NODE_ENV === 'production') {
+    if (isProduction) {
         res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     }
     next();
@@ -93,17 +96,33 @@ app.use('/api/form-submissions', formSubmissionsRouter); // backward-compatible 
 app.use('/api', reportsRouter);        // /api/search, /api/dogs/:id/tags, /api/audit-log, /api/analytics, /api/reports
 app.use('/api/messages', messagingRouter);
 
+if (isProduction) {
+    const clientDistDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+    const clientIndexPath = path.join(clientDistDir, 'index.html');
+
+    if (fs.existsSync(clientIndexPath)) {
+        app.use(express.static(clientDistDir, { index: false }));
+        app.get(/^(?!\/api(?:\/|$)).*/, (_req, res, next) => {
+            res.sendFile(clientIndexPath, (err) => {
+                if (err) next(err);
+            });
+        });
+    } else {
+        logger.error('Production frontend bundle missing', { path: clientIndexPath });
+    }
+}
+
 // ══════════════════════════════════════════════
 // Global error handler — catches unhandled errors in routes
 // ══════════════════════════════════════════════
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     logger.error('Unhandled route error', {
         message: err.message,
-        stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+        stack: !isProduction ? err.stack : undefined,
     });
     const status = err.status || err.statusCode || 500;
     res.status(status).json({
-        error: process.env.NODE_ENV === 'production'
+        error: isProduction
             ? 'Internal server error'
             : err.message || 'Internal server error',
     });
@@ -112,20 +131,18 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 // ══════════════════════════════════════════════
 // Database backup (every 6 hours) with retention
 // ══════════════════════════════════════════════
-if (process.env.NODE_ENV !== 'test') {
+if (!isTestEnv) {
     const backupDir = path.join(process.cwd(), 'data', 'backups');
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
     }
-
-    const MAX_BACKUPS = parseInt(process.env.MAX_BACKUPS || '20');
 
     const pruneOldBackups = () => {
         try {
             const files = fs.readdirSync(backupDir)
                 .filter(f => f.startsWith('database_backup_') && f.endsWith('.db'))
                 .sort();
-            while (files.length > MAX_BACKUPS) {
+            while (files.length > env.MAX_BACKUPS) {
                 const oldest = files.shift()!;
                 fs.unlinkSync(path.join(backupDir, oldest));
                 logger.info('Pruned old backup', { file: oldest });
@@ -149,10 +166,9 @@ if (process.env.NODE_ENV !== 'test') {
     }, 6 * 60 * 60 * 1000);
 }
 
-const PORT = process.env.PORT || 3001;
-if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => {
-        logger.info(`API server running on port ${PORT}`);
+if (!isTestEnv) {
+    app.listen(env.PORT, () => {
+        logger.info(`API server running on port ${env.PORT}`);
     });
 }
 export default app;

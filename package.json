@@ -8,13 +8,16 @@
   },
   "scripts": {
     "dev": "concurrently \"tsx server/index.ts\" \"vite --port=3000 --host=0.0.0.0\"",
-    "start": "node dist/server/index.js",
-    "build": "npm run typecheck && vite build",
+    "start": "NODE_ENV=production node dist/server/index.js",
+    "build": "npm run typecheck && npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "node scripts/build-server.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "lint": "npm run typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "npm run build && playwright test"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -23,6 +26,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.1",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -43,6 +47,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.2.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",

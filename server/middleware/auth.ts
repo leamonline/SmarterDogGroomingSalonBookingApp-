@@ -1,12 +1,8 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import { env } from '../env.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'test' ? 'test-jwt-secret' : undefined);
-if (!JWT_SECRET) {
-    // Use console directly — logger may not be initialized yet at startup
-    console.error('CRITICAL ERROR: JWT_SECRET environment variable is required.');
-    process.exit(1);
-}
+const JWT_SECRET = env.JWT_SECRET;
 
 export { JWT_SECRET };
 

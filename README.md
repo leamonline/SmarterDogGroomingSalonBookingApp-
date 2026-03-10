@@ -25,13 +25,26 @@ SQLite data is stored in `petspa.db` in the repo root. On an empty database, the
 - `npm run typecheck` runs TypeScript without emitting files
 - `npm run lint` aliases the typecheck step
 - `npm test` runs the Vitest API suite
-- `npm run build` runs typecheck and builds the Vite frontend into `dist/`
+- `npm run build` runs typecheck, builds the Vite frontend, and emits the production server bundle at `dist/server/index.js`
+- `npm run test:smoke` builds the production app and runs the Playwright booking smoke suite
 - `npm run preview` serves the built frontend locally
 - `npm run clean` removes the `dist/` folder
 
-## Build note
+## Production build
 
-The current production build is frontend-only. `npm run build` creates the Vite bundle, but this repo does not yet emit a standalone server bundle for `dist/server`.
+`npm run build` now creates a single deployable artifact:
+
+- Vite frontend assets in `dist/`
+- Bundled Express server entrypoint in `dist/server/index.js`
+
+Start the built app with:
+
+```bash
+npm run build
+JWT_SECRET=replace-me-with-a-long-random-secret npm start
+```
+
+The production server serves both the SPA and the `/api/*` routes from the same process.
 
 ## Environment variables
 
@@ -43,3 +56,29 @@ See `.env.example` for the supported variables.
 - `ADMIN_EMAIL` and `ADMIN_PASSWORD` customize the first seeded owner account on a fresh database
 - SMTP variables are optional; without them, outgoing messages are simulated and logged
 - `MAX_BACKUPS` controls retained SQLite backups
+
+The server validates its required runtime configuration at boot and exits early if the values are missing or invalid. In production, do not use the placeholder `JWT_SECRET` from `.env.example`.
+
+## Backup and restore
+
+The app writes SQLite backups into `data/backups/` every 6 hours and keeps the newest `MAX_BACKUPS` files.
+
+To restore from a backup:
+
+1. Stop the running app.
+2. Copy the chosen backup over `petspa.db`.
+3. Remove any stale `petspa.db-shm` and `petspa.db-wal` files before restarting.
+
+## Browser smoke tests
+
+Install the Chromium browser once for Playwright:
+
+```bash
+npx playwright install chromium
+```
+
+Then run the production-mode booking smoke suite:
+
+```bash
+npm run test:smoke
+```
