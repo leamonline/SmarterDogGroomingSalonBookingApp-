@@ -89,23 +89,23 @@ export const dispatchMessage = (opts: {
 export const SERVER_TEMPLATES: Record<string, { channel: 'email' | 'sms'; subject: string; body: string }> = {
     booking_confirmed: {
         channel: 'email',
-        subject: 'Your appointment at Savvy Pet Spa is confirmed!',
-        body: 'Hi {{customerName}},\n\nYour appointment for {{petName}} ({{service}}) has been confirmed.\n\n📅 {{date}}\n⏰ {{time}}\n💰 £{{price}}\n\nPlease arrive 5 minutes early.\n\nSee you soon!\nSavvy Pet Spa',
+        subject: 'Your appointment at Smarter Dog Grooming Salon is confirmed!',
+        body: 'Hi {{customerName}},\n\nYour appointment for {{petName}} ({{service}}) has been confirmed.\n\n📅 {{date}}\n⏰ {{time}}\n💰 £{{price}}\n\nPlease arrive 5 minutes early.\n\nSee you soon!\nSmarter Dog Grooming Salon',
     },
     booking_pending: {
         channel: 'email',
         subject: "We've received your booking request",
-        body: "Hi {{customerName}},\n\nThank you for your booking request for {{petName}} ({{service}}) on {{date}} at {{time}}.\n\nWe're reviewing it and will confirm shortly.\n\nSavvy Pet Spa",
+        body: "Hi {{customerName}},\n\nThank you for your booking request for {{petName}} ({{service}}) on {{date}} at {{time}}.\n\nWe're reviewing it and will confirm shortly.\n\nSmarter Dog Grooming Salon",
     },
     ready_for_collection: {
         channel: 'sms',
         subject: '{{petName}} is ready for collection! 🐾',
-        body: 'Hi {{customerName}}, {{petName}} is all done and looking fabulous! You can collect them now. – Savvy Pet Spa',
+        body: 'Hi {{customerName}}, {{petName}} is all done and looking fabulous! You can collect them now. – Smarter Dog Grooming Salon',
     },
     booking_cancelled: {
         channel: 'email',
         subject: 'Appointment cancelled',
-        body: 'Hi {{customerName}},\n\nYour appointment for {{petName}} on {{date}} has been cancelled.\n\nIf you would like to rebook, visit our booking page.\n\nSavvy Pet Spa',
+        body: 'Hi {{customerName}},\n\nYour appointment for {{petName}} on {{date}} has been cancelled.\n\nIf you would like to rebook, visit our booking page.\n\nSmarter Dog Grooming Salon',
     },
 };
 

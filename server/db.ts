@@ -441,7 +441,7 @@ if (customersCount.count === 0) {
   // Uses ADMIN_EMAIL / ADMIN_PASSWORD env vars if set, otherwise generates secure defaults.
   const existingUserCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
   if (existingUserCount.count === 0) {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@savvypetspa.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@smarterdoggrooming.com';
     const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomUUID().slice(0, 16);
     const hashedPassword = bcrypt.hashSync(adminPassword, 10);
     db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(
@@ -520,7 +520,7 @@ if (customersCount.count === 0) {
   })();
 
   const insertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
-  insertSetting.run('shopName', 'Savvy Pet Spa');
+  insertSetting.run('shopName', 'Smarter Dog Grooming Salon');
   insertSetting.run('shopPhone', '(555) 123-4567');
   insertSetting.run('shopAddress', '123 Grooming Lane, Pet City, PC 12345');
 
