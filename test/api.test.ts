@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import app from '../server/index.js';
 import db from '../server/db.js';
+import { resolvePasswordResetBaseUrl } from '../server/helpers/passwordResetUrl.js';
 import { JWT_SECRET } from '../server/middleware/auth.js';
 import crypto from 'crypto';
 
@@ -99,6 +100,29 @@ describe('Authentication', () => {
 
         const usedTokenRow = db.prepare('SELECT token FROM password_reset_tokens WHERE userId = ?').get(userId);
         expect(usedTokenRow).toBeUndefined();
+    });
+
+    it('uses only trusted configured origins when building password reset URLs', () => {
+        expect(resolvePasswordResetBaseUrl({
+            appUrl: 'https://app.smarterdog.co.uk/',
+            corsOrigin: 'https://ignored.example',
+            nodeEnv: 'production',
+        })).toBe('https://app.smarterdog.co.uk');
+
+        expect(resolvePasswordResetBaseUrl({
+            corsOrigin: 'https://salon.example/',
+            nodeEnv: 'test',
+        })).toBe('https://salon.example');
+
+        expect(resolvePasswordResetBaseUrl({
+            nodeEnv: 'development',
+        })).toBe('http://localhost:3000');
+
+        expect(() => resolvePasswordResetBaseUrl({
+            appUrl: '',
+            corsOrigin: '',
+            nodeEnv: 'production',
+        })).toThrow('APP_URL or CORS_ORIGIN must be configured for password reset emails');
     });
 });
 
@@ -626,8 +650,9 @@ describe('API Endpoints Integration Tests', () => {
     });
 
     it('should suggest alternate slots when creating an overlapping appointment', async () => {
+        const from = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString();
         const availableRes = await request(app)
-            .get('/api/appointments/next-available?duration=60')
+            .get(`/api/appointments/next-available?duration=60&from=${encodeURIComponent(from)}`)
             .set('Authorization', `Bearer ${testToken}`);
         const date = availableRes.body.data[0];
 
@@ -638,10 +663,16 @@ describe('API Endpoints Integration Tests', () => {
             .send(first);
         expect(createRes.status).toBe(200);
 
+        const secondRes = await request(app)
+            .post('/api/appointments')
+            .set('Authorization', `Bearer ${testToken}`)
+            .send({ ...first, id: crypto.randomUUID(), petName: 'Second Slot Dog' });
+        expect(secondRes.status).toBe(200);
+
         const overlapRes = await request(app)
             .post('/api/appointments')
             .set('Authorization', `Bearer ${testToken}`)
-            .send({ ...first, id: crypto.randomUUID() });
+            .send({ ...first, id: crypto.randomUUID(), petName: 'Third Slot Dog' });
         expect(overlapRes.status).toBe(400);
         expect(Array.isArray(overlapRes.body.suggestions)).toBe(true);
     });

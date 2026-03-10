@@ -4,9 +4,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import db from '../db.js';
-import { env } from '../env.js';
 import { JWT_SECRET, authenticateToken, requireAdmin, requireOwner, getUser, type Role } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
+import { buildResetUrl, resolvePasswordResetBaseUrl } from '../helpers/passwordResetUrl.js';
 import { validatePasswordStrength, isWeakPassword } from '../helpers/password.js';
 import { dispatchMessage } from '../helpers/messaging.js';
 import { logger } from '../lib/logger.js';
@@ -94,24 +94,25 @@ const pruneExpiredResetTokens = () => {
     db.prepare('DELETE FROM password_reset_tokens WHERE expiresAt < ?').run(Date.now());
 };
 
-const buildResetUrl = (req: Request, token: string) => {
-    const baseUrl = (env.APP_URL || env.CORS_ORIGIN || `${req.protocol}://${req.get('host') || 'localhost'}`)
-        .replace(/\/+$/, '');
-
-    return `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
-};
-
 router.post('/auth/password-reset/request', resetLimiter, (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
     pruneExpiredResetTokens();
+    let resetBaseUrl: string | null = null;
+    try {
+        resetBaseUrl = resolvePasswordResetBaseUrl();
+    } catch (error) {
+        logger.error('Password reset requested without a trusted app URL configured', {
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
 
     // Always return success to prevent email enumeration
     const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as Pick<UserRow, 'id'> | undefined;
-    if (user) {
+    if (user && resetBaseUrl) {
         const token = crypto.randomUUID();
-        const resetUrl = buildResetUrl(req, token);
+        const resetUrl = buildResetUrl(token, { appUrl: resetBaseUrl });
         const expiresAt = Date.now() + 30 * 60 * 1000;
 
         db.prepare('DELETE FROM password_reset_tokens WHERE userId = ?').run(user.id);

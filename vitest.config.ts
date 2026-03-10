@@ -7,6 +7,18 @@ export default defineConfig({
       '@': path.resolve(__dirname, '.'),
     },
   },
+  server: {
+    watch: {
+      ignored: [
+        '**/dist/**',
+        '**/data/**',
+        '**/output/**',
+        '**/petspa.db',
+        '**/petspa.db-shm',
+        '**/petspa.db-wal',
+      ],
+    },
+  },
   test: {
     // API tests only — no browser plugins needed
     include: ['test/api.test.ts'],
