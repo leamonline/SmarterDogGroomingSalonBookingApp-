@@ -439,12 +439,12 @@ export function Customers() {
                   </div>
 
                   {selectedCustomer.emergencyContact?.name && (
-                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                      <h4 className="text-sm font-semibold text-orange-900 mb-2 flex items-center gap-2">
+                    <div className="bg-warning-light p-4 rounded-xl border border-warning">
+                      <h4 className="text-sm font-semibold text-warning mb-2 flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4" /> Emergency Contact
                       </h4>
-                      <div className="text-sm text-orange-800 font-medium">{selectedCustomer.emergencyContact.name}</div>
-                      <div className="text-sm text-orange-700">{selectedCustomer.emergencyContact.phone}</div>
+                      <div className="text-sm text-slate-800 font-medium">{selectedCustomer.emergencyContact.name}</div>
+                      <div className="text-sm text-slate-700">{selectedCustomer.emergencyContact.phone}</div>
                     </div>
                   )}
 

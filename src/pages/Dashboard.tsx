@@ -227,14 +227,16 @@ export function Dashboard() {
                 <p className="text-xs text-slate-500">Checked in, grooming, or ready</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className={readyForCollection.length > 0 ? "border-gold bg-gold-light ring-1 ring-gold/50" : ""}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Ready For Collection</CardTitle>
-                <Truck className="h-4 w-4 text-slate-500" />
+                <Truck className={`h-4 w-4 ${readyForCollection.length > 0 ? "text-purple" : "text-slate-500"}`} />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{readyForCollection.length}</div>
-                <p className="text-xs text-slate-500">Owners to contact or greet</p>
+                <p className={`text-xs ${readyForCollection.length > 0 ? "text-purple font-medium" : "text-slate-500"}`}>
+                  {readyForCollection.length > 0 ? "Action needed — contact owners" : "Owners to contact or greet"}
+                </p>
               </CardContent>
             </Card>
             <Card>

@@ -144,7 +144,7 @@ export function FormBuilderModal({ isOpen, onClose, form, onSave }: FormBuilderM
                                 title="Form type"
                                 value={formType}
                                 onChange={e => setFormType(e.target.value)}
-                                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                className="flex h-10 w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm"
                             >
                                 <option value="intake">New Client Intake</option>
                                 <option value="grooming-consent">Grooming Consent</option>
@@ -184,7 +184,7 @@ export function FormBuilderModal({ isOpen, onClose, form, onSave }: FormBuilderM
                                             title="Field type"
                                             value={field.type}
                                             onChange={e => updateField(field.id, { type: e.target.value as any })}
-                                            className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs"
+                                            className="h-8 rounded-xl border border-brand-200 bg-white px-2 text-xs"
                                         >
                                             <option value="text">Text</option>
                                             <option value="textarea">Long Text</option>
@@ -298,7 +298,7 @@ export function FormFillerModal({ isOpen, onClose, form, context, onSubmitted }:
                                 <textarea
                                     value={values[field.id] || ""}
                                     onChange={e => setValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                                    className="w-full min-h-[60px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                                    className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                                 />
                             )}
                             {field.type === 'checkbox' && (
@@ -312,7 +312,7 @@ export function FormFillerModal({ isOpen, onClose, form, context, onSubmitted }:
                                     title={field.label}
                                     value={values[field.id] || ""}
                                     onChange={e => setValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                    className="flex h-10 w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm"
                                 >
                                     <option value="">Select...</option>
                                     {(field.options || []).map(opt => (

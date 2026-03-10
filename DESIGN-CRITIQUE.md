@@ -1,97 +1,89 @@
 # PetSpa (Smarter Dog) — UX/UI Design Critique
 
-**Date:** 6 March 2026
-**Reviewer:** Claude (Design Critique)
+**Date:** 7 March 2026
+**Reviewer:** Claude (Design Critique Skill)
 **Method:** Code-based review of React components, Tailwind theme, and page structure
-**Scope:** All major screens — Login, Dashboard, Calendar, Customers, Booking (public), Sidebar, Header
+**Scope:** All major screens — Login, Dashboard, Calendar, Customers, Booking (public), Sidebar, Header, Settings, AppointmentModal
 
 ---
 
-## 1. First Impression
+## 1. Overall Impression
 
-The app makes a strong first impression. The purple sidebar paired with a warm off-white surface (`#FAF9F6`) and teal brand accents creates a friendly, professional aesthetic that suits a pet grooming salon. The font choices — Quicksand for headings, Montserrat for body — are playful without sacrificing readability. The "Come scruffy. Leave gorgeous." tagline in Caveat on the login page is a lovely personality touch.
+The app creates a warm, professional first impression that immediately communicates its domain. The deep purple sidebar (`#2D004B`) paired with a warm off-white surface (`#FAF9F6`) and teal brand accents produces a distinctive, salon-appropriate aesthetic. The three-font system — Quicksand for headings, Montserrat for body, Caveat for accent text — is playful without sacrificing readability. The "Come scruffy. Leave gorgeous." tagline on the login page adds genuine personality.
 
-**What draws the eye:** The deep purple sidebar dominates the left edge, anchoring navigation clearly. On the Dashboard, the four stat cards pull attention immediately. The brand feels cohesive and intentional — this doesn't look like a generic template.
-
-**Emotional reaction:** Warm, trustworthy, approachable. It feels like a business that takes care of animals.
-
-**Is the purpose clear?** Yes. Between the Dog icon, "Smarter Dog / Grooming Salon" branding, and appointment-centric Dashboard, the domain is unmistakable within seconds.
+Within two seconds of seeing the interface, the Dog icon, "Smarter Dog / Grooming Salon" branding, and appointment-centric Dashboard make the purpose unmistakable. The emotional register is warm, trustworthy, and approachable — exactly right for a business that takes care of animals.
 
 ---
 
-## 2. Usability Findings
+## 2. What Works Well
+
+**Brand identity is cohesive and distinctive.** The teal/purple/coral/gold/sage colour system gives every screen personality without feeling garish. Warm surface colour `#FAF9F6` is a better choice than pure white for a salon environment — it softens the entire interface.
+
+**Status colour coding forms a learnable system.** Confirmed (teal), pending (gold), in-salon (sky), completed (grey), cancelled (coral), incident (red) — these carry consistently from Dashboard stat cards through the Calendar grid to the AppointmentModal status badges. Staff can internalise the system quickly.
+
+**The Dashboard "Needs Attention" panel is excellent operational UX.** Instead of making staff hunt for issues, it proactively surfaces late arrivals, pending approvals, and dogs ready for pickup. This shows deep understanding of the day-to-day workflow and reduces cognitive load during busy periods.
+
+**Progressive disclosure on the Calendar is well judged.** Appointment blocks that are too short to show full details gracefully degrade — showing just the pet name, then adding service and time as the block gets taller. This prevents the calendar from becoming an unreadable wall of text.
+
+**Global search is thoughtfully implemented.** Debounced API call (300ms), categorised results (customers/pets/appointments), full ARIA combobox pattern (`role="combobox"`, `aria-expanded`, `aria-activedescendant`), keyboard navigation (arrow keys + Enter), and the `/` shortcut for power users. This is a genuinely well-built search component.
+
+**The booking wizard stepper is clear and confidence-building.** Completed steps show checkmarks, the current step is highlighted, and future steps are dimmed. The five-step flow (Service → Auth → Date/Time → Pet Details → Confirm) puts service browsing first, which is the right conversion-optimised order.
+
+---
+
+## 3. Usability Findings
 
 | # | Finding | Severity | Details |
 |---|---------|----------|---------|
-| U1 | **Notification bell is non-functional** | Medium | The Bell button in the Header renders a badge count but has no `onClick` handler — clicking it does nothing. Users see the unread indicator but can't act on it, which erodes trust in the UI. |
-| U2 | **No "Forgot Password" flow on Login** | Medium | The Login page has email/password fields and a sign-in button, but no way to recover a forgotten password. For a staff-facing tool this is a basic expectation. |
-| U3 | **Booking wizard forces auth before browsing services** | Medium | The public BookingPage requires login/registration as Step 1 before showing any services. Customers can't see what's available or how much it costs without creating an account first. This is a known conversion killer — service browsing should come first. |
-| U4 | **Load More pagination on Customers** | Low | The Customers page uses a "Load More" button (50 at a time) rather than proper pagination with page numbers. For a salon with hundreds of customers, there's no way to jump to a specific range or know how many records exist in total. |
-| U5 | **Calendar lacks month/day view toggle** | Low | The Calendar only offers a weekly view. Staff who want a quick month-level overview or a focused single-day view have no option. Most calendar UIs offer at least week + day views. |
-| U6 | **No empty state on Dashboard** | Low | If there are no appointments for the day, the Dashboard renders stat cards with zeros but the schedule section isn't clearly communicating "nothing scheduled." A friendly empty state illustration would help. |
-| U7 | **Search results lack keyboard navigation** | Low | The Header search dropdown supports `Escape` to close and `/` to focus, which is great. But once results appear, there's no arrow-key navigation or `Enter` to select — users must reach for the mouse. |
-| U8 | **Booking date picker horizontal scroll isn't obvious** | Low | The 14-day date picker in the booking wizard uses `overflow-x-auto` but has no scroll indicators (arrows or fade edges). On narrower screens, users may not realize more dates are available off-screen. |
+| U1 | **"Forgot password?" uses `alert()`** | Medium | The Login page's "Forgot password?" button calls `alert('Please contact the salon to reset your password.')` — a raw browser alert. This feels broken and undermines the polished feel of the rest of the login experience. Even without a full reset flow, a styled inline message or modal would be more appropriate. |
+| U2 | **No destructive-action confirmation** | Medium | Customer deletion (if available) and appointment cancellation don't appear to have confirmation dialogs. In a salon context where accidental deletion of customer records or appointment history could cause real business harm, a confirmation step ("Are you sure? This will remove all appointment history for this customer") is essential. |
+| U3 | **Notification bell is non-functional** | Medium | The Bell icon in the Header shows an unread count badge but its click handler is `toast.info("Notifications coming soon!")`. Users see the visual indicator, try to act on it, and hit a dead end. A non-functional element that shows a count damages trust more than having no icon at all. Either implement a basic panel or remove the bell until it's ready. |
+| U4 | **Settings selects are unstyled native elements** | Low | The Settings page uses native `<select>` elements with `rounded-md` for role dropdowns and schedule configuration. These look visually inconsistent with the `rounded-xl` Input components used everywhere else and break the polished salon-brand feel. |
+| U5 | **"Find first available" fails silently** | Low | In the booking wizard, if no time slots are available for the selected date, the "Find first available" fallback attempts to locate one automatically. If the API returns no slots at all, the UI doesn't clearly explain what happened — the user just sees no change. A clear message ("No availability found in the next 14 days — please call the salon") would prevent confusion. |
+| U6 | **Calendar lacks a keyboard alternative to drag-and-drop** | Medium | Appointment rescheduling relies entirely on mouse-based drag-and-drop with 30-minute grid snapping. There is no keyboard-accessible way to move an appointment to a different time slot. Staff using keyboard-only navigation or assistive technology cannot reschedule without opening the appointment modal and manually editing. |
+| U7 | **Load More pagination on Customers** | Low | The Customers page uses a "Load More" button (50 at a time) rather than proper pagination with page numbers. For a salon with hundreds of customers, there's no way to jump to a specific range or know how many total records exist. |
 
 ---
 
-## 3. Visual Hierarchy
+## 4. Visual Hierarchy
 
-**Reading order is generally strong.** Each page uses a clear pattern: page title → summary cards → main content area. The Dashboard's four stat cards at the top effectively front-load the most important daily metrics (bookings count, dogs in salon, ready for collection, revenue).
+**Page-level hierarchy is strong.** Each page follows a consistent pattern: page title → summary cards or filters → main content area. The Dashboard's four stat cards at the top effectively front-load the most important daily metrics (bookings count, dogs in salon, ready for collection, revenue).
 
-**Areas for improvement:**
+**The Dashboard stat cards could better differentiate urgency.** Currently, all four cards share a similar visual weight. Cards representing items needing action (e.g. "Ready for Collection") might benefit from a subtle accent border or background tint to draw the eye when values are non-zero.
 
-The **service cards on the Booking page** pack a lot of information (name, description, category badge, price, duration, deposit) into a relatively small card. The price/duration chips at the bottom use a `bg-slate-50` background that blends into the card — these key decision-making details (cost, time) should be more visually prominent. Consider making the price larger or using brand color to highlight it.
+**The Calendar sidebar (appointment list) would benefit from grouping.** The sidebar lists all appointments for the selected day in a flat list. Grouping by status (In Progress → Checked In → Confirmed → Pending) would help staff quickly scan for what needs attention next.
 
-The **Customer detail modal** is information-dense. Contact info, emergency contact, notes, pets (each with behavioral notes and vaccinations), and full appointment history all appear in one scrollable modal. This would benefit from tabs or collapsible sections to reduce cognitive load.
+**Card density varies across pages.** The Dashboard uses compact stat cards, the Services page uses spacious cards with descriptions and category badges, and the Customers page uses a dense table. While some variation is natural, the jump between very dense (customer table with small text) and very spacious (service cards with generous padding) can feel inconsistent.
 
-**Typography hierarchy is well-executed.** Headings in Quicksand at varied weights create clear section breaks. The use of `tracking-[0.2em]` uppercase labels for metadata categories ("BOOKING ACCOUNT", "SELECTED SERVICE") is a nice pattern that works consistently across pages.
-
-**Whitespace** is used generously and appropriately. The `max-w-7xl` container with responsive padding prevents content from stretching too wide. Card spacing is consistent. One exception: the Sidebar navigation items could use slightly more vertical padding (currently `py-2.5`) — on a touch device, these are borderline for comfortable tap targets.
+**Typography hierarchy is well-executed throughout.** Headings in Quicksand at varied weights create clear section breaks. The `tracking-[0.2em]` uppercase labels for metadata categories ("BOOKING ACCOUNT", "SELECTED SERVICE") are a consistent, learnable pattern across pages. The CardTitle component's use of `font-heading font-semibold text-purple` maintains a cohesive look.
 
 ---
 
-## 4. Consistency
-
-**Color usage is mostly consistent** but has a few drift points:
-
-The Login page CTA uses `bg-accent` (green `#00D94A`), while the Booking page buttons use the default Button component (which doesn't specify a color override, suggesting it falls through to a default). The Dashboard uses a mix of `bg-brand-600` and `bg-accent` for action buttons. It would be clearer if there were a single, predictable CTA color throughout the app.
-
-**Border radius values** are inconsistent across the app. The Login card uses `rounded-3xl`, service cards use `rounded-xl`, the search dropdown uses `rounded-2xl`, and basic form inputs use `rounded-md`. While some variation is fine for visual interest, the Login page's extremely rounded card feels like it belongs to a different design system than the rest of the app.
-
-**Status badge patterns** are well-designed and consistent. The colored dots and badges on the Dashboard (confirmed = teal, pending = gold, in-salon = sky, completed = grey, cancelled = coral) form a clear, learnable system that carries over into the Calendar view.
-
-**Component patterns** are consistent. Cards, form labels, buttons, and modals follow predictable structures. The `text-sm font-medium text-slate-700` label pattern is used uniformly across Login, Booking, and Customer forms.
-
-**Icon usage** is consistent — Lucide icons throughout, properly sized (`h-5 w-5` for navigation, `h-3.5 w-3.5` for inline metadata).
-
----
-
-## 5. Accessibility
+## 5. Consistency Findings
 
 | # | Finding | Severity | Details |
 |---|---------|----------|---------|
-| A1 | **Color contrast: accent green on white** | High | The accent green (`#00D94A`) on white backgrounds likely fails WCAG AA for normal-sized text. This is used on the Login CTA button text-on-green and various success indicators. The green is vivid but light enough to be problematic. |
-| A2 | **Color contrast: white text on purple sidebar** | Medium | The sidebar uses `text-white/70` and `text-white/50` for inactive navigation items against `#2D004B`. The `/50` opacity variant (roughly 50% white on very dark purple) likely passes, but should be verified — especially the `text-white/40` on the server status text at the bottom. |
-| A3 | **No focus-visible styles defined** | Medium | The global CSS doesn't define custom `:focus-visible` styles. While the textarea in the Booking pet-details step has a `focus-visible:ring-2` class, this doesn't appear to be applied consistently across all interactive elements. Keyboard users may have difficulty tracking focus. |
-| A4 | **Booking progress step labels hidden on mobile** | Low | The booking wizard step labels use `hidden sm:inline`, meaning mobile users only see numbered circles with no text. While the numbers are sequential, users lose context about what each step involves. |
-| A5 | **Search results lack ARIA roles** | Low | The search dropdown in the Header doesn't use `role="listbox"` or `role="option"` patterns, and results aren't connected to the input via `aria-controls`. Screen reader users would have no awareness of the dropdown appearing. |
-| A6 | **Drag-and-drop calendar has no keyboard alternative** | Medium | The Calendar's appointment rescheduling relies entirely on mouse-based drag-and-drop with no keyboard-accessible alternative for moving appointments between time slots. |
+| C1 | **Border radius values drift across the app** | Low | Login card: `rounded-2xl`. Service cards: `rounded-xl`. Search dropdown: `rounded-2xl`. Buttons: `rounded-full`. Inputs: `rounded-xl`. Cards (component): `rounded-2xl`. Native selects in Settings: `rounded-md`. While some variation serves hierarchy, the Login card and Settings selects feel like they belong to different design systems. Recommend standardising on 2-3 radius tokens. |
+| C2 | **Focus ring colours are inconsistent** | Low | Button uses `ring-brand-600`. Input uses `ring-brand-500`. Inline textareas in AppointmentModal use `ring-slate-950`. These are all slightly different focus indicators for interactive elements in the same interface. Pick one focus ring colour and apply it everywhere. |
+| C3 | **AppointmentModal heading patterns differ between modes** | Low | In view mode, section headings use `text-xs font-semibold text-slate-500 uppercase tracking-wider`. In edit mode, they switch to `font-medium text-slate-900 border-b pb-2`. These are the same conceptual element (section divider) rendered with completely different styles based on whether the modal is in view or edit mode. |
+| C4 | **Raw Tailwind colours appear alongside design tokens** | Medium | The `STATUS_CONFIG` in AppointmentModal uses `bg-purple-100`, `bg-teal-100`, `bg-orange-100`, `bg-amber-100` — these are raw Tailwind palette values, not the app's design tokens (`bg-brand-*`, `bg-coral`, `bg-sage`, etc.). If the theme colours change, these won't update. Map status colours to design tokens. |
+| C5 | **Not all page titles use `font-heading`** | Low | Most page titles use the Quicksand heading font via `font-heading`, but some secondary headings fall back to the default Montserrat body font. This is subtle but creates a slightly inconsistent feel across pages. |
+| C6 | **CTA button colours vary** | Low | The Login page uses default Button (brand-600 teal), the Booking page uses default Button, but some Dashboard actions use `bg-accent` (green). When two different greens appear as primary actions across pages, users lose the learned association between colour and action type. Pick one primary CTA colour. |
 
 ---
 
-## 6. What Works Well
+## 6. Accessibility Findings
 
-**The booking wizard flow is thoughtfully designed.** The progress indicator with completed checkmarks, the "Find first available" fallback when no slots exist, the confirmation card with a purple header summarising the booking — these are polished touches that show attention to the customer journey. The deposit handling with clear orange callouts is particularly well done.
-
-**The Dashboard "Needs Attention" panel is excellent UX.** Instead of making staff hunt for issues, it proactively surfaces late arrivals, pending approvals, and dogs ready for pickup. This is the kind of feature that shows deep understanding of the operational workflow.
-
-**Global search is well-implemented.** The debounced API call, categorised results (customers/pets/appointments), click-through navigation, and the `/` keyboard shortcut all combine for a snappy, power-user-friendly experience.
-
-**The role-based navigation system is clean.** Filtering navigation items by `ROLE_LEVEL` is simple, predictable, and means each user type sees only what's relevant to them without complex permission UI.
-
-**Server health indicator in the sidebar** is a subtle but thoughtful addition — staff immediately know if the backend is down without having to discover it through a failed action.
-
-**The brand palette is cohesive and distinctive.** The teal/purple/coral/gold/sage system gives the app personality without feeling garish. The warm surface color `#FAF9F6` is a better choice than pure white for a salon environment.
+| # | Finding | Severity | Details |
+|---|---------|----------|---------|
+| A1 | **Accent green (`#00A63E`) on white may fail contrast** | High | The accent green is used for success indicators and some CTA elements. At `#00A63E` on white (`#FFFFFF`), the contrast ratio is approximately 3.6:1, which fails WCAG AA for normal-sized text (requires 4.5:1). Darken to approximately `#008A33` or use it only on large/bold text. |
+| A2 | **Sidebar uses low-opacity white text** | Medium | Inactive navigation items use `text-white/70` on `#2D004B`. The server status text at the bottom uses `text-white/60`. The `/60` variant (60% opacity white on very dark purple) likely passes AA for large text but should be verified — and the even lighter `text-white/40` used for some metadata definitely needs checking. |
+| A3 | **Status communicated by colour alone** | Medium | On the Calendar and Dashboard, appointment status is indicated primarily by background colour (teal for confirmed, gold for pending, etc.). While the Dashboard adds text labels, the Calendar grid relies heavily on colour blocks. Users with colour vision deficiency may struggle to distinguish statuses. Add a text label, icon, or pattern. |
+| A4 | **Native `<select>` elements in Settings lack visible labels** | Low | Some select dropdowns in the Settings page (role selection, schedule configuration) rely on context from surrounding headings rather than having explicit `<label>` elements associated via `htmlFor`. Screen readers may not correctly announce the purpose of these controls. |
+| A5 | **Calendar grid lacks ARIA landmarks** | Low | The weekly time grid doesn't use `role="grid"` or `role="gridcell"` patterns. The time slots and appointment blocks are `<div>` elements without semantic roles. Screen reader users would have difficulty understanding the calendar structure and navigating between slots. |
+| A6 | **No keyboard alternative for drag-and-drop rescheduling** | Medium | (Same as U6) The Calendar's drag-and-drop appointment rescheduling has no keyboard equivalent. This is both a usability and accessibility issue — staff using keyboard navigation or assistive technology cannot reschedule via the calendar grid. |
+| A7 | **Search combobox is well-implemented** | Positive | The Header search uses proper `role="combobox"`, `aria-expanded`, `aria-activedescendant`, `role="listbox"`, and `role="option"` patterns. Arrow key navigation, Enter to select, and Escape to close all work correctly. This is a model implementation that other components could learn from. |
+| A8 | **Booking wizard step labels hidden on mobile** | Low | The booking stepper uses `hidden sm:inline` for step labels, meaning mobile users only see numbered circles. While the numbers are sequential, users lose context about what each step involves. Consider showing abbreviated labels or adding `aria-label` attributes. |
 
 ---
 
@@ -99,26 +91,32 @@ The Login page CTA uses `bg-accent` (green `#00D94A`), while the Booking page bu
 
 **P0 — Fix now:**
 
-Move service browsing before authentication in the public booking flow. Let customers see services, prices, and availability before asking them to create an account. This single change will have the biggest impact on booking conversion rates.
+1. **Fix accent green contrast.** Darken `#00A63E` to approximately `#008A33` or `#007A2F` for text usage. This fixes the highest-severity accessibility issue without changing the brand feel significantly. Alternatively, restrict the current green to large/bold text and use the darker shade for normal text.
 
 **P1 — Address soon:**
 
-Audit and fix color contrast ratios, particularly the accent green CTA buttons and the sidebar's lower-opacity text. Run the palette through a WCAG contrast checker and adjust where needed — even small tweaks (darkening the green to `#00B83F` or similar) can fix contrast without changing the brand feel.
+2. **Replace the `alert()` on "Forgot password?"** with an inline styled message or a simple modal. Even "Please contact the salon at [phone number]" in a properly styled component would be a significant improvement.
 
-Add a functioning notification panel or remove the bell icon. A non-functional UI element that shows a count but does nothing damages user trust more than having no icon at all.
+3. **Either implement or remove the notification bell.** A bell icon with a count badge that does nothing is worse than no bell at all. If notifications aren't ready, remove the component entirely and add it back when functional.
+
+4. **Map STATUS_CONFIG colours to design tokens.** Replace raw Tailwind values (`bg-purple-100`, `bg-teal-100`) with the app's own tokens (`bg-purple-light`, `bg-brand-100`). This prevents theme drift and makes future palette changes safe.
 
 **P2 — Plan for next iteration:**
 
-Add keyboard navigation to the search results dropdown (arrow keys + Enter to select). Provide a keyboard-accessible alternative for calendar drag-and-drop rescheduling. Add ARIA roles and `aria-controls` to the search component.
+5. **Add a keyboard-accessible alternative for calendar rescheduling.** This could be a "Move to..." option in the appointment context menu, or arrow-key navigation within the grid with Enter to drop. This addresses both usability (U6) and accessibility (A6).
 
-Consider breaking the Customer detail modal into tabbed sections (Overview, Pets, History) to reduce the scroll depth and cognitive load.
-
-Add scroll affordance indicators (fade edges or arrow buttons) to the booking date picker on mobile.
+6. **Standardise border-radius and focus-ring tokens.** Pick three radius values (e.g. `rounded-lg` for small elements, `rounded-xl` for inputs/cards, `rounded-2xl` for modals) and one focus-ring colour. Apply uniformly. Replace native `<select>` elements in Settings with styled dropdown components.
 
 **P3 — Polish:**
 
-Standardise border-radius values across the app. Pick two or three radius tokens (`rounded-lg` for small elements, `rounded-xl` for cards, `rounded-2xl` for modals) and apply them uniformly.
+7. **Add status indicators beyond colour.** Small icons (checkmark for confirmed, clock for pending, paw for in-progress) alongside the colour blocks on the Calendar would help users with colour vision deficiency and speed up scanning for everyone.
 
-Add a "Forgot password?" link to the Login page. Add a friendly empty-state illustration for the Dashboard when there are no bookings.
+---
 
-Unify CTA button colours — pick one primary action colour (the brand teal `brand-600` or the accent green) and use it consistently for all primary actions across both staff and public-facing pages.
+## Summary
+
+The PetSpa UI is a strong, characterful application that clearly reflects its domain. The brand identity, colour-coded status system, and operational workflow design (especially the "Needs Attention" panel and progressive calendar disclosure) show genuine care for the end users — salon staff running a busy day. The global search with full keyboard and ARIA support is a standout component.
+
+The main areas for improvement are accessibility (accent green contrast, colour-only status indicators, keyboard alternatives for drag-and-drop) and consistency (border-radius tokens, focus-ring colours, design-token usage in STATUS_CONFIG). Most of these are targeted fixes rather than architectural changes, and the highest-impact improvements (contrast fix, removing dead notification bell, replacing the `alert()`) could each be addressed in under an hour.
+
+The design fundamentals — layout structure, whitespace usage, typography hierarchy, and responsive foundations — are solid and provide a strong base for continued iteration.

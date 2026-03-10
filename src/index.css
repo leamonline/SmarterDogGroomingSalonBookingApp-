@@ -13,8 +13,8 @@
   --color-brand-800: #1e4a48;
   --color-brand-900: #1a3d3b;
 
-  --color-accent:       #00A63E;
-  --color-accent-hover: #009035;
+  --color-accent:       #008A33;
+  --color-accent-hover: #007A2F;
 
   --color-coral:       #E8506A;
   --color-coral-light: #fce8ec;
@@ -32,6 +32,28 @@
   --color-purple-light: #4a1a6b;
 
   --color-surface: #FAF9F6;
+
+  /* ── Semantic Colours ── */
+  --color-warning:       var(--color-gold);
+  --color-warning-light: var(--color-gold-light);
+  --color-error:         var(--color-coral);
+  --color-error-light:   var(--color-coral-light);
+  --color-success:       var(--color-accent);
+  --color-success-light: #e8f5e9;
+  --color-info:          var(--color-sky);
+  --color-info-light:    var(--color-sky-light);
+
+  /* ── Border Radius Scale ── */
+  --radius-sm:   0.375rem;
+  --radius-md:   0.5rem;
+  --radius-lg:   0.75rem;
+  --radius-xl:   1rem;
+  --radius-2xl:  1.5rem;
+  --radius-full: 9999px;
+
+  /* ── Micro Typography ── */
+  --text-2xs: 0.625rem;
+  --text-3xs: 0.5rem;
 
   /* ── Fonts ── */
   --font-heading: "Quicksand", ui-sans-serif, system-ui, sans-serif;

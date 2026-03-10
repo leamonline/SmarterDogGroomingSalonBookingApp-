@@ -109,8 +109,8 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
               <span className="text-xs text-white/70 capitalize">{(user as any)?.role || "Staff"}</span>
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2 text-[11px] text-white/60">
-            <span className={cn("h-2 w-2 rounded-full", health.status === "connected" ? "bg-emerald-400" : health.status === "disconnected" ? "bg-red-400 animate-pulse" : "bg-yellow-400")} />
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-white/80">
+            <span className={cn("h-2 w-2 rounded-full", health.status === "connected" ? "bg-success" : health.status === "disconnected" ? "bg-error animate-pulse" : "bg-warning")} />
             {health.status === "connected" ? "Server online" : health.status === "disconnected" ? "Server offline" : "Checking…"}
           </div>
         </div>

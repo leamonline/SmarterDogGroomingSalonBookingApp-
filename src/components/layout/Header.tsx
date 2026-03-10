@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { toast } from "sonner";
-import { Bell, Search, Loader2, Menu } from "lucide-react";
+import { Search, Loader2, Menu } from "lucide-react";
 import { Input } from "@/src/components/ui/input";
 import { Button } from "@/src/components/ui/button";
 import { api } from "@/src/lib/api";
@@ -16,21 +15,8 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const [notifications, setNotifications] = useState<any[]>([]);
   const { logout } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    async function fetchNotifs() {
-      try {
-        const data = await api.getNotifications();
-        setNotifications(data);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    fetchNotifs();
-  }, []);
 
   useEffect(() => {
     if (!query) {
@@ -114,8 +100,6 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
     document.addEventListener("keydown", handleShortcuts);
     return () => document.removeEventListener("keydown", handleShortcuts);
   }, [showResults, flatResults, activeResultIdx, navigate]);
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-x-4 border-b border-brand-100 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
@@ -215,17 +199,6 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
           )}
         </div>
         <div className="flex items-center gap-x-4 lg:gap-x-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative text-brand-400 hover:text-brand-600"
-            onClick={() => toast.info("Notifications coming soon!")}
-            title="Notifications (coming soon)"
-          >
-            <span className="sr-only">View notifications</span>
-            <Bell className="h-5 w-5" aria-hidden="true" />
-          </Button>
-          <div className="h-6 w-px bg-brand-100" aria-hidden="true" />
           <Button variant="outline" size="sm" onClick={() => logout()}>
             Log out
           </Button>

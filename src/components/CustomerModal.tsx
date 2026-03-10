@@ -377,7 +377,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                   name="notes"
                   value={formData.notes || ""}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full min-h-[100px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  className="w-full min-h-[100px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                   placeholder="General preferences, favorite groomer, etc."
                 />
               </div>

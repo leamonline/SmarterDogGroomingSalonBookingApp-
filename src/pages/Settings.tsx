@@ -366,7 +366,7 @@ export function Settings() {
                           title="Change user role"
                           value={s.role || 'groomer'}
                           onChange={(e) => handleRoleChange(s.id, e.target.value)}
-                          className="text-sm border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-700"
+                          className="text-sm border border-brand-200 rounded-xl px-2 py-1 bg-white text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                         >
                           <option value="groomer">Groomer</option>
                           <option value="receptionist">Receptionist</option>
@@ -395,7 +395,7 @@ export function Settings() {
                       title="Select role for new staff member"
                       value={newStaffRole}
                       onChange={(e) => setNewStaffRole(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                      className="flex h-10 w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                     >
                       <option value="groomer">Groomer</option>
                       <option value="receptionist">Receptionist</option>

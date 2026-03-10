@@ -88,6 +88,7 @@ export function BookingPage() {
     const [selectedSlot, setSelectedSlot] = useState<string>("");
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [findingFirstAvailable, setFindingFirstAvailable] = useState(false);
+    const [noAvailability, setNoAvailability] = useState(false);
 
     // Pet info
     const [petName, setPetName] = useState("");
@@ -254,6 +255,7 @@ export function BookingPage() {
         if (!selectedService) return;
 
         setFindingFirstAvailable(true);
+        setNoAvailability(false);
         try {
             for (const date of dates) {
                 if (isDayDisabled(date)) continue;
@@ -266,12 +268,13 @@ export function BookingPage() {
                     setSelectedDate(dateKey);
                     setSlots(nextSlots);
                     setSelectedSlot(nextSlots[0]);
+                    setNoAvailability(false);
                     toast.success(`Earliest slot selected for ${format(new Date(nextSlots[0]), "EEE d MMM • h:mm a")}`);
                     return;
                 }
             }
 
-            toast.error("No appointment times are available in the next two weeks.");
+            setNoAvailability(true);
         } catch (err: any) {
             toast.error(err.message || "Couldn't find the earliest available slot.");
         } finally {
@@ -314,13 +317,16 @@ export function BookingPage() {
                     <div className="flex items-center gap-2">
                         {(["service", "auth", "datetime", "pet", "confirm"] as const).map((s, i) => {
                             const labels = ["Service", "Account", "Date & Time", "Pet Details", "Confirm"];
+                            const shortLabels = ["Service", "Account", "Date", "Pet", "Confirm"];
                             const stepOrder = ["service", "auth", "datetime", "pet", "confirm"];
                             const current = stepOrder.indexOf(step);
                             const thisIdx = i;
                             return (
                                 <React.Fragment key={s}>
                                     {i > 0 && <div className={`flex-1 h-0.5 ${thisIdx <= current ? "bg-brand-600" : "bg-slate-200"}`} />}
-                                    <div className={`flex items-center gap-1.5 text-xs font-medium ${thisIdx < current ? "text-accent" :
+                                    <div
+                                        aria-label={`Step ${i + 1}: ${labels[i]}${thisIdx < current ? ' (completed)' : thisIdx === current ? ' (current)' : ''}`}
+                                        className={`flex items-center gap-1.5 text-xs font-medium ${thisIdx < current ? "text-accent" :
                                         thisIdx === current ? "text-purple" : "text-slate-400"
                                         }`}>
                                         {thisIdx < current ? (
@@ -329,6 +335,7 @@ export function BookingPage() {
                                             <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${thisIdx === current ? "bg-brand-600 text-white" : "bg-slate-200 text-slate-500"
                                                 }`}>{i + 1}</span>
                                         )}
+                                        <span className="sm:hidden">{shortLabels[i]}</span>
                                         <span className="hidden sm:inline">{labels[i]}</span>
                                     </div>
                                 </React.Fragment>
@@ -451,7 +458,7 @@ export function BookingPage() {
                                             <span className="mt-1 block font-semibold text-slate-900">Duration</span>
                                         </span>
                                         {hasDeposit(svc) && (
-                                            <span className="rounded-lg bg-orange-50 px-3 py-2 text-orange-700">
+                                            <span className="rounded-lg bg-warning-light px-3 py-2 text-warning">
                                                 <span className="block text-xs font-medium uppercase tracking-wide">Deposit</span>
                                                 <span className="mt-1 block font-semibold">{formatCurrency(svc.depositAmount)}</span>
                                             </span>
@@ -498,9 +505,9 @@ export function BookingPage() {
                                         <p className="font-semibold text-slate-900">{selectedService.duration} min</p>
                                     </div>
                                     {hasDeposit(selectedService) && (
-                                        <div className="rounded-lg bg-orange-50 px-3 py-2 sm:col-span-2">
-                                            <p className="text-xs uppercase tracking-wide text-orange-600">Deposit</p>
-                                            <p className="font-semibold text-orange-800">{formatCurrency(selectedService.depositAmount)}</p>
+                                        <div className="rounded-lg bg-warning-light px-3 py-2 sm:col-span-2">
+                                            <p className="text-xs uppercase tracking-wide text-warning">Deposit</p>
+                                            <p className="font-semibold text-slate-800">{formatCurrency(selectedService.depositAmount)}</p>
                                         </div>
                                     )}
                                 </div>
@@ -551,6 +558,14 @@ export function BookingPage() {
                                     <Button type="button" variant="outline" className="mt-4" onClick={findFirstAvailableSlot} disabled={findingFirstAvailable}>
                                         {findingFirstAvailable ? "Finding next slot..." : "Find first available"}
                                     </Button>
+                                    {noAvailability && (
+                                        <div className="mt-4 rounded-xl border border-gold bg-gold-light p-4 text-left">
+                                            <p className="text-sm font-semibold text-purple">No appointments available in the next two weeks</p>
+                                            <p className="mt-1 text-sm text-slate-600">
+                                                We're fully booked right now. Give us a call and we'll find the perfect slot for you.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
@@ -611,7 +626,7 @@ export function BookingPage() {
                                     value={petNotes}
                                     onChange={e => setPetNotes(e.target.value)}
                                     placeholder="Any allergies, behaviour notes, or special requirements..."
-                                    className="w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                                    className="w-full min-h-[80px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                                 />
                             </div>
                             <Button className="w-full" onClick={() => { if (!petName) { toast.error("Dog's name is required"); return; } setStep("confirm"); }}>
@@ -651,7 +666,7 @@ export function BookingPage() {
                                     <span>{formatServicePrice(selectedService)}</span>
                                 </div>
                                 {hasDeposit(selectedService) && (
-                                    <div className="flex justify-between text-sm text-orange-600">
+                                    <div className="flex justify-between text-sm text-warning">
                                         <span>Deposit Required</span>
                                         <span>{formatCurrency(selectedService.depositAmount)}</span>
                                     </div>
@@ -681,7 +696,7 @@ export function BookingPage() {
                         </h2>
                         <p className="text-slate-500 mb-6">{bookingResult.message}</p>
                         {bookingResult.depositRequired > 0 && (
-                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 text-sm text-orange-800">
+                            <div className="bg-warning-light border border-warning rounded-lg p-4 mb-6 text-sm text-slate-800">
                                 <strong>Deposit Required:</strong> {formatCurrency(bookingResult.depositRequired)} — we'll be in touch with payment details.
                             </div>
                         )}

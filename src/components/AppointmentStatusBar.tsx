@@ -62,7 +62,7 @@ const TRANSITIONS: Record<string, ActionDef[]> = {
 const STYLE_CLASSES: Record<string, string> = {
     primary: "bg-slate-900 text-white hover:bg-slate-700",
     success: "bg-accent text-white hover:bg-accent/90",
-    warning: "bg-amber-500 text-white hover:bg-amber-600",
+    warning: "bg-warning text-white hover:bg-warning/90",
     danger: "bg-coral text-white hover:bg-coral/90",
 };
 

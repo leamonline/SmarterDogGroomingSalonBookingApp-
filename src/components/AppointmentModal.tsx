@@ -41,23 +41,25 @@ export type Appointment = {
   cancelledAt?: string;
   cancellationReason?: string;
   depositAmount?: number;
+  emergencyContact?: string;
+  emergencyPhone?: string;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; colour: string; icon: any }> = {
-  'pending-approval': { label: 'Pending Approval', colour: 'bg-amber-100 text-amber-800', icon: Clock },
+  'pending-approval': { label: 'Pending Approval', colour: 'bg-gold-light text-purple', icon: Clock },
   'confirmed': { label: 'Confirmed', colour: 'bg-sky-light text-brand-700', icon: CheckCircle },
   'scheduled': { label: 'Scheduled', colour: 'bg-sky-light text-brand-700', icon: Clock },
-  'deposit-pending': { label: 'Deposit Pending', colour: 'bg-orange-100 text-orange-800', icon: Clock },
-  'deposit-paid': { label: 'Deposit Paid', colour: 'bg-teal-100 text-teal-800', icon: CheckCircle },
+  'deposit-pending': { label: 'Deposit Pending', colour: 'bg-gold-light text-purple', icon: Clock },
+  'deposit-paid': { label: 'Deposit Paid', colour: 'bg-brand-50 text-brand-800', icon: CheckCircle },
   'checked-in': { label: 'Checked In', colour: 'bg-brand-50 text-brand-800', icon: UserCheck },
-  'in-progress': { label: 'In Progress', colour: 'bg-purple-100 text-purple-800', icon: Play },
+  'in-progress': { label: 'In Progress', colour: 'bg-purple-light/20 text-purple', icon: Play },
   'ready-for-collection': { label: 'Ready for Collection', colour: 'bg-sage-light text-brand-700', icon: Truck },
   'completed': { label: 'Completed', colour: 'bg-sage-light text-brand-700', icon: CheckCircle },
   'cancelled-by-customer': { label: 'Cancelled (Customer)', colour: 'bg-coral-light text-coral', icon: XCircle },
   'cancelled-by-salon': { label: 'Cancelled (Salon)', colour: 'bg-coral-light text-coral', icon: XCircle },
   'no-show': { label: 'No Show', colour: 'bg-coral-light text-coral', icon: AlertTriangle },
   'rescheduled': { label: 'Rescheduled', colour: 'bg-slate-100 text-slate-800', icon: Clock },
-  'incomplete': { label: 'Incomplete', colour: 'bg-orange-100 text-orange-800', icon: Pause },
+  'incomplete': { label: 'Incomplete', colour: 'bg-gold-light text-purple', icon: Pause },
   'incident-review': { label: 'Incident Review', colour: 'bg-coral-light text-coral', icon: AlertTriangle },
 };
 
@@ -257,6 +259,13 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-1">
                     <p className="text-sm"><span className="font-medium text-slate-700">Name:</span> {formData.ownerName}</p>
                     <p className="text-sm"><span className="font-medium text-slate-700">Phone:</span> {formData.phone || "—"}</p>
+                    {(formData.emergencyContact || formData.emergencyPhone) && (
+                      <div className="mt-2 pt-2 border-t border-slate-200">
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Emergency Contact</p>
+                        {formData.emergencyContact && <p className="text-sm"><span className="font-medium text-slate-700">Name:</span> {formData.emergencyContact}</p>}
+                        {formData.emergencyPhone && <p className="text-sm"><span className="font-medium text-slate-700">Phone:</span> {formData.emergencyPhone}</p>}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -287,7 +296,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                     value={formData.checkedInNotes || ""}
                     onChange={handleChange}
                     placeholder="Health changes, coat condition, behaviour at arrival..."
-                    className="w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                    className="w-full min-h-[80px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                   />
                 </div>
                 <Button
@@ -306,7 +315,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Groom Notes</label>
-                  <textarea name="groomNotes" value={formData.groomNotes || ""} onChange={handleChange} placeholder="Style details, clips used..." className="w-full min-h-[60px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2" />
+                  <textarea name="groomNotes" value={formData.groomNotes || ""} onChange={handleChange} placeholder="Style details, clips used..." className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Products Used</label>
@@ -349,7 +358,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
 
                 <div className="border-t border-slate-100 pt-4 space-y-2">
                   <label className="text-sm font-medium text-slate-700">Aftercare Notes</label>
-                  <textarea name="aftercareNotes" value={formData.aftercareNotes || ""} onChange={handleChange} placeholder="Recommendations for the owner..." className="w-full min-h-[60px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2" />
+                  <textarea name="aftercareNotes" value={formData.aftercareNotes || ""} onChange={handleChange} placeholder="Recommendations for the owner..." className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2" />
                   <Button
                     size="sm"
                     onClick={() => {
@@ -412,7 +421,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
             {/* Pet Section */}
             <div className="space-y-4">
-              <h4 className="font-medium text-slate-900 border-b pb-2">Pet Details</h4>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pet Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="petName" className="text-right text-sm font-medium">Pet Name *</label>
                 <div className="col-span-3">
@@ -436,7 +445,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
 
             {/* Owner Section */}
             <div className="space-y-4 pt-4 border-t border-slate-100">
-              <h4 className="font-medium text-slate-900 border-b pb-2">Owner Details</h4>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="ownerName" className="text-right text-sm font-medium">Owner Name *</label>
                 <div className="col-span-3">
@@ -452,7 +461,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
 
             {/* Service Section */}
             <div className="space-y-4 pt-4 border-t border-slate-100">
-              <h4 className="font-medium text-slate-900 border-b pb-2">Appointment Details</h4>
+              <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Appointment Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="service" className="text-right text-sm font-medium">Service *</label>
                 <div className="col-span-3">
@@ -486,7 +495,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="status" className="text-right text-sm font-medium">Status</label>
-                <select id="status" name="status" value={formData.status || ""} onChange={handleChange} className="col-span-3 flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2">
+                <select id="status" name="status" value={formData.status || ""} onChange={handleChange} className="col-span-3 flex h-10 w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2">
                   {APPOINTMENT_STATUSES.map(s => (
                     <option key={s} value={s}>{STATUS_CONFIG[s]?.label || s}</option>
                   ))}

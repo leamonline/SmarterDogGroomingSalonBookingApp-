@@ -262,7 +262,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
                                 title="Payment method"
                                 value={method}
                                 onChange={e => setMethod(e.target.value)}
-                                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                className="flex h-10 w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm"
                             >
                                 <option value="card">💳 Card</option>
                                 <option value="cash">💵 Cash</option>

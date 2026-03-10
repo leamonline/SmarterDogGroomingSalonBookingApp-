@@ -2,14 +2,20 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import {
+  AlertTriangle,
   CalendarRange,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Grip,
+  Pause,
+  Play,
   Plus,
   Scissors,
   Truck,
+  UserCheck,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
@@ -59,7 +65,7 @@ function formatStatusLabel(status: string) {
 
 function getAppointmentTone(status: string) {
   if (status === "ready-for-collection") {
-    return "border-amber-200 bg-amber-50 text-amber-900";
+    return "border-gold bg-gold-light text-purple";
   }
   if (status === "completed") {
     return "border-sage bg-sage-light text-brand-700";
@@ -76,6 +82,24 @@ function getAppointmentTone(status: string) {
 
   return "border-brand-200 bg-brand-50 text-brand-700";
 }
+
+const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'pending-approval': Clock3,
+  'confirmed': CheckCircle,
+  'scheduled': Clock3,
+  'deposit-pending': Clock3,
+  'deposit-paid': CheckCircle,
+  'checked-in': UserCheck,
+  'in-progress': Play,
+  'ready-for-collection': Truck,
+  'completed': CheckCircle,
+  'cancelled-by-customer': XCircle,
+  'cancelled-by-salon': XCircle,
+  'no-show': AlertTriangle,
+  'rescheduled': Clock3,
+  'incomplete': Pause,
+  'incident-review': AlertTriangle,
+};
 
 function formatHourLabel(hour: number) {
   if (hour === 0) return "12 AM";
@@ -424,7 +448,11 @@ export function Calendar() {
                                 height: `${height}px`,
                               }}
                             >
-                              <div className="font-semibold truncate">{appointment.petName}</div>
+                              <div className="font-semibold truncate flex items-center gap-1">
+                                {(() => { const Icon = STATUS_ICONS[appointment.status]; return Icon ? <Icon className="h-3 w-3 shrink-0" /> : null; })()}
+                                {appointment.petName}
+                                <span className="ml-auto text-[9px] font-medium opacity-70 uppercase tracking-wide shrink-0">{formatStatusLabel(appointment.status)}</span>
+                              </div>
                               <div className="truncate opacity-80">{appointment.service}</div>
                               {height > 74 && (
                                 <div className="truncate opacity-70">{appointment.ownerName}</div>
@@ -485,34 +513,64 @@ export function Calendar() {
                 </Button>
               </div>
             ) : (
-              selectedDayAppointments.map((appointment) => (
-                <div key={appointment.id} className="rounded-xl border border-slate-200 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        {format(appointment.date, "h:mm a")} • {appointment.petName}
-                      </p>
-                      <p className="text-sm text-slate-600">{appointment.service} for {appointment.ownerName}</p>
+              (() => {
+                const STATUS_GROUPS: { label: string; statuses: Set<string>; tone: string }[] = [
+                  { label: "Action Needed", statuses: new Set(["ready-for-collection", "pending-approval"]), tone: "text-gold" },
+                  { label: "In Salon", statuses: new Set(["checked-in", "in-progress"]), tone: "text-sky-600" },
+                  { label: "Upcoming", statuses: new Set(["confirmed", "scheduled", "deposit-paid", "deposit-pending"]), tone: "text-brand-600" },
+                  { label: "Done", statuses: new Set(["completed", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled", "incomplete", "incident-review"]), tone: "text-slate-500" },
+                ];
+
+                const grouped = STATUS_GROUPS.map((group) => ({
+                  ...group,
+                  appointments: selectedDayAppointments.filter((a) => group.statuses.has(a.status)),
+                })).filter((g) => g.appointments.length > 0);
+
+                // Catch any status that doesn't fit a group
+                const groupedIds = new Set(grouped.flatMap((g) => g.appointments.map((a) => a.id)));
+                const ungrouped = selectedDayAppointments.filter((a) => !groupedIds.has(a.id));
+                if (ungrouped.length > 0) {
+                  grouped.push({ label: "Other", appointments: ungrouped, statuses: new Set(), tone: "text-slate-500" });
+                }
+
+                return grouped.map((group) => (
+                  <div key={group.label}>
+                    <p className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${group.tone}`}>
+                      {group.label} ({group.appointments.length})
+                    </p>
+                    <div className="space-y-2">
+                      {group.appointments.map((appointment) => (
+                        <div key={appointment.id} className="rounded-xl border border-slate-200 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {format(appointment.date, "h:mm a")} • {appointment.petName}
+                              </p>
+                              <p className="text-sm text-slate-600">{appointment.service} for {appointment.ownerName}</p>
+                            </div>
+                            <Badge variant="outline" className="shrink-0">
+                              {formatStatusLabel(appointment.status)}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <Clock3 className="h-4 w-4" />
+                              {appointment.duration} mins
+                            </span>
+                            <span className="font-medium text-slate-900">{formatCurrency(appointment.price)}</span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                            <AppointmentStatusBar appointment={appointment} onUpdated={handleStatusUpdate} />
+                            <Button type="button" size="sm" variant="outline" onClick={() => handleAppointmentClick(appointment)}>
+                              Open
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <Badge variant="outline" className="shrink-0">
-                      {formatStatusLabel(appointment.status)}
-                    </Badge>
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Clock3 className="h-4 w-4" />
-                      {appointment.duration} mins
-                    </span>
-                    <span className="font-medium text-slate-900">{formatCurrency(appointment.price)}</span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <AppointmentStatusBar appointment={appointment} onUpdated={handleStatusUpdate} />
-                    <Button type="button" size="sm" variant="outline" onClick={() => handleAppointmentClick(appointment)}>
-                      Open
-                    </Button>
-                  </div>
-                </div>
-              ))
+                ));
+              })()
             )}
           </CardContent>
         </Card>

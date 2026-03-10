@@ -12,6 +12,7 @@ export function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showForgotMsg, setShowForgotMsg] = useState(false);
 
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -95,7 +96,7 @@ export function Login() {
                                 <button
                                     type="button"
                                     className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
-                                    onClick={() => alert('Please contact the salon to reset your password.')}
+                                    onClick={() => setShowForgotMsg(true)}
                                 >
                                     Forgot password?
                                 </button>
@@ -113,6 +114,12 @@ export function Login() {
                             <FieldError message={errors.password} />
                         </div>
                     </div>
+
+                    {showForgotMsg && (
+                        <div className="text-sm text-brand-700 font-medium text-center bg-brand-50 px-3 py-2 rounded-xl">
+                            Please contact the salon to reset your password.
+                        </div>
+                    )}
 
                     {error && (
                         <div className="text-sm text-coral font-medium text-center bg-coral-light px-3 py-2 rounded-xl">

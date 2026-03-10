@@ -138,7 +138,7 @@ function TemplateEditor({ template, onSave, onClose }: {
                 <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700">Body</label>
                     <textarea value={body} onChange={e => setBody(e.target.value)}
-                        className="w-full min-h-[120px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2" />
+                        className="w-full min-h-[120px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2" />
                     <p className="text-[10px] text-slate-400">
                         Variables: {"{{customerName}}"}, {"{{petName}}"}, {"{{service}}"}, {"{{date}}"}, {"{{time}}"}, {"{{price}}"}
                     </p>
@@ -211,7 +211,7 @@ function ManualSendForm({ onSent }: { onSent: () => void }) {
                 onChange={e => setBody(e.target.value)}
                 required
                 placeholder="Message body..."
-                className="w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2"
+                className="w-full min-h-[80px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
             />
             <div className="flex justify-end">
                 <Button type="submit" size="sm" disabled={sending}>
