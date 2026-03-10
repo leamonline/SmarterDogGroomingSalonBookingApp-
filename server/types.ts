@@ -133,12 +133,17 @@ export interface AddOnRow {
 export interface AppointmentRow {
   id: string;
   customerId: string;
+  dogId: string | null;
   petId: string;
   serviceId: string;
   groomerId: string | null;
   date: string;
   time: string;
   duration: number;
+  dogCount: number | null;
+  dogCountConfirmed: number | null;
+  dogCountReviewedAt: string | null;
+  dogCountReviewedBy: string | null;
   price: number;
   status: string;
   notes: string | null;
@@ -177,6 +182,8 @@ export interface MessageRow {
   id: string;
   customerId: string | null;
   appointmentId: string | null;
+  recipientEmail: string | null;
+  recipientPhone: string | null;
   channel: string;
   templateName: string | null;
   subject: string | null;

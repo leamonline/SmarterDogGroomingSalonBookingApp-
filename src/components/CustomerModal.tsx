@@ -11,7 +11,7 @@ interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
   customer: Customer | null;
-  onSave: (updatedCustomer: Customer) => void;
+  onSave: (updatedCustomer: Customer) => void | Promise<boolean | void>;
 }
 
 export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerModalProps) {
@@ -28,6 +28,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
   const [newVaxName, setNewVaxName] = useState("");
   const [newVaxDate, setNewVaxDate] = useState("");
   const [newWarning, setNewWarning] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { errors, validate, clearError, clearAll } = useFormValidation<Customer>({
     name: required('Name'),
@@ -160,21 +161,28 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate(formData)) {
       setActiveTab('info'); // Switch to the tab with errors
       return;
     }
-    onSave({ ...formData, pets } as Customer);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      const result = await onSave({ ...formData, pets } as Customer);
+      if (result !== false) {
+        onClose();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{customer ? "Edit Customer" : "New Customer"}</DialogTitle>
+          <DialogTitle>{customer ? "Edit Client" : "New Client"}</DialogTitle>
         </DialogHeader>
 
         <div className="flex border-b border-slate-200 mb-4 overflow-x-auto">
@@ -421,7 +429,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">{customer ? "Save changes" : "Create Customer"}</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : customer ? "Save changes" : "Create Customer"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

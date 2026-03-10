@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { handleError } from "@/src/lib/handleError";
-import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText, ChevronDown, Users } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText, ChevronDown, Users, Dog as DogIcon, MessageSquare } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import {
@@ -37,6 +37,32 @@ import { ConfirmDialog } from "@/src/components/ConfirmDialog";
 import { Customer, Pet } from "@/src/types";
 import { formatCurrency } from "@/src/lib/utils";
 import { CustomersSkeleton } from "@/src/components/ui/skeleton";
+import { ClientMessagingPanel } from "@/src/components/ClientMessagingPanel";
+
+function formatDogCountLabel(dogCount?: number) {
+  const count = dogCount || 1;
+  return `${count} ${count === 1 ? "dog" : "dogs"}`;
+}
+
+function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
+  if (!reviewedAt) return null;
+  const parsed = new Date(reviewedAt);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return `Confirmed by ${reviewedBy || "staff"} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}`;
+}
+
+function isDogCountConfirmed(value: unknown) {
+  return value === true || value === 1;
+}
+
+function normalizeAppointment(item: any): Appointment {
+  return {
+    ...item,
+    date: item.date instanceof Date ? item.date : new Date(item.date),
+    dogCount: item.dogCount ?? 1,
+    dogCountConfirmed: isDogCountConfirmed(item.dogCountConfirmed),
+  };
+}
 
 export function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -67,7 +93,7 @@ export function Customers() {
   const navigate = useNavigate();
 
   const loadCustomers = useCallback(async (targetPage: number, replace: boolean) => {
-    const setter = replace ? setLoadingMore : setLoadingMore;
+    const setter = replace ? setLoading : setLoadingMore;
     setter(true);
     try {
       const json = await api.getCustomersPage(targetPage, PAGE_SIZE);
@@ -78,7 +104,7 @@ export function Customers() {
       setCustomers(prev => replace ? items : [...prev, ...items]);
       setPage(targetPage);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load customers');
+      toast.error(err.message || 'Failed to load clients');
     } finally {
       setter(false);
     }
@@ -93,7 +119,7 @@ export function Customers() {
           loadCustomers(1, true),
           api.getAppointments()
         ]);
-        setAppointments(aptData.map((a: any) => ({ ...a, date: new Date(a.date) })));
+        setAppointments(aptData.map((a: any) => normalizeAppointment(a)));
       } catch (err) {
         handleError(err, "Failed to load data");
       } finally {
@@ -104,16 +130,30 @@ export function Customers() {
   }, [loadCustomers]);
 
   useEffect(() => {
-    if (location.state?.customerId && customers.length > 0) {
-      const targetCustomer = customers.find(c => c.id === location.state.customerId);
-      if (targetCustomer) {
-        setSelectedCustomer(targetCustomer);
-        setIsCustomerDetailsModalOpen(true);
-      }
-      // Clear the state so it doesn't reopen on refresh
+    const targetCustomerId = location.state?.customerId;
+    if (!targetCustomerId) return;
+
+    const targetCustomer = customers.find((customer) => customer.id === targetCustomerId);
+    if (targetCustomer) {
+      setSelectedCustomer(targetCustomer);
+      setIsCustomerDetailsModalOpen(true);
       window.history.replaceState({}, document.title);
+      return;
     }
-  }, [location.state, customers]);
+
+    if (!loading) {
+      api.getCustomer(targetCustomerId)
+        .then((customer) => {
+          setCustomers((prev) => prev.some((existing) => existing.id === customer.id) ? prev : [customer, ...prev]);
+          setSelectedCustomer(customer);
+          setIsCustomerDetailsModalOpen(true);
+        })
+        .catch((err) => handleError(err, "Failed to load client"))
+        .finally(() => {
+          window.history.replaceState({}, document.title);
+        });
+    }
+  }, [customers, loading, location.state]);
 
   const filteredCustomers = customers.filter(
     (customer) =>
@@ -138,12 +178,24 @@ export function Customers() {
     setIsAppointmentModalOpen(true);
   };
 
+  const handleOpenDogProfile = (petId: string) => {
+    navigate("/dogs", { state: { dogId: petId } });
+  };
+
+  const handleOpenMessaging = (customer: Customer) => {
+    navigate("/messaging", { state: { customerId: customer.id } });
+  };
+
   const handleQuickBook = (e: React.MouseEvent, customer: Customer) => {
     e.stopPropagation();
     setSelectedAppointment(null);
     setInitialAppointmentData({
       ownerName: customer.name,
       petName: customer.pets[0]?.name || "",
+      breed: customer.pets[0]?.breed || "",
+      phone: customer.phone || "",
+      customerId: customer.id,
+      dogId: customer.pets[0]?.id || undefined,
     });
     setIsAppointmentModalOpen(true);
   };
@@ -168,7 +220,7 @@ export function Customers() {
         setSelectedCustomer(null);
         setIsCustomerDetailsModalOpen(false);
       }
-      toast.success('Customer deleted.');
+      toast.success('Client deleted.');
     } catch (err: any) {
       handleError(err, "Failed to delete customer");
     } finally {
@@ -187,28 +239,34 @@ export function Customers() {
       if (exists) {
         await api.updateCustomer(updatedCustomer.id, updatedCustomer);
         setCustomers((prev) => prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c)));
+        if (selectedCustomer?.id === updatedCustomer.id) {
+          setSelectedCustomer(updatedCustomer);
+        }
       } else {
-        await api.createCustomer(updatedCustomer);
-        setCustomers((prev) => [...prev, updatedCustomer]);
+        const savedCustomer = await api.createCustomer(updatedCustomer);
+        setCustomers((prev) => [...prev, savedCustomer]);
       }
-      if (selectedCustomer?.id === updatedCustomer.id) {
-        setSelectedCustomer(updatedCustomer);
-      }
+      return true;
     } catch (err) {
-      handleError(err, "Failed to save customer");
+      handleError(err, "Failed to save client");
+      return false;
     }
   };
 
   const handleSaveAppointment = async (updatedAppointment: Appointment) => {
     try {
       const exists = appointments.some((apt) => apt.id === updatedAppointment.id);
+      const savedAppointment = normalizeAppointment(
+        exists
+          ? await api.updateAppointment(updatedAppointment.id, updatedAppointment)
+          : await api.createAppointment(updatedAppointment),
+      );
       if (exists) {
-        await api.updateAppointment(updatedAppointment.id, updatedAppointment);
-        setAppointments((prev) => prev.map((apt) => (apt.id === updatedAppointment.id ? updatedAppointment : apt)));
+        setAppointments((prev) => prev.map((apt) => (apt.id === updatedAppointment.id ? savedAppointment : apt)));
       } else {
-        await api.createAppointment(updatedAppointment);
-        setAppointments((prev) => [...prev, updatedAppointment]);
+        setAppointments((prev) => [...prev, savedAppointment]);
       }
+      return true;
     } catch (err: any) {
       const suggestions: string[] = err?.details?.suggestions || [];
       if (suggestions.length > 0) {
@@ -216,11 +274,12 @@ export function Customers() {
       } else {
         handleError(err, "Failed to save appointment");
       }
+      return false;
     }
   };
 
   const customerAppointments = selectedCustomer
-    ? appointments.filter((apt) => apt.ownerName === selectedCustomer.name)
+    ? appointments.filter((apt) => apt.customerId === selectedCustomer.id || (!apt.customerId && apt.ownerName === selectedCustomer.name))
     : [];
 
   if (loading) return <CustomersSkeleton />;
@@ -228,10 +287,13 @@ export function Customers() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-purple">Customers</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-purple">Clients</h1>
+          <p className="text-sm text-slate-500">Owner records with linked dogs, bookings, and recent messages.</p>
+        </div>
         <Button onClick={handleAddCustomer}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Customer
+          Add Client
         </Button>
       </div>
 
@@ -239,7 +301,7 @@ export function Customers() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="Search customers, emails, or pets..."
+            placeholder="Search clients, emails, or dogs..."
             value={searchTerm}
             onChange={handleSearchChange}
             className="pl-9"
@@ -256,7 +318,7 @@ export function Customers() {
           Showing <span className="font-semibold text-slate-900">{filteredCustomers.length}</span>
           {searchTerm
             ? ` match${filteredCustomers.length !== 1 ? 'es' : ''} in loaded data`
-            : ` of ${totalCustomers} customers`
+            : ` of ${totalCustomers} clients`
           }
         </p>
         {searchTerm && (
@@ -271,9 +333,9 @@ export function Customers() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Customer</TableHead>
+              <TableHead>Client</TableHead>
               <TableHead>Contact</TableHead>
-              <TableHead>Pets</TableHead>
+              <TableHead>Dogs</TableHead>
               <TableHead>Last Visit</TableHead>
               <TableHead className="text-right">Total Spent</TableHead>
               <TableHead className="w-[50px]"></TableHead>
@@ -287,8 +349,8 @@ export function Customers() {
                     <div className="rounded-full bg-slate-100 p-3">
                       <Users className="h-5 w-5 text-slate-400" />
                     </div>
-                    <p className="text-sm font-medium text-slate-900">No customers found</p>
-                    <p className="text-sm text-slate-500">Try a different search term or add a new customer.</p>
+                    <p className="text-sm font-medium text-slate-900">No clients found</p>
+                    <p className="text-sm text-slate-500">Try a different search term or add a new client.</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -344,12 +406,12 @@ export function Customers() {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => handleEditCustomer(e, customer)}>
                         <Edit className="mr-2 h-4 w-4" />
-                        <span>Edit Customer</span>
+                        <span>Edit Client</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-coral focus:text-coral" onClick={(e) => handleDeleteCustomer(e, customer.id)}>
                         <Trash className="mr-2 h-4 w-4" />
-                        <span>Delete Customer</span>
+                        <span>Delete Client</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -388,7 +450,7 @@ export function Customers() {
                     <DialogTitle className="text-2xl flex items-center gap-2">
                       {selectedCustomer.name}
                     </DialogTitle>
-                    <DialogDescription>Customer Details and History</DialogDescription>
+                    <DialogDescription>Client profile, dogs, booking history, and conversation</DialogDescription>
                   </div>
                   <Button variant="outline" size="sm" onClick={(e) => {
                     setIsCustomerDetailsModalOpen(false);
@@ -470,7 +532,13 @@ export function Customers() {
 
                 <div className="col-span-2 space-y-6">
                   <div>
-                    <h4 className="text-lg font-semibold text-slate-900 mb-3">Pets</h4>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-lg font-semibold text-slate-900">Dogs</h4>
+                      <Button variant="outline" size="sm" onClick={() => handleOpenMessaging(selectedCustomer)}>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Open Messaging
+                      </Button>
+                    </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       {selectedCustomer.pets.map((pet) => (
                         <div key={pet.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm">
@@ -514,6 +582,17 @@ export function Customers() {
                               </div>
                             </div>
                           )}
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => handleOpenDogProfile(pet.id)}>
+                              <DogIcon className="mr-1.5 h-3.5 w-3.5" />
+                              Dog Profile
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={(e) => handleQuickBook(e, { ...selectedCustomer, pets: [pet] })}>
+                              <CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
+                              Book {pet.name}
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -521,7 +600,7 @@ export function Customers() {
 
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-semibold text-slate-900">Appointment History</h4>
+                      <h4 className="text-lg font-semibold text-slate-900">Booking History</h4>
                       <Button variant="outline" size="sm" onClick={(e) => handleQuickBook(e, selectedCustomer)}>
                         <CalendarPlus className="mr-2 h-4 w-4" /> Book
                       </Button>
@@ -547,6 +626,22 @@ export function Customers() {
                                 {apt.status}
                               </Badge>
                             </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline">{formatDogCountLabel(apt.dogCount)}</Badge>
+                              {apt.dogCountConfirmed === false ? (
+                                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                                  Dog count review needed
+                                </Badge>
+                              ) : null}
+                            </div>
+                            {apt.dogCountConfirmed !== false && (
+                              (() => {
+                                const reviewNote = formatDogCountReviewNote(apt.dogCountReviewedAt, apt.dogCountReviewedBy);
+                                return reviewNote ? (
+                                  <p className="text-xs font-medium text-brand-700">{reviewNote}</p>
+                                ) : null;
+                              })()
+                            )}
                           </div>
                         ))}
                       </div>
@@ -554,6 +649,12 @@ export function Customers() {
                       <div className="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">No past appointments found.</div>
                     )}
                   </div>
+
+                  <ClientMessagingPanel
+                    customer={selectedCustomer}
+                    title="Client conversation"
+                    description="Recent messages and quick updates for this client."
+                  />
                 </div>
               </div>
             </>
@@ -578,9 +679,9 @@ export function Customers() {
 
       <ConfirmDialog
         isOpen={!!customerToDelete}
-        title="Delete Customer"
-        description="Are you sure you want to delete this customer? All their pets, appointments, and data will be permanently removed. This action cannot be undone."
-        confirmText="Delete Customer"
+        title="Delete Client"
+        description="Are you sure you want to delete this client? All their dogs, appointments, and data will be permanently removed. This action cannot be undone."
+        confirmText="Delete Client"
         onConfirm={confirmDeleteCustomer}
         onCancel={() => setCustomerToDelete(null)}
       />

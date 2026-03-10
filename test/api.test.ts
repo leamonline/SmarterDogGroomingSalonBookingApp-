@@ -9,7 +9,7 @@ import { JWT_SECRET } from '../server/middleware/auth.js';
 import crypto from 'crypto';
 
 const ownerToken = jwt.sign({ id: 'test-owner', email: 'owner@example.com', role: 'owner' }, JWT_SECRET);
-const staffToken = jwt.sign({ id: 'test-staff', email: 'staff@example.com', role: 'staff' }, JWT_SECRET);
+const staffToken = jwt.sign({ id: 'test-staff', email: 'staff@example.com', role: 'groomer' }, JWT_SECRET);
 // Alias for existing tests
 const testToken = ownerToken;
 
@@ -24,6 +24,7 @@ const makeAppt = (overrides: Record<string, any> = {}) => ({
     service: 'Bath',
     date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now
     duration: 60,
+    dogCount: 1,
     status: 'scheduled',
     price: 50,
     avatar: '',
@@ -44,6 +45,12 @@ const nextDateForDay = (dayName: string, minDaysAhead = 28) => {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+};
+
+const slotIso = (dateStr: string, time: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const [hours, minutes] = time.split(':').map(Number);
+    return new Date(year, month - 1, day, hours, minutes, 0, 0).toISOString();
 };
 
 // ══════════════════════════════════════════════════════════
@@ -151,6 +158,70 @@ describe('Appointments', () => {
         expect(res.body.petName).toBe(appt.petName);
     });
 
+    it('looks up existing pets and stores their customer and dog ids on new appointments', async () => {
+        const lookupCustomer = {
+            id: crypto.randomUUID(),
+            name: `Lookup Owner ${Date.now()}`,
+            email: '',
+            phone: '07123 555999',
+            address: '',
+            emergencyContact: { name: 'Backup', phone: '07123 000111' },
+            notes: 'Prefers morning drop-off',
+            warnings: [],
+            pets: [{
+                id: crypto.randomUUID(),
+                name: `Lookup Pup ${Date.now()}`,
+                breed: 'Cockapoo',
+                weight: 12,
+                dob: '2021-05-05',
+                coatType: 'Curly',
+                behavioralNotes: ['Nervous with dryers'],
+                vaccinations: [],
+            }],
+            lastVisit: 'Never',
+            totalSpent: 0,
+            documents: [],
+        };
+
+        const createCustomerRes = await request(app)
+            .post('/api/customers')
+            .set(auth())
+            .send(lookupCustomer);
+        expect(createCustomerRes.status).toBe(200);
+        expect(createCustomerRes.body.pets[0]?.id).toBe(lookupCustomer.pets[0].id);
+
+        const lookupRes = await request(app)
+            .get(`/api/customers/appointment-lookup?petName=${encodeURIComponent(lookupCustomer.pets[0].name)}`)
+            .set(auth());
+        expect(lookupRes.status).toBe(200);
+        expect(lookupRes.body[0]?.customerId).toBe(createCustomerRes.body.id);
+        expect(lookupRes.body[0]?.petId).toBe(lookupCustomer.pets[0].id);
+
+        const slotsRes = await request(app)
+            .get('/api/appointments/next-available?duration=60')
+            .set(auth());
+        const openSlot = slotsRes.body.data[0];
+
+        const res = await request(app)
+            .post('/api/appointments')
+            .set(auth())
+            .send(makeAppt({
+                date: openSlot,
+                ownerName: lookupCustomer.name,
+                petName: lookupCustomer.pets[0].name,
+                breed: lookupCustomer.pets[0].breed,
+                phone: lookupCustomer.phone,
+                customerId: createCustomerRes.body.id,
+                dogId: lookupCustomer.pets[0].id,
+            }));
+
+        expect(res.status).toBe(200);
+
+        const saved = db.prepare('SELECT customerId, dogId FROM appointments WHERE id = ?').get(res.body.id) as { customerId: string; dogId: string };
+        expect(saved.customerId).toBe(createCustomerRes.body.id);
+        expect(saved.dogId).toBe(lookupCustomer.pets[0].id);
+    });
+
     it('allows two dogs in the same slot and rejects the third', async () => {
         const slotsRes = await request(app)
             .get(`/api/appointments/next-available?duration=60&from=${encodeURIComponent(new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString())}`)
@@ -169,6 +240,184 @@ describe('Appointments', () => {
         expect(res.status).toBe(400);
         expect(res.body.error).toBe('This slot is already at capacity.');
         expect(Array.isArray(res.body.suggestions)).toBe(true);
+    });
+
+    it('reduces the next slot to one dog after two adjacent full slots', async () => {
+        const dateStr = nextDateForDay('Tuesday', 35);
+        const firstSlot = slotIso(dateStr, '09:00');
+        const secondSlot = slotIso(dateStr, '09:30');
+        const restrictedSlot = slotIso(dateStr, '10:00');
+
+        const firstRes = await request(app)
+            .post('/api/appointments')
+            .set(auth())
+            .send(makeAppt({ date: firstSlot, petName: 'Alpha', dogCount: 2 }));
+        expect(firstRes.status).toBe(200);
+
+        const secondRes = await request(app)
+            .post('/api/appointments')
+            .set(auth())
+            .send(makeAppt({ date: secondSlot, petName: 'Bravo', dogCount: 2 }));
+        expect(secondRes.status).toBe(200);
+
+        const twoDogSlots = await request(app)
+            .get(`/api/public/available-slots?date=${dateStr}&dogCount=2`);
+        expect(twoDogSlots.status).toBe(200);
+        expect(twoDogSlots.body.slots).not.toContain(restrictedSlot);
+
+        const oneDogSlots = await request(app)
+            .get(`/api/public/available-slots?date=${dateStr}&dogCount=1`);
+        expect(oneDogSlots.status).toBe(200);
+        expect(oneDogSlots.body.slots).toContain(restrictedSlot);
+    });
+
+    it('requires a valid consecutive slot pair for three-dog bookings', async () => {
+        const dateStr = nextDateForDay('Wednesday', 42);
+        const validPairStart = slotIso(dateStr, '12:30');
+        const invalidPairStart = slotIso(dateStr, '13:00');
+
+        const validRes = await request(app)
+            .post('/api/appointments')
+            .set(auth())
+            .send(makeAppt({ date: validPairStart, petName: 'Pack Booking', dogCount: 3 }));
+        expect(validRes.status).toBe(200);
+
+        const invalidRes = await request(app)
+            .post('/api/appointments')
+            .set(auth())
+            .send(makeAppt({ date: invalidPairStart, petName: 'Late Pack Booking', dogCount: 3 }));
+        expect(invalidRes.status).toBe(400);
+        expect(invalidRes.body.error).toBe('I do not have a suitable consecutive drop-off window for that number of dogs on this day.');
+    });
+
+    it('blocks bookings that would take the day above the 15-dog limit', async () => {
+        const dateStr = nextDateForDay('Monday', 49);
+        const slotPlan: Array<[string, number]> = [
+            ['08:30', 2],
+            ['09:00', 2],
+            ['09:30', 1],
+            ['10:00', 2],
+            ['10:30', 2],
+            ['11:00', 1],
+            ['11:30', 2],
+            ['12:00', 2],
+            ['12:30', 1],
+        ];
+
+        for (const [time, dogCount] of slotPlan) {
+            const res = await request(app)
+                .post('/api/appointments')
+                .set(auth())
+                .send(makeAppt({ date: slotIso(dateStr, time), petName: `Dog ${time}`, dogCount }));
+            expect(res.status).toBe(200);
+        }
+
+        const overflowRes = await request(app)
+            .post('/api/appointments')
+            .set(auth())
+            .send(makeAppt({ date: slotIso(dateStr, '13:00'), petName: 'Overflow Dog', dogCount: 1 }));
+        expect(overflowRes.status).toBe(400);
+        expect(overflowRes.body.error).toBe('This day has already reached its 15-dog booking limit.');
+    });
+
+    it('escalates closed days that already contain bookings instead of auto-booking more', async () => {
+        const dateStr = nextDateForDay('Thursday', 56);
+        const existingSlot = slotIso(dateStr, '09:00');
+        const requestSlot = slotIso(dateStr, '09:30');
+
+        db.prepare(`
+            INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, dogCount, status, price, avatar)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            crypto.randomUUID(),
+            'Closed Day Dog',
+            'Spaniel',
+            'Manual Review Owner',
+            'Bath',
+            existingSlot,
+            60,
+            1,
+            'scheduled',
+            45,
+            '',
+        );
+
+        const createRes = await request(app)
+            .post('/api/appointments')
+            .set(auth())
+            .send(makeAppt({ date: requestSlot, petName: 'Needs Review', dogCount: 1 }));
+        expect(createRes.status).toBe(400);
+        expect(createRes.body.error).toBe('This day needs a quick manual review before we can add another booking. Please contact the salon.');
+
+        const publicSlotsRes = await request(app)
+            .get(`/api/public/available-slots?date=${dateStr}&dogCount=1`);
+        expect(publicSlotsRes.status).toBe(200);
+        expect(publicSlotsRes.body.slots).toEqual([]);
+    });
+
+    it('requires legacy future bookings to be reviewed before the day is offered online again', async () => {
+        const dateStr = nextDateForDay('Tuesday', 63);
+        const existingId = crypto.randomUUID();
+        const existingSlot = slotIso(dateStr, '09:00');
+
+        db.prepare(`
+            INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, dogCount, dogCountConfirmed, status, price, avatar)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            existingId,
+            'Legacy Pair',
+            'Cockapoo',
+            'Legacy Owner',
+            'Bath',
+            existingSlot,
+            60,
+            1,
+            0,
+            'scheduled',
+            45,
+            '',
+        );
+
+        const beforeReview = await request(app)
+            .get(`/api/public/available-slots?date=${dateStr}&dogCount=1`);
+        expect(beforeReview.status).toBe(200);
+        expect(beforeReview.body.slots).toEqual([]);
+
+        const confirmRes = await request(app)
+            .put(`/api/appointments/${existingId}`)
+            .set(auth())
+            .send(makeAppt({
+                id: existingId,
+                petName: 'Legacy Pair',
+                breed: 'Cockapoo',
+                ownerName: 'Legacy Owner',
+                service: 'Bath',
+                date: existingSlot,
+                dogCount: 2,
+                price: 45,
+            }));
+        expect(confirmRes.status).toBe(200);
+        expect(confirmRes.body.dogCountConfirmed).toBe(true);
+        expect(confirmRes.body.dogCountReviewedAt).toBeTruthy();
+        expect(confirmRes.body.dogCountReviewedBy).toBe('owner@example.com');
+
+        const reviewedRow = db.prepare(
+            'SELECT dogCount, dogCountConfirmed, dogCountReviewedAt, dogCountReviewedBy FROM appointments WHERE id = ?',
+        ).get(existingId) as {
+            dogCount: number;
+            dogCountConfirmed: number;
+            dogCountReviewedAt: string | null;
+            dogCountReviewedBy: string | null;
+        };
+        expect(reviewedRow.dogCount).toBe(2);
+        expect(reviewedRow.dogCountConfirmed).toBe(1);
+        expect(reviewedRow.dogCountReviewedAt).toBeTruthy();
+        expect(reviewedRow.dogCountReviewedBy).toBe('owner@example.com');
+
+        const afterReview = await request(app)
+            .get(`/api/public/available-slots?date=${dateStr}&dogCount=1`);
+        expect(afterReview.status).toBe(200);
+        expect(afterReview.body.slots.length).toBeGreaterThan(0);
     });
 
     it('updates appointment status via PUT', async () => {
@@ -252,6 +501,28 @@ describe('Customers', () => {
         const putRes = await request(app).put(`/api/customers/${serverId}`).set(auth()).send(updated);
         expect(putRes.status).toBe(200);
     });
+
+    it('returns a hydrated client profile by id', async () => {
+        const customer = {
+            id: crypto.randomUUID(),
+            name: `Hydrated Client ${Date.now()}`,
+            email: `hydrated_${Date.now()}@example.com`,
+            phone: '07111 222333',
+            emergencyContact: { name: 'Backup Person', phone: '07000 111222' },
+            warnings: ['Needs quiet handoff'],
+            pets: [{ id: crypto.randomUUID(), name: 'Pebble', breed: 'Spaniel', behavioralNotes: ['Nervous on first visit'] }],
+        };
+
+        const createRes = await request(app).post('/api/customers').set(auth()).send(customer);
+        expect(createRes.status).toBe(200);
+
+        const getRes = await request(app).get(`/api/customers/${createRes.body.id}`).set(auth());
+        expect(getRes.status).toBe(200);
+        expect(getRes.body.id).toBe(createRes.body.id);
+        expect(getRes.body.emergencyContact?.name).toBe('Backup Person');
+        expect(getRes.body.pets[0]?.name).toBe('Pebble');
+        expect(getRes.body.warnings).toContain('Needs quiet handoff');
+    });
 });
 
 // ══════════════════════════════════════════════════════════
@@ -316,11 +587,76 @@ describe('Messaging', () => {
         expect(Array.isArray(res.body)).toBe(true);
     });
 
-    it('blocks staff from viewing message history (403)', async () => {
+    it('allows staff to view message history', async () => {
         const res = await request(app)
             .get('/api/messages')
             .set(auth(staffToken));
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(200);
+    });
+
+    it('filters message history by customer id', async () => {
+        const customer = {
+            id: crypto.randomUUID(),
+            name: `Message Client ${Date.now()}`,
+            email: `message_${Date.now()}@example.com`,
+            phone: '07000 444555',
+            pets: [{ id: crypto.randomUUID(), name: 'Rolo', breed: 'Cockapoo' }],
+        };
+        const createRes = await request(app).post('/api/customers').set(auth()).send(customer);
+        expect(createRes.status).toBe(200);
+
+        const sendRes = await request(app)
+            .post('/api/messages/send')
+            .set(auth())
+            .send({
+                channel: 'email',
+                recipientEmail: customer.email,
+                subject: 'Booking update',
+                body: 'Linked client message',
+                customerId: createRes.body.id,
+            });
+        expect(sendRes.status).toBe(200);
+
+        const filteredRes = await request(app)
+            .get(`/api/messages?customerId=${createRes.body.id}`)
+            .set(auth(staffToken));
+        expect(filteredRes.status).toBe(200);
+        expect(filteredRes.body.some((message: any) => message.customerId === createRes.body.id)).toBe(true);
+    });
+});
+
+// ══════════════════════════════════════════════════════════
+describe('Dogs', () => {
+    it('returns first-class dog list and detail data', async () => {
+        const customer = {
+            id: crypto.randomUUID(),
+            name: `Dog Owner ${Date.now()}`,
+            email: `dog_owner_${Date.now()}@example.com`,
+            phone: '07000 123456',
+            pets: [{
+                id: crypto.randomUUID(),
+                name: `Waffle ${Date.now()}`,
+                breed: 'Cockapoo',
+                behavioralNotes: ['Needs a gentle introduction'],
+                vaccinations: [{ name: 'Rabies', expiryDate: '2030-01-01', status: 'valid' }],
+            }],
+        };
+
+        const createRes = await request(app).post('/api/customers').set(auth()).send(customer);
+        expect(createRes.status).toBe(200);
+
+        const listRes = await request(app).get('/api/dogs').set(auth());
+        expect(listRes.status).toBe(200);
+        expect(Array.isArray(listRes.body.data)).toBe(true);
+
+        const createdDog = listRes.body.data.find((dog: any) => dog.id === customer.pets[0].id);
+        expect(createdDog?.customerName).toBe(customer.name);
+        expect(createdDog?.behavioralNotes).toContain('Needs a gentle introduction');
+
+        const detailRes = await request(app).get(`/api/dogs/${customer.pets[0].id}`).set(auth());
+        expect(detailRes.status).toBe(200);
+        expect(detailRes.body.customer?.id).toBe(createRes.body.id);
+        expect(Array.isArray(detailRes.body.recentAppointments)).toBe(true);
     });
 });
 
@@ -346,12 +682,14 @@ describe('Public Booking Flow', () => {
         expect(res.status).toBe(200);
         expect(Array.isArray(res.body)).toBe(true);
         expect(Array.isArray(res.body[0]?.slots)).toBe(true);
+        expect(res.body.find((day: any) => day.day === 'Monday')?.isClosed).toBe(false);
+        expect(res.body.find((day: any) => day.day === 'Thursday')?.isClosed).toBe(true);
     });
 
     it('returns available slots for a given date', async () => {
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        // Find a day that is not Sunday (schedule has Sunday closed)
-        while (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1);
+        // Find a default open day (Monday to Wednesday)
+        while (![1, 2, 3].includes(tomorrow.getDay())) tomorrow.setDate(tomorrow.getDate() + 1);
         const dateStr = tomorrow.toISOString().split('T')[0];
 
         const servicesRes = await request(app).get('/api/public/services');
@@ -453,6 +791,8 @@ describe('Settings', () => {
         expect(res.body.shopName).toBeDefined();
         expect(Array.isArray(res.body.schedule)).toBe(true);
         expect(Array.isArray(res.body.schedule[0]?.slots)).toBe(true);
+        expect(res.body.schedule.find((day: any) => day.day === 'Wednesday')?.isClosed).toBe(false);
+        expect(res.body.schedule.find((day: any) => day.day === 'Sunday')?.isClosed).toBe(true);
     });
 
     it('lets staff close a day and disable individual booking starts', async () => {

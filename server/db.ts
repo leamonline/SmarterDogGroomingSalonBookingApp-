@@ -9,6 +9,9 @@ import {
   BOOKING_DAY_ORDER,
   BOOKING_OPEN_TIME,
   createDefaultSlotConfig,
+  isBookingDayClosedByDefault,
+  parseSlotConfig,
+  type RawScheduleRow,
 } from './helpers/schedule.js';
 
 const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
@@ -95,6 +98,10 @@ db.exec(`
     service TEXT,
     date TEXT NOT NULL,
     duration INTEGER,
+    dogCount INTEGER DEFAULT 1,
+    dogCountConfirmed INTEGER DEFAULT 1,
+    dogCountReviewedAt TEXT,
+    dogCountReviewedBy TEXT,
     status TEXT,
     price REAL,
     avatar TEXT
@@ -313,6 +320,8 @@ migrate(1, () => {
   safeAddColumn('appointments', 'customerId', 'TEXT');
   safeAddColumn('appointments', 'dogId', 'TEXT');
   safeAddColumn('appointments', 'staffId', 'TEXT');
+  safeAddColumn('appointments', 'dogCount', 'INTEGER DEFAULT 1');
+  safeAddColumn('appointments', 'dogCountConfirmed', 'INTEGER DEFAULT 1');
   safeAddColumn('appointments', 'depositAmount', 'REAL DEFAULT 0');
   safeAddColumn('appointments', 'depositPaid', 'INTEGER DEFAULT 0');
   safeAddColumn('appointments', 'cancelledAt', 'TEXT');
@@ -419,6 +428,52 @@ migrate(4, () => {
   `).run(BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, createDefaultSlotConfig());
 });
 
+// Migration 7: default Thursday-Sunday to closed on untouched legacy schedules
+migrate(7, () => {
+  const scheduleRows = db.prepare(
+    'SELECT day, openTime, closeTime, isClosed, slotConfig FROM schedule',
+  ).all() as RawScheduleRow[];
+
+  const looksLikeLegacyAllOpenSchedule = scheduleRows.length === BOOKING_DAY_ORDER.length
+    && scheduleRows.every((row) => (
+      BOOKING_DAY_ORDER.includes(row.day as typeof BOOKING_DAY_ORDER[number])
+      && (row.openTime || BOOKING_OPEN_TIME) === BOOKING_OPEN_TIME
+      && (row.closeTime || BOOKING_CLOSE_TIME) === BOOKING_CLOSE_TIME
+      && !Boolean(row.isClosed)
+      && Object.values(parseSlotConfig(row.slotConfig)).every(Boolean)
+    ));
+
+  if (!looksLikeLegacyAllOpenSchedule) {
+    return;
+  }
+
+  const updateScheduleDay = db.prepare('UPDATE schedule SET isClosed = ? WHERE day = ?');
+  for (const day of BOOKING_DAY_ORDER) {
+    updateScheduleDay.run(isBookingDayClosedByDefault(day) ? 1 : 0, day);
+  }
+});
+
+// Migration 8: store the number of dogs attached to each booking
+migrate(8, () => {
+  safeAddColumn('appointments', 'dogCount', 'INTEGER DEFAULT 1');
+});
+
+// Migration 9: require review of legacy future bookings for dog-count capacity
+migrate(9, () => {
+  safeAddColumn('appointments', 'dogCountConfirmed', 'INTEGER DEFAULT 1');
+  db.prepare(`
+    UPDATE appointments
+    SET dogCountConfirmed = 0
+    WHERE date >= ?
+  `).run(new Date().toISOString());
+});
+
+// Migration 10: store manual dog-count review metadata for legacy bookings
+migrate(10, () => {
+  safeAddColumn('appointments', 'dogCountReviewedAt', 'TEXT');
+  safeAddColumn('appointments', 'dogCountReviewedBy', 'TEXT');
+});
+
 const existingScheduleDays = new Set(
   (db.prepare('SELECT day FROM schedule').all() as { day: string }[]).map((row) => row.day),
 );
@@ -430,7 +485,13 @@ const insertScheduleDay = db.prepare(`
 
 for (const day of BOOKING_DAY_ORDER) {
   if (!existingScheduleDays.has(day)) {
-    insertScheduleDay.run(day, BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, 0, createDefaultSlotConfig());
+    insertScheduleDay.run(
+      day,
+      BOOKING_OPEN_TIME,
+      BOOKING_CLOSE_TIME,
+      isBookingDayClosedByDefault(day) ? 1 : 0,
+      createDefaultSlotConfig(),
+    );
   }
 }
 
@@ -542,7 +603,13 @@ if (customersCount.count === 0) {
 
   const insertSchedule = db.prepare('INSERT OR IGNORE INTO schedule (day, openTime, closeTime, isClosed, slotConfig) VALUES (?, ?, ?, ?, ?)');
   BOOKING_DAY_ORDER.forEach((day) => {
-    insertSchedule.run(day, BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, 0, createDefaultSlotConfig());
+    insertSchedule.run(
+      day,
+      BOOKING_OPEN_TIME,
+      BOOKING_CLOSE_TIME,
+      isBookingDayClosedByDefault(day) ? 1 : 0,
+      createDefaultSlotConfig(),
+    );
   });
 
   const insertNotification = db.prepare('INSERT INTO notifications (id, message, isRead, createdAt) VALUES (?, ?, ?, ?)');

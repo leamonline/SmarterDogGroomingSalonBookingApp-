@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Search, Loader2, Menu } from "lucide-react";
+import { Search, Loader2, Menu, Settings2 } from "lucide-react";
 import { Input } from "@/src/components/ui/input";
 import { Button } from "@/src/components/ui/button";
 import { api } from "@/src/lib/api";
@@ -52,8 +52,8 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
   const flatResults = (() => {
     if (!results) return [];
     const items: { type: string; id: string; label: string; sub?: string; navigateTo: string; navState: any }[] = [];
-    results.customers?.forEach((c: any) => items.push({ type: "customer", id: c.id, label: c.name, sub: c.email, navigateTo: "/customers", navState: { customerId: c.id } }));
-    results.pets?.forEach((p: any) => items.push({ type: "pet", id: p.id, label: p.name, sub: p.breed, navigateTo: "/customers", navState: { customerId: p.customerId } }));
+    results.customers?.forEach((c: any) => items.push({ type: "customer", id: c.id, label: c.name, sub: c.email, navigateTo: "/clients", navState: { customerId: c.id } }));
+    results.pets?.forEach((p: any) => items.push({ type: "pet", id: p.id, label: p.name, sub: p.breed, navigateTo: "/dogs", navState: { dogId: p.id } }));
     results.appointments?.forEach((a: any) => items.push({ type: "appointment", id: a.id, label: `${a.petName} - ${a.service}`, navigateTo: "/calendar", navState: { appointmentId: a.id } }));
     return items;
   })();
@@ -121,7 +121,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
             ref={searchInputRef}
             id="search-field"
             className="block h-full w-full border-0 py-0 pl-8 pr-0 text-slate-900 placeholder:text-brand-300 focus:ring-0 sm:text-sm bg-transparent"
-            placeholder="Search appointments, customers, or pets..."
+            placeholder="Search bookings, clients, or dogs..."
             type="search"
             name="search"
             role="combobox"
@@ -149,7 +149,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
 
           {showResults && query.length === 0 && (
             <div className="absolute top-full mt-2 w-full z-50 rounded-2xl border border-brand-100 bg-white shadow-lg overflow-hidden py-4 px-4">
-              <p className="text-sm font-medium text-purple">Search across customers, pets, and appointments</p>
+              <p className="text-sm font-medium text-purple">Search across bookings, clients, and dogs</p>
               <p className="mt-1 text-xs text-slate-500">Tip: press <span className="font-semibold text-brand-600">/</span> from anywhere to jump to search.</p>
             </div>
           )}
@@ -160,22 +160,22 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
                 <>
                   {results.customers?.length > 0 && (
                     <div className="px-4 py-2">
-                      <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2" aria-hidden="true">Customers</h3>
+                      <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2" aria-hidden="true">Clients</h3>
                       {results.customers.map((c: any) => {
                         const idx = flatResults.findIndex(f => f.type === "customer" && f.id === c.id);
                         return (
-                          <div key={c.id} id={`search-result-${idx}`} role="option" aria-selected={activeResultIdx === idx} className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`} onClick={() => { navigate('/customers', { state: { customerId: c.id } }); setShowResults(false); setQuery(""); }}>{c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span></div>
+                          <div key={c.id} id={`search-result-${idx}`} role="option" aria-selected={activeResultIdx === idx} className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`} onClick={() => { navigate('/clients', { state: { customerId: c.id } }); setShowResults(false); setQuery(""); }}>{c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span></div>
                         );
                       })}
                     </div>
                   )}
                   {results.pets?.length > 0 && (
                     <div className="px-4 py-2">
-                      <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2" aria-hidden="true">Pets</h3>
+                      <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2" aria-hidden="true">Dogs</h3>
                       {results.pets.map((p: any) => {
                         const idx = flatResults.findIndex(f => f.type === "pet" && f.id === p.id);
                         return (
-                          <div key={p.id} id={`search-result-${idx}`} role="option" aria-selected={activeResultIdx === idx} className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`} onClick={() => { navigate('/customers', { state: { customerId: p.customerId } }); setShowResults(false); setQuery(""); }}>{p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span></div>
+                          <div key={p.id} id={`search-result-${idx}`} role="option" aria-selected={activeResultIdx === idx} className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`} onClick={() => { navigate('/dogs', { state: { dogId: p.id } }); setShowResults(false); setQuery(""); }}>{p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span></div>
                         );
                       })}
                     </div>
@@ -199,6 +199,10 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
           )}
         </div>
         <div className="flex items-center gap-x-4 lg:gap-x-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/settings")}>
+            <Settings2 className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
           <Button variant="outline" size="sm" onClick={() => logout()}>
             Log out
           </Button>

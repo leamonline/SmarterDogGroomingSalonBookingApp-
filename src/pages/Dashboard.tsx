@@ -152,6 +152,7 @@ export function Dashboard() {
         await api.createAppointment(updatedAppointment);
         setAppointments((prev) => [...prev, updatedAppointment].sort((a, b) => a.date.getTime() - b.date.getTime()));
       }
+      return true;
     } catch (err: any) {
       const suggestions: string[] = err?.details?.suggestions || [];
       if (suggestions.length > 0) {
@@ -159,6 +160,7 @@ export function Dashboard() {
       } else {
         handleError(err, "Failed to save appointment");
       }
+      return false;
     }
   };
 

@@ -20,6 +20,7 @@ import { authenticateToken } from './middleware/auth.js';
 import authRouter from './routes/auth.js';
 import publicRouter from './routes/public.js';
 import customersRouter from './routes/customers.js';
+import dogsRouter from './routes/dogs.js';
 import appointmentsRouter from './routes/appointments.js';
 import servicesRouter, { addOnRouter } from './routes/services.js';
 import settingsRouter from './routes/settings.js';
@@ -86,6 +87,7 @@ app.use('/api/public', publicLimiter, publicRouter);  // /api/public/services, /
 app.use('/api', authenticateToken);    // Everything below requires a valid JWT
 
 app.use('/api/customers', customersRouter);
+app.use('/api/dogs', dogsRouter);
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/services', servicesRouter);
 app.use('/api/add-ons', addOnRouter);
@@ -93,7 +95,7 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/forms', formsRouter);
 app.use('/api/form-submissions', formSubmissionsRouter); // backward-compatible path
-app.use('/api', reportsRouter);        // /api/search, /api/dogs/:id/tags, /api/audit-log, /api/analytics, /api/reports
+app.use('/api', reportsRouter);        // /api/search, /api/audit-log, /api/analytics, /api/reports
 app.use('/api/messages', messagingRouter);
 
 if (isProduction) {

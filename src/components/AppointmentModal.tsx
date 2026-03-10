@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/src/components/ui/dialog";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
@@ -7,10 +8,14 @@ import { useFormValidation, required, positiveNumber } from "@/src/lib/useFormVa
 import { Badge } from "@/src/components/ui/badge";
 import { PaymentPanel } from "@/src/components/PaymentPanel";
 import { format } from "date-fns";
-import { CheckCircle, Clock, AlertTriangle, XCircle, Truck, Play, Pause, UserCheck } from "lucide-react";
+import { CheckCircle, Clock, AlertTriangle, XCircle, Truck, Play, Pause, Search, UserCheck, UserPlus, X } from "lucide-react";
 import { APPOINTMENT_STATUSES } from "@/src/types";
+import { CustomerModal } from "@/src/components/CustomerModal";
+import { api } from "@/src/lib/api";
+import { handleError } from "@/src/lib/handleError";
 import { formatCurrency } from "@/src/lib/utils";
 import { BOOKING_CLOSE_TIME, BOOKING_OPEN_TIME, formatScheduleTime } from "@/src/lib/bookingSchedule";
+import type { AppointmentClientLookupResult, Customer } from "@/src/types";
 
 export type Appointment = {
   id: string;
@@ -23,6 +28,10 @@ export type Appointment = {
   service: string;
   date: Date;
   duration: number;
+  dogCount?: number;
+  dogCountConfirmed?: boolean;
+  dogCountReviewedAt?: string;
+  dogCountReviewedBy?: string;
   status: string;
   price: number;
   avatar: string;
@@ -41,6 +50,8 @@ export type Appointment = {
   cancelledAt?: string;
   cancellationReason?: string;
   depositAmount?: number;
+  customerId?: string;
+  dogId?: string;
   emergencyContact?: string;
   emergencyPhone?: string;
 };
@@ -87,7 +98,30 @@ interface AppointmentModalProps {
   onClose: () => void;
   appointment: Appointment | null;
   initialData?: Partial<Appointment>;
-  onSave: (updatedAppointment: Appointment) => void;
+  onSave: (updatedAppointment: Appointment) => void | Promise<boolean | void>;
+}
+
+const LINKED_LOOKUP_FIELDS = new Set(["petName", "breed", "ownerName", "phone"]);
+
+function formatAgeFromDob(dob?: string | null) {
+  if (!dob) return "";
+  const dobDate = new Date(dob);
+  if (Number.isNaN(dobDate.getTime())) return "";
+
+  const now = new Date();
+  let years = now.getFullYear() - dobDate.getFullYear();
+  const monthDelta = now.getMonth() - dobDate.getMonth();
+  const beforeBirthday = monthDelta < 0 || (monthDelta === 0 && now.getDate() < dobDate.getDate());
+  if (beforeBirthday) years -= 1;
+
+  return years <= 0 ? "Under 1 year" : years === 1 ? "1 year" : `${years} years`;
+}
+
+function buildAppointmentNotes(match: AppointmentClientLookupResult) {
+  return [
+    ...(match.petBehavioralNotes || []),
+    match.customerNotes || "",
+  ].filter(Boolean).join(" • ");
 }
 
 function snapToHalfHour(date: Date) {
@@ -103,10 +137,31 @@ function snapToHalfHour(date: Date) {
   return snapped;
 }
 
+function formatDogCountLabel(dogCount?: number) {
+  const count = dogCount || 1;
+  return `${count} ${count === 1 ? "dog" : "dogs"}`;
+}
+
+function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
+  if (!reviewedAt) return null;
+  const parsed = new Date(reviewedAt);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const reviewer = reviewedBy || "staff";
+  return `Dog count confirmed by ${reviewer} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}.`;
+}
+
 export function AppointmentModal({ isOpen, onClose, appointment, initialData, onSave }: AppointmentModalProps) {
   const [formData, setFormData] = useState<Partial<Appointment>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'checkin' | 'groom' | 'checkout'>('details');
+  const [lookupResults, setLookupResults] = useState<AppointmentClientLookupResult[]>([]);
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
+  const [selectedLookupResult, setSelectedLookupResult] = useState<AppointmentClientLookupResult | null>(null);
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const dogCountReviewNote = useMemo(
+    () => formatDogCountReviewNote(formData.dogCountReviewedAt, formData.dogCountReviewedBy),
+    [formData.dogCountReviewedAt, formData.dogCountReviewedBy],
+  );
 
   const { errors, validate, clearError, clearAll } = useFormValidation<Appointment>({
     petName: required('Pet name'),
@@ -114,6 +169,13 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     service: required('Service'),
     date: (v: any) => (!v ? 'Date & time is required' : null),
     duration: (v: any) => (!v || Number(v) <= 0 ? 'Duration must be greater than 0' : null),
+    dogCount: (v: any) => {
+      const count = Number(v);
+      if (!Number.isInteger(count) || count < 1 || count > 4) {
+        return 'Dog count must be between 1 and 4';
+      }
+      return null;
+    },
     price: positiveNumber('Price'),
   });
   // Track the last appointment id we initialised for, so we only reset
@@ -131,6 +193,9 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     lastAppointmentIdRef.current = incomingId;
     setIsEditing(!appointment);
     setActiveTab('details');
+    setLookupResults([]);
+    setSelectedLookupResult(null);
+    setIsNewClientModalOpen(false);
     clearAll();
     if (appointment) {
       setFormData(appointment);
@@ -146,6 +211,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
         service: "",
         date: snapToHalfHour(new Date()),
         duration: 60,
+        dogCount: 1,
         status: "confirmed",
         price: 0,
         avatar: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
@@ -161,8 +227,12 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     clearError(name as keyof Appointment);
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "price" || name === "duration" || name === "surcharge" || name === "finalPrice" ? Number(value) : value,
+      ...(LINKED_LOOKUP_FIELDS.has(name) ? { customerId: undefined, dogId: undefined } : {}),
+      [name]: name === "price" || name === "duration" || name === "dogCount" || name === "surcharge" || name === "finalPrice" ? Number(value) : value,
     }));
+    if (LINKED_LOOKUP_FIELDS.has(name)) {
+      setSelectedLookupResult(null);
+    }
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,11 +241,129 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     setFormData((prev) => ({ ...prev, date: newDate }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate(formData)) return;
-    onSave(formData as Appointment);
-    onClose();
+    const result = await onSave(formData as Appointment);
+    if (result !== false) {
+      onClose();
+    }
+  };
+
+  const lookupFilters = useMemo(() => ({
+    ownerName: String(formData.ownerName || "").trim(),
+    phone: String(formData.phone || "").trim(),
+    petName: String(formData.petName || "").trim(),
+    breed: String(formData.breed || "").trim(),
+  }), [formData.ownerName, formData.phone, formData.petName, formData.breed]);
+
+  useEffect(() => {
+    if (!isOpen || appointment) return;
+
+    const hasEnoughInput = Object.values(lookupFilters).some((value) => value.length >= 2);
+    if (!hasEnoughInput || selectedLookupResult) {
+      setLookupResults([]);
+      setIsLookupLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLookupLoading(true);
+
+    const timeout = window.setTimeout(async () => {
+      try {
+        const results = await api.lookupAppointmentClients(lookupFilters) as AppointmentClientLookupResult[];
+        if (!isCancelled) {
+          setLookupResults(results);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setLookupResults([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLookupLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [appointment, isOpen, lookupFilters, selectedLookupResult]);
+
+  const applyLookupResult = (match: AppointmentClientLookupResult) => {
+    setSelectedLookupResult(match);
+    setLookupResults([]);
+    setFormData((prev) => ({
+      ...prev,
+      ownerName: match.customerName,
+      phone: match.customerPhone || "",
+      petName: match.petName,
+      breed: match.petBreed || "",
+      age: formatAgeFromDob(match.petDob),
+      notes: buildAppointmentNotes(match),
+      customerId: match.customerId,
+      dogId: match.petId,
+      emergencyContact: match.emergencyContactName || "",
+      emergencyPhone: match.emergencyContactPhone || "",
+      avatar: match.petPhoto || prev.avatar || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
+    }));
+  };
+
+  const clearSelectedLookup = () => {
+    setSelectedLookupResult(null);
+    setFormData((prev) => ({
+      ...prev,
+      customerId: undefined,
+      dogId: undefined,
+    }));
+  };
+
+  const handleSaveNewClient = async (customer: Customer) => {
+    if (!customer.pets?.length) {
+      handleError(new Error("Add at least one pet before creating a new client"), "Failed to create client");
+      return false;
+    }
+
+    try {
+      const createdCustomer = await api.createCustomer(customer) as Customer;
+      const primaryPet = createdCustomer.pets?.[0];
+
+      if (!primaryPet) {
+        return false;
+      }
+
+      applyLookupResult({
+        customerId: createdCustomer.id,
+        customerName: createdCustomer.name,
+        customerPhone: createdCustomer.phone || "",
+        customerEmail: createdCustomer.email || "",
+        customerAddress: createdCustomer.address || "",
+        customerNotes: createdCustomer.notes || "",
+        emergencyContactName: createdCustomer.emergencyContact?.name || "",
+        emergencyContactPhone: createdCustomer.emergencyContact?.phone || "",
+        petId: primaryPet.id,
+        petName: primaryPet.name,
+        petBreed: primaryPet.breed || "",
+        petDob: primaryPet.dob || "",
+        petCoatType: primaryPet.coatType || "",
+        petPhoto: primaryPet.photo || "",
+        petBehavioralNotes: primaryPet.behavioralNotes || [],
+      });
+      setFormData((prev) => ({
+        ...prev,
+        ownerName: createdCustomer.name,
+        phone: createdCustomer.phone || "",
+      }));
+      toast.success(`${primaryPet.name} is ready to book`);
+      setIsNewClientModalOpen(false);
+      return true;
+    } catch (err) {
+      handleError(err, "Failed to create client");
+      return false;
+    }
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -274,9 +462,26 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 grid grid-cols-2 gap-2">
                     <p className="text-sm"><span className="font-medium text-slate-700">Service:</span> {formData.service}</p>
                     <p className="text-sm"><span className="font-medium text-slate-700">Duration:</span> {formData.duration}m</p>
+                    <p className="text-sm"><span className="font-medium text-slate-700">Dogs:</span> {formatDogCountLabel(formData.dogCount)}</p>
                     <p className="text-sm"><span className="font-medium text-slate-700">Date:</span> {formData.date ? format(formData.date, "EEE d MMM, h:mm a") : ""}</p>
                     <p className="text-sm"><span className="font-medium text-slate-700">Price:</span> {formatCurrency(formData.price)}</p>
                   </div>
+                  {formData.dogCountConfirmed === false && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      <div className="flex items-center gap-2 font-medium">
+                        <AlertTriangle className="h-4 w-4" />
+                        Dog count needs review
+                      </div>
+                      <p className="mt-1 text-xs text-amber-800">
+                        This booking was created before per-dog capacity tracking. Confirm the number of dogs and save to bring it back into online availability checks.
+                      </p>
+                    </div>
+                  )}
+                  {dogCountReviewNote && formData.dogCountConfirmed !== false && (
+                    <div className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+                      {dogCountReviewNote}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -419,13 +624,84 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
+            {!appointment && (
+              <div className="space-y-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Previous pet lookup</h4>
+                    <p className="text-sm text-slate-500">
+                      Start typing a pet name, owner, phone number, or breed below to reuse an existing client.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => setIsNewClientModalOpen(true)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    New Client
+                  </Button>
+                </div>
+
+                {selectedLookupResult && (
+                  <div className="flex flex-col gap-2 rounded-xl border border-brand-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {selectedLookupResult.petName} • {selectedLookupResult.customerName}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {selectedLookupResult.petBreed || "Breed not set"} {selectedLookupResult.customerPhone ? `• ${selectedLookupResult.customerPhone}` : ""}
+                      </p>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={clearSelectedLookup}>
+                      <X className="mr-1 h-3.5 w-3.5" />
+                      Clear
+                    </Button>
+                  </div>
+                )}
+
+                {!selectedLookupResult && (isLookupLoading || lookupResults.length > 0) && (
+                  <div className="rounded-xl border border-slate-200 bg-white">
+                    {isLookupLoading && (
+                      <div className="flex items-center gap-2 px-3 py-3 text-sm text-slate-500">
+                        <Search className="h-4 w-4" />
+                        Looking up matching dogs and owners...
+                      </div>
+                    )}
+                    {!isLookupLoading && lookupResults.map((match) => (
+                      <button
+                        key={`${match.customerId}-${match.petId}`}
+                        type="button"
+                        className="flex w-full items-start justify-between gap-3 border-b border-slate-100 px-3 py-3 text-left last:border-b-0 hover:bg-slate-50"
+                        onClick={() => applyLookupResult(match)}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">{match.petName}</p>
+                          <p className="text-sm text-slate-600">
+                            {match.customerName}{match.customerPhone ? ` • ${match.customerPhone}` : ""}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {match.petBreed || "Breed not set"}{match.petCoatType ? ` • ${match.petCoatType}` : ""}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-xs font-medium text-brand-700">Use details</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Pet Section */}
             <div className="space-y-4">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pet Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="petName" className="text-right text-sm font-medium">Pet Name *</label>
+                <label htmlFor="petName" className="text-right text-sm font-medium">{(formData.dogCount || 1) > 1 ? "Dog Name(s) *" : "Pet Name *"}</label>
                 <div className="col-span-3">
-                  <Input id="petName" name="petName" value={formData.petName || ""} onChange={handleChange} aria-invalid={!!errors.petName} />
+                  <Input
+                    id="petName"
+                    name="petName"
+                    value={formData.petName || ""}
+                    onChange={handleChange}
+                    placeholder={(formData.dogCount || 1) > 1 ? "e.g. Buddy, Bella & Milo" : undefined}
+                    aria-invalid={!!errors.petName}
+                  />
                   <FieldError message={errors.petName} />
                 </div>
               </div>
@@ -487,6 +763,26 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
+                <label htmlFor="dogCount" className="text-right text-sm font-medium">Dogs *</label>
+                <div className="col-span-3">
+                  <Input id="dogCount" name="dogCount" type="number" min={1} max={4} value={formData.dogCount || 1} onChange={handleChange} aria-invalid={!!errors.dogCount} />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Online booking rules support up to 4 dogs. Bookings for 3 or 4 dogs need consecutive drop-off slots.
+                  </p>
+                  {formData.dogCountConfirmed === false && (
+                    <p className="mt-2 text-xs font-medium text-amber-700">
+                      Save this booking after confirming the dog count to restore accurate slot capacity.
+                    </p>
+                  )}
+                  {dogCountReviewNote && formData.dogCountConfirmed !== false && (
+                    <p className="mt-2 text-xs font-medium text-brand-700">
+                      {dogCountReviewNote}
+                    </p>
+                  )}
+                  <FieldError message={errors.dogCount} />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
                 <label htmlFor="price" className="text-right text-sm font-medium">Price (GBP) *</label>
                 <div className="col-span-3">
                   <Input id="price" name="price" type="number" value={formData.price || ""} onChange={handleChange} aria-invalid={!!errors.price} />
@@ -512,6 +808,12 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
           </form>
         )}
       </DialogContent>
+      <CustomerModal
+        isOpen={isNewClientModalOpen}
+        onClose={() => setIsNewClientModalOpen(false)}
+        customer={null}
+        onSave={handleSaveNewClient}
+      />
     </Dialog>
   );
 }

@@ -140,6 +140,63 @@ export type Customer = {
   tags?: string[];
 };
 
+export type AppointmentClientLookupResult = {
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  customerNotes?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  petId: string;
+  petName: string;
+  petBreed?: string;
+  petDob?: string;
+  petCoatType?: string;
+  petPhoto?: string;
+  petBehavioralNotes: string[];
+};
+
+export type AppointmentSummary = {
+  id: string;
+  petName: string;
+  breed?: string;
+  ownerName: string;
+  phone?: string;
+  service: string;
+  date: string;
+  duration: number;
+  dogCount?: number;
+  dogCountConfirmed?: boolean;
+  dogCountReviewedAt?: string;
+  dogCountReviewedBy?: string;
+  status: string;
+  price: number;
+  notes?: string;
+  customerId?: string;
+  dogId?: string;
+};
+
+export type DogSummary = Pet & {
+  customerId: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerNotes?: string;
+  customerLastVisit?: string;
+  customerTotalSpent?: number;
+  appointmentCount: number;
+  lastAppointmentDate?: string;
+  tags?: string[];
+};
+
+export type DogProfile = DogSummary & {
+  customer: Customer | null;
+  recentAppointments: AppointmentSummary[];
+};
+
 // ────────────────────────────
 // Add-on
 // ────────────────────────────
@@ -253,6 +310,11 @@ export type Message = {
   id: string;
   customerId?: string;
   appointmentId?: string;
+  recipientEmail?: string;
+  recipientPhone?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
   channel: MessageChannel;
   templateName?: string;
   subject?: string;

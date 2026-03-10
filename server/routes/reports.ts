@@ -1,8 +1,7 @@
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import db from '../db.js';
-import { requireOwner, getUser } from '../middleware/auth.js';
-import { logAudit } from '../helpers/audit.js';
-import { validateBody, tagsSchema, clampLimit } from '../schema.js';
+import { requireOwner } from '../middleware/auth.js';
+import { clampLimit } from '../schema.js';
 import type { CountRow } from '../types.js';
 
 const router = Router();
@@ -20,25 +19,6 @@ router.get('/search', (req, res) => {
     const appointments = db.prepare("SELECT * FROM appointments WHERE petName LIKE ? ESCAPE '\\' OR ownerName LIKE ? ESCAPE '\\' OR service LIKE ? ESCAPE '\\'").all(queryLike, queryLike, queryLike);
 
     res.json({ customers, pets, appointments });
-});
-
-// --- Dog Tags ---
-router.get('/dogs/:id/tags', (req, res) => {
-    const tags = db.prepare('SELECT tag FROM dog_tags WHERE dogId = ?').all(req.params.id) as { tag: string }[];
-    res.json(tags.map(t => t.tag));
-});
-
-router.post('/dogs/:id/tags', validateBody(tagsSchema), (req: Request, res: Response) => {
-    const user = getUser(req);
-    const { tags } = req.body;
-    const del = db.prepare('DELETE FROM dog_tags WHERE dogId = ?');
-    const ins = db.prepare('INSERT INTO dog_tags (dogId, tag) VALUES (?, ?)');
-    db.transaction(() => {
-        del.run(req.params.id);
-        for (const tag of tags) { ins.run(req.params.id, tag); }
-    })();
-    logAudit(user.id, 'update', 'dog_tags', req.params.id, null, { tags });
-    res.json({ success: true });
 });
 
 // --- Audit Log ---

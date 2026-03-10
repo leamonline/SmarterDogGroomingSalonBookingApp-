@@ -1,15 +1,10 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
   CalendarDays,
   Users,
-  Scissors,
-  Settings,
   Dog,
-  FileText,
   Mail,
-  BarChart3
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { useHealthCheck } from "@/src/hooks/useHealthCheck";
@@ -32,14 +27,10 @@ type NavItem = {
 };
 
 const navigation: NavItem[] = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, minRole: "groomer" },
-  { name: "Calendar", href: "/calendar", icon: CalendarDays, minRole: "groomer" },
-  { name: "Customers", href: "/customers", icon: Users, minRole: "groomer" },
-  { name: "Services", href: "/services", icon: Scissors, minRole: "receptionist" },
-  { name: "Forms", href: "/forms", icon: FileText, minRole: "receptionist" },
-  { name: "Messaging", href: "/messaging", icon: Mail, minRole: "receptionist" },
-  { name: "Reports", href: "/reports", icon: BarChart3, minRole: "owner" },
-  { name: "Settings", href: "/settings", icon: Settings, minRole: "groomer" },
+  { name: "Bookings", href: "/calendar", icon: CalendarDays, minRole: "groomer" },
+  { name: "Clients", href: "/clients", icon: Users, minRole: "groomer" },
+  { name: "Dogs", href: "/dogs", icon: Dog, minRole: "groomer" },
+  { name: "Messaging", href: "/messaging", icon: Mail, minRole: "groomer" },
 ];
 
 export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boolean) => void }) {
@@ -72,7 +63,9 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-3">
             {visibleNav.map((item) => {
-              const isActive = location.pathname === item.href;
+              const isActive =
+                location.pathname === item.href ||
+                (item.href === "/clients" && location.pathname === "/customers");
               return (
                 <Link
                   key={item.name}

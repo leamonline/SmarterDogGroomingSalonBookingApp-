@@ -89,6 +89,7 @@ export function BookingPage() {
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [findingFirstAvailable, setFindingFirstAvailable] = useState(false);
     const [noAvailability, setNoAvailability] = useState(false);
+    const [dogCount, setDogCount] = useState(1);
 
     // Pet info
     const [petName, setPetName] = useState("");
@@ -140,7 +141,7 @@ export function BookingPage() {
         if (selectedDate && selectedService) {
             setLoadingSlots(true);
             setNoAvailability(false);
-            publicFetch(`/api/public/available-slots?date=${selectedDate}&duration=${selectedService.duration}`)
+            publicFetch(`/api/public/available-slots?date=${selectedDate}&duration=${selectedService.duration}&dogCount=${dogCount}`)
                 .then((data) => {
                     const nextSlots = data.slots || [];
                     setSlots(nextSlots);
@@ -149,7 +150,7 @@ export function BookingPage() {
                 .catch(() => setSlots([]))
                 .finally(() => setLoadingSlots(false));
         }
-    }, [selectedDate, selectedService]);
+    }, [selectedDate, selectedService, dogCount]);
 
     useEffect(() => {
         if (Object.keys(schedule).length === 0) return;
@@ -199,6 +200,7 @@ export function BookingPage() {
                 body: JSON.stringify({
                     serviceId: selectedService!.id,
                     date: selectedSlot,
+                    dogCount,
                     petName,
                     breed,
                     notes: petNotes,
@@ -229,6 +231,7 @@ export function BookingPage() {
         setSlots([]);
         setSelectedSlot("");
         setNoAvailability(false);
+        setDogCount(1);
         setPetName("");
         setBreed("");
         setPetNotes("");
@@ -263,7 +266,7 @@ export function BookingPage() {
                 if (isDayDisabled(date)) continue;
 
                 const dateKey = format(date, "yyyy-MM-dd");
-                const data = await publicFetch(`/api/public/available-slots?date=${dateKey}&duration=${selectedService.duration}`);
+                const data = await publicFetch(`/api/public/available-slots?date=${dateKey}&duration=${selectedService.duration}&dogCount=${dogCount}`);
                 const nextSlots = data.slots || [];
 
                 if (nextSlots.length > 0) {
@@ -516,7 +519,35 @@ export function BookingPage() {
                             </div>
                             <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
                                 Booking windows run from {formatScheduleTime(BOOKING_OPEN_TIME)} to {formatScheduleTime(BOOKING_CLOSE_TIME)}.
-                                Start times open in 30-minute steps, and each slot can take up to 2 dogs.
+                                Start times open in 30-minute steps, each slot can take up to 2 dogs, and 3 or 4 dogs need back-to-back drop-off windows.
+                            </div>
+                            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">How many dogs?</p>
+                                <div className="mt-3 grid grid-cols-4 gap-2">
+                                    {[1, 2, 3, 4].map((count) => {
+                                        const isSelected = dogCount === count;
+                                        return (
+                                            <button
+                                                key={count}
+                                                type="button"
+                                                onClick={() => {
+                                                    setDogCount(count);
+                                                    setSelectedSlot("");
+                                                    setNoAvailability(false);
+                                                }}
+                                                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-all ${isSelected
+                                                    ? "border-brand-600 bg-brand-50 text-brand-700"
+                                                    : "border-slate-200 bg-white text-slate-700 hover:border-brand-300"
+                                                    }`}
+                                            >
+                                                {count} {count === 1 ? "dog" : "dogs"}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="mt-3 text-sm text-slate-500">
+                                    Online booking supports up to 4 dogs per request. We&apos;ll always offer the earliest valid drop-off slot or slot pair.
+                                </p>
                             </div>
                         </div>
 
@@ -616,7 +647,7 @@ export function BookingPage() {
                 {step === "pet" && (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-bold text-purple">Your Dog's Details</h2>
+                            <h2 className="text-lg font-bold text-purple">{dogCount > 1 ? "Your Dogs' Details" : "Your Dog's Details"}</h2>
                             <Button size="sm" variant="outline" onClick={() => setStep("datetime")}><ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back</Button>
                         </div>
                         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 max-w-md mx-auto">
@@ -624,8 +655,13 @@ export function BookingPage() {
                                 <Dog className="h-12 w-12 text-slate-300" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-sm font-medium text-slate-700">Dog's Name *</label>
-                                <Input value={petName} onChange={e => setPetName(e.target.value)} placeholder="e.g. Buddy" required />
+                                <label className="text-sm font-medium text-slate-700">{dogCount > 1 ? "Dog Name(s) *" : "Dog's Name *"}</label>
+                                <Input
+                                    value={petName}
+                                    onChange={e => setPetName(e.target.value)}
+                                    placeholder={dogCount > 1 ? "e.g. Buddy, Bella & Milo" : "e.g. Buddy"}
+                                    required
+                                />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium text-slate-700">Breed</label>
@@ -636,7 +672,9 @@ export function BookingPage() {
                                 <textarea
                                     value={petNotes}
                                     onChange={e => setPetNotes(e.target.value)}
-                                    placeholder="Any allergies, behaviour notes, or special requirements..."
+                                    placeholder={dogCount > 1
+                                        ? "List each dog plus any allergies, behaviour notes, or special requirements..."
+                                        : "Any allergies, behaviour notes, or special requirements..."}
                                     className="w-full min-h-[80px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                                 />
                             </div>
@@ -669,8 +707,12 @@ export function BookingPage() {
                                     <span className="font-medium">{format(new Date(selectedSlot), "h:mm a")}</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-600 flex items-center gap-1.5"><Dog className="h-3.5 w-3.5" /> Dog</span>
+                                    <span className="text-slate-600 flex items-center gap-1.5"><Dog className="h-3.5 w-3.5" /> {dogCount > 1 ? "Dogs" : "Dog"}</span>
                                     <span className="font-medium">{petName} {breed && `(${breed})`}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Number of dogs</span>
+                                    <span className="font-medium">{dogCount}</span>
                                 </div>
                                 <div className="border-t border-slate-100 pt-3 flex justify-between text-sm font-bold">
                                     <span>Price</span>

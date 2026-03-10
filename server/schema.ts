@@ -119,6 +119,7 @@ export const appointmentSchema = z.object({
     service: z.string().max(MAX_SHORT).optional().nullable(),
     date: z.string().min(1, "Date is required").max(MAX_SHORT),
     duration: z.number().min(1, "Duration is required"),
+    dogCount: z.number().int().min(1, "At least 1 dog is required").max(4, "Online booking supports up to 4 dogs").optional().nullable(),
     status: appointmentStatus,
     price: z.number().optional().nullable(),
     avatar: z.string().max(MAX_TEXT).optional().nullable(),

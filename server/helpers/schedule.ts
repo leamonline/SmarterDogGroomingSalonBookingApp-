@@ -8,6 +8,12 @@ export const BOOKING_DAY_ORDER = [
   'Sunday',
 ] as const;
 
+export const BOOKING_DEFAULT_OPEN_DAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+] as const;
+
 export const DAY_NAMES_BY_INDEX = [
   'Sunday',
   'Monday',
@@ -58,10 +64,16 @@ export type NormalizedScheduleDay = {
   slots: NormalizedScheduleSlot[];
 };
 
+const DEFAULT_OPEN_DAY_SET = new Set<string>(BOOKING_DEFAULT_OPEN_DAYS);
+
 export function createDefaultSlotConfig() {
   return JSON.stringify(
     Object.fromEntries(BOOKING_SLOT_TIMES.map((time) => [time, true])),
   );
+}
+
+export function isBookingDayClosedByDefault(day: string) {
+  return !DEFAULT_OPEN_DAY_SET.has(day);
 }
 
 export function parseSlotConfig(slotConfig?: string | null) {
@@ -112,7 +124,7 @@ export function normalizeScheduleRow(row?: RawScheduleRow | null, dayOverride?: 
     day,
     openTime: BOOKING_OPEN_TIME,
     closeTime: BOOKING_CLOSE_TIME,
-    isClosed: Boolean(row?.isClosed),
+    isClosed: row?.isClosed == null ? isBookingDayClosedByDefault(day) : Boolean(row.isClosed),
     slots: BOOKING_SLOT_TIMES.map((time) => ({
       time,
       isAvailable: slotAvailability[time],

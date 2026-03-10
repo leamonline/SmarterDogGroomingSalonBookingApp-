@@ -114,10 +114,20 @@ export const api = {
     fetchWithAuth(`/api/customers?page=${page}&limit=${limit}`),
   getCustomers: (page = 1, limit = 50) =>
     fetchPaginatedData(`/api/customers?page=${page}&limit=${limit}`),
+  getCustomer: (id: string) => fetchWithAuth(`/api/customers/${id}`),
   createCustomer: (data: Record<string, unknown> | object) => fetchWithAuth('/api/customers', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  lookupAppointmentClients: (params: { ownerName?: string; phone?: string; petName?: string; breed?: string; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params.ownerName) query.set('ownerName', params.ownerName);
+    if (params.phone) query.set('phone', params.phone);
+    if (params.petName) query.set('petName', params.petName);
+    if (params.breed) query.set('breed', params.breed);
+    if (params.limit) query.set('limit', String(params.limit));
+    return fetchWithAuth(`/api/customers/appointment-lookup?${query.toString()}`);
+  },
   updateCustomer: (id: string, data: Record<string, unknown> | object) => fetchWithAuth(`/api/customers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -139,13 +149,30 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ tags }),
   }),
+  getDogsPage: (page = 1, limit = 50, query?: string) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (query) params.set('q', query);
+    return fetchWithAuth(`/api/dogs?${params.toString()}`);
+  },
+  getDogs: (page = 1, limit = 50, query?: string) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (query) params.set('q', query);
+    return fetchPaginatedData(`/api/dogs?${params.toString()}`);
+  },
+  getDog: (id: string) => fetchWithAuth(`/api/dogs/${id}`),
 
   // Appointments
   getAppointments: (page = 1, limit = 50) =>
     fetchPaginatedData(`/api/appointments?page=${page}&limit=${limit}`),
 
-  getNextAvailableSlots: (duration = 60, from = new Date().toISOString()) =>
-    fetchWithAuth(`/api/appointments/next-available?duration=${duration}&from=${encodeURIComponent(from)}`),
+  getNextAvailableSlots: (dogCount = 1, from = new Date().toISOString()) =>
+    fetchWithAuth(`/api/appointments/next-available?dogCount=${dogCount}&from=${encodeURIComponent(from)}`),
   createAppointment: (data: Record<string, unknown> | object) => fetchWithAuth('/api/appointments', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -242,7 +269,13 @@ export const api = {
   getAnalytics: () => fetchWithAuth('/api/analytics'),
 
   // Messaging
-  getMessages: (limit = 100) => fetchWithAuth(`/api/messages?limit=${limit}`),
+  getMessages: (filters?: { limit?: number; customerId?: string; appointmentId?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.limit) params.set('limit', String(filters.limit));
+    if (filters?.customerId) params.set('customerId', filters.customerId);
+    if (filters?.appointmentId) params.set('appointmentId', filters.appointmentId);
+    return fetchWithAuth(`/api/messages?${params.toString()}`);
+  },
   sendMessage: (data: { recipientEmail?: string; recipientPhone?: string; channel: 'email' | 'sms'; subject?: string; body: string; customerId?: string; appointmentId?: string }) =>
     fetchWithAuth('/api/messages/send', { method: 'POST', body: JSON.stringify(data) }),
 

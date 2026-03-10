@@ -5,7 +5,7 @@
 
 import { Suspense, lazy } from "react";
 import { Toaster } from "sonner";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/layout/Layout";
 import { AuthProvider } from "./lib/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
@@ -22,6 +22,9 @@ const Customers = lazy(async () => ({
 }));
 const Services = lazy(async () => ({
   default: (await import("./pages/Services")).Services,
+}));
+const Dogs = lazy(async () => ({
+  default: (await import("./pages/Dogs")).Dogs,
 }));
 const Settings = lazy(async () => ({
   default: (await import("./pages/Settings")).Settings,
@@ -66,8 +69,11 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/book" element={<BookingPage />} />
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<Navigate to="/calendar" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="calendar" element={<Calendar />} />
+              <Route path="clients" element={<Customers />} />
+              <Route path="dogs" element={<Dogs />} />
               <Route path="customers" element={<Customers />} />
               <Route path="services" element={<Services />} />
               <Route path="forms" element={<FormsManager />} />

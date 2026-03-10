@@ -13,22 +13,38 @@ import {
   Play,
   Plus,
   Scissors,
+  Settings2,
   Truck,
   UserCheck,
+  UserRound,
   XCircle,
+  Dog as DogIcon,
+  Mail,
 } from "lucide-react";
+import { BookingScheduleEditor } from "@/src/components/BookingScheduleEditor";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
+import { Select } from "@/src/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/src/components/ui/dialog";
 import { api } from "@/src/lib/api";
+import { useAuth } from "@/src/lib/AuthContext";
+import { type BookingScheduleDay, normalizeScheduleDays } from "@/src/lib/bookingSchedule";
 import { cn, formatCurrency } from "@/src/lib/utils";
 import { handleError } from "@/src/lib/handleError";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { AppointmentStatusBar } from "@/src/components/AppointmentStatusBar";
 import { CalendarSkeleton } from "@/src/components/ui/skeleton";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-type CalendarFilter = "all" | "needs-action" | "in-salon" | "done";
+type CalendarFilter = "all" | "needs-action" | "capacity-review" | "in-salon" | "done";
 
 const LIVE_STATUSES = new Set(["checked-in", "in-progress", "ready-for-collection"]);
 const NEEDS_ACTION_STATUSES = new Set([
@@ -43,8 +59,11 @@ const NEEDS_ACTION_STATUSES = new Set([
 const DONE_STATUSES = new Set(["completed", "cancelled-by-customer", "cancelled-by-salon", "no-show"]);
 
 function matchesFilter(appointment: Appointment, filter: CalendarFilter) {
+  if (filter === "capacity-review") {
+    return appointment.dogCountConfirmed === false;
+  }
   if (filter === "needs-action") {
-    return NEEDS_ACTION_STATUSES.has(appointment.status);
+    return NEEDS_ACTION_STATUSES.has(appointment.status) || appointment.dogCountConfirmed === false;
   }
   if (filter === "in-salon") {
     return LIVE_STATUSES.has(appointment.status);
@@ -83,6 +102,31 @@ function getAppointmentTone(status: string) {
   return "border-brand-200 bg-brand-50 text-brand-700";
 }
 
+function formatDogCountLabel(dogCount?: number) {
+  const count = dogCount || 1;
+  return `${count} ${count === 1 ? "dog" : "dogs"}`;
+}
+
+function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
+  if (!reviewedAt) return null;
+  const parsed = new Date(reviewedAt);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return `Confirmed by ${reviewedBy || "staff"} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}`;
+}
+
+function isDogCountConfirmed(value: unknown) {
+  return value === true || value === 1;
+}
+
+function normalizeAppointment(item: any): Appointment {
+  return {
+    ...item,
+    date: item.date instanceof Date ? item.date : new Date(item.date),
+    dogCount: item.dogCount ?? 1,
+    dogCountConfirmed: isDogCountConfirmed(item.dogCountConfirmed),
+  };
+}
+
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   'pending-approval': Clock3,
   'confirmed': CheckCircle,
@@ -108,21 +152,35 @@ function formatHourLabel(hour: number) {
 }
 
 export function Calendar() {
+  const { isAdmin } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [schedule, setSchedule] = useState<BookingScheduleDay[]>(() => normalizeScheduleDays());
+  const [scheduleDraft, setScheduleDraft] = useState<BookingScheduleDay[]>([]);
+  const [editingScheduleDay, setEditingScheduleDay] = useState<string | null>(null);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<CalendarFilter>("all");
+  const [reviewDogCounts, setReviewDogCounts] = useState<Record<string, number>>({});
+  const [confirmingAppointmentIds, setConfirmingAppointmentIds] = useState<string[]>([]);
+  const [isConfirmingAllReviewItems, setIsConfirmingAllReviewItems] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await api.getAppointments();
-        setAppointments(data.map((item: any) => ({ ...item, date: new Date(item.date) })));
+        const [appointmentData, settingsData] = await Promise.all([
+          api.getAppointments(),
+          api.getSettings(),
+        ]);
+
+        setAppointments(appointmentData.map((item: any) => normalizeAppointment(item)));
+        setSchedule(normalizeScheduleDays(settingsData.schedule));
       } catch (err) {
         handleError(err, "Failed to load appointments");
       } finally {
@@ -164,6 +222,21 @@ export function Calendar() {
     () => weekAppointments.filter((appointment) => isSameDay(appointment.date, selectedDay)),
     [weekAppointments, selectedDay],
   );
+  const scheduleByDay = useMemo(
+    () => new Map(schedule.map((daySchedule) => [daySchedule.day, daySchedule])),
+    [schedule],
+  );
+  const selectedDayName = useMemo(() => format(selectedDay, "EEEE"), [selectedDay]);
+  const selectedDaySchedule = useMemo(
+    () => scheduleByDay.get(selectedDayName) || null,
+    [scheduleByDay, selectedDayName],
+  );
+  const editingDaySchedule = useMemo(
+    () => editingScheduleDay
+      ? scheduleDraft.find((daySchedule) => daySchedule.day === editingScheduleDay) || null
+      : null,
+    [editingScheduleDay, scheduleDraft],
+  );
 
   const handleAppointmentClick = useCallback((appointment: Appointment) => {
     setSelectedDay(appointment.date);
@@ -182,14 +255,17 @@ export function Calendar() {
   ) => {
     try {
       const exists = appointments.some((appointment) => appointment.id === updatedAppointment.id);
+      const savedAppointment = normalizeAppointment(
+        exists
+          ? await api.updateAppointment(updatedAppointment.id, updatedAppointment)
+          : await api.createAppointment(updatedAppointment),
+      );
       if (exists) {
-        await api.updateAppointment(updatedAppointment.id, updatedAppointment);
         setAppointments((prev) =>
-          prev.map((appointment) => (appointment.id === updatedAppointment.id ? updatedAppointment : appointment)),
+          prev.map((appointment) => (appointment.id === updatedAppointment.id ? savedAppointment : appointment)),
         );
       } else {
-        await api.createAppointment(updatedAppointment);
-        setAppointments((prev) => [...prev, updatedAppointment]);
+        setAppointments((prev) => [...prev, savedAppointment]);
       }
 
       if (options?.successMessage) {
@@ -205,7 +281,7 @@ export function Calendar() {
 
   const handleStatusUpdate = useCallback((updatedAppointment: Appointment) => {
     setAppointments((prev) =>
-      prev.map((appointment) => (appointment.id === updatedAppointment.id ? updatedAppointment : appointment)),
+      prev.map((appointment) => (appointment.id === updatedAppointment.id ? normalizeAppointment(updatedAppointment) : appointment)),
     );
   }, []);
 
@@ -257,9 +333,72 @@ export function Calendar() {
     setSelectedDay(now);
   }, []);
 
+  const openClientProfile = useCallback((customerId?: string) => {
+    if (!customerId) return;
+    navigate("/clients", { state: { customerId } });
+  }, [navigate]);
+
+  const openDogProfile = useCallback((dogId?: string) => {
+    if (!dogId) return;
+    navigate("/dogs", { state: { dogId } });
+  }, [navigate]);
+
+  const openMessaging = useCallback((appointment: Appointment) => {
+    if (!appointment.customerId) return;
+    navigate("/messaging", {
+      state: {
+        customerId: appointment.customerId,
+        dogId: appointment.dogId,
+        appointmentId: appointment.id,
+      },
+    });
+  }, [navigate]);
+
+  const openScheduleSettings = useCallback((day: Date) => {
+    setSelectedDay(day);
+    setScheduleDraft(schedule);
+    setEditingScheduleDay(format(day, "EEEE"));
+  }, [schedule]);
+
+  const openCapacityReview = useCallback((appointment: Appointment) => {
+    setCurrentDate(appointment.date);
+    setSelectedDay(appointment.date);
+    setActiveFilter("capacity-review");
+    setSelectedAppointment(appointment);
+    setIsModalOpen(true);
+  }, []);
+
+  const closeScheduleSettings = useCallback(() => {
+    setEditingScheduleDay(null);
+    setScheduleDraft([]);
+  }, []);
+
+  const handleSaveSchedule = useCallback(async () => {
+    if (!editingScheduleDay) return;
+
+    try {
+      setIsSavingSchedule(true);
+      await api.updateSettings({ schedule: scheduleDraft });
+      setSchedule(scheduleDraft);
+      toast.success(`${editingScheduleDay} booking settings saved`);
+      closeScheduleSettings();
+    } catch (err) {
+      handleError(err, "Failed to save booking schedule");
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  }, [closeScheduleSettings, editingScheduleDay, scheduleDraft]);
+
   const weeklyInSalon = useMemo(() => weekAppointments.filter((a) => LIVE_STATUSES.has(a.status)).length, [weekAppointments]);
   const weeklyNeedsAction = useMemo(() => weekAppointments.filter((a) => NEEDS_ACTION_STATUSES.has(a.status)).length, [weekAppointments]);
+  const weeklyCapacityReview = useMemo(() => allWeekAppointments.filter((a) => a.dogCountConfirmed === false).length, [allWeekAppointments]);
   const weeklyDone = useMemo(() => weekAppointments.filter((a) => DONE_STATUSES.has(a.status)).length, [weekAppointments]);
+  const upcomingCapacityReview = useMemo(
+    () => appointments
+      .filter((appointment) => appointment.dogCountConfirmed === false)
+      .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    [appointments],
+  );
   const selectedDayRevenue = useMemo(
     () => selectedDayAppointments
       .filter((a) => !a.status.includes("cancelled") && a.status !== "no-show")
@@ -267,12 +406,100 @@ export function Calendar() {
     [selectedDayAppointments],
   );
 
+  useEffect(() => {
+    setReviewDogCounts((prev) => {
+      const nextEntries = upcomingCapacityReview.map((appointment) => [
+        appointment.id,
+        prev[appointment.id] ?? appointment.dogCount ?? 1,
+      ] as const);
+      const next = Object.fromEntries(nextEntries);
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      const unchanged = prevKeys.length === nextKeys.length
+        && nextKeys.every((key) => prev[key] === next[key]);
+      return unchanged ? prev : next;
+    });
+  }, [upcomingCapacityReview]);
+
+  const getReviewDogCount = useCallback(
+    (appointment: Appointment) => reviewDogCounts[appointment.id] ?? appointment.dogCount ?? 1,
+    [reviewDogCounts],
+  );
+
+  const isConfirmingReviewItem = useCallback(
+    (appointmentId: string) => confirmingAppointmentIds.includes(appointmentId),
+    [confirmingAppointmentIds],
+  );
+
+  const handleReviewDogCountChange = useCallback((appointmentId: string, value: string) => {
+    const dogCount = Number(value);
+    if (!Number.isInteger(dogCount) || dogCount < 1 || dogCount > 4) return;
+    setReviewDogCounts((prev) => ({ ...prev, [appointmentId]: dogCount }));
+  }, []);
+
+  const handleConfirmReviewItem = useCallback(async (appointment: Appointment) => {
+    if (isConfirmingReviewItem(appointment.id)) return;
+
+    setConfirmingAppointmentIds((prev) => [...prev, appointment.id]);
+    try {
+      const confirmedDogCount = getReviewDogCount(appointment);
+      const saved = await handleSaveAppointment(
+        { ...appointment, dogCount: confirmedDogCount },
+        { successMessage: `${appointment.petName} is now confirmed for ${formatDogCountLabel(confirmedDogCount)}` },
+      );
+      return Boolean(saved);
+    } finally {
+      setConfirmingAppointmentIds((prev) => prev.filter((id) => id !== appointment.id));
+    }
+  }, [getReviewDogCount, handleSaveAppointment, isConfirmingReviewItem]);
+
+  const handleConfirmAllReviewItems = useCallback(async () => {
+    if (isConfirmingAllReviewItems || upcomingCapacityReview.length === 0) return;
+
+    setIsConfirmingAllReviewItems(true);
+    let confirmedCount = 0;
+    let failedCount = 0;
+
+    try {
+      for (const appointment of upcomingCapacityReview) {
+        setConfirmingAppointmentIds((prev) => (
+          prev.includes(appointment.id) ? prev : [...prev, appointment.id]
+        ));
+        try {
+          const confirmedDogCount = getReviewDogCount(appointment);
+          const saved = await handleSaveAppointment({ ...appointment, dogCount: confirmedDogCount });
+          if (saved) {
+            confirmedCount += 1;
+          } else {
+            failedCount += 1;
+          }
+        } finally {
+          setConfirmingAppointmentIds((prev) => prev.filter((id) => id !== appointment.id));
+        }
+      }
+
+      if (confirmedCount > 0) {
+        toast.success(
+          `Confirmed ${confirmedCount} booking${confirmedCount === 1 ? "" : "s"} in the review queue.`,
+        );
+      }
+      if (failedCount > 0) {
+        toast.error(
+          `${failedCount} booking${failedCount === 1 ? "" : "s"} still need the full booking screen.`,
+        );
+      }
+    } finally {
+      setIsConfirmingAllReviewItems(false);
+    }
+  }, [getReviewDogCount, handleSaveAppointment, isConfirmingAllReviewItems, upcomingCapacityReview]);
+
   const filterOptions = useMemo<Array<{ value: CalendarFilter; label: string; count: number }>>(() => [
     { value: "all", label: "All", count: allWeekAppointments.length },
     { value: "needs-action", label: "Needs Action", count: allWeekAppointments.filter((a) => matchesFilter(a, "needs-action")).length },
+    { value: "capacity-review", label: "Capacity Review", count: weeklyCapacityReview },
     { value: "in-salon", label: "In Salon", count: allWeekAppointments.filter((a) => matchesFilter(a, "in-salon")).length },
     { value: "done", label: "Done", count: allWeekAppointments.filter((a) => matchesFilter(a, "done")).length },
-  ], [allWeekAppointments]);
+  ], [allWeekAppointments, weeklyCapacityReview]);
 
   if (loading) return <CalendarSkeleton />;
 
@@ -280,9 +507,9 @@ export function Calendar() {
     <div className="flex h-full flex-col space-y-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight text-purple">Calendar</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-purple">Bookings</h1>
           <p className="text-sm text-slate-500">
-            Drag appointments to reschedule, filter the floor view, and use the day agenda to keep staff aligned.
+            Run the salon from one calendar-first workspace, then jump straight into the linked client, dog, or message thread.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -304,7 +531,7 @@ export function Calendar() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Visible This Week</CardTitle>
@@ -322,7 +549,7 @@ export function Calendar() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{weeklyNeedsAction}</div>
-            <p className="text-xs text-slate-500">Approvals, pickups, and live follow-ups</p>
+            <p className="text-xs text-slate-500">Approvals, pickups, and dog-count reviews</p>
           </CardContent>
         </Card>
         <Card>
@@ -333,6 +560,16 @@ export function Calendar() {
           <CardContent>
             <div className="text-2xl font-bold">{weeklyInSalon}</div>
             <p className="text-xs text-slate-500">Checked in, grooming, or ready</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Capacity Review</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{upcomingCapacityReview.length}</div>
+            <p className="text-xs text-slate-500">Future bookings blocking online slots until confirmed</p>
           </CardContent>
         </Card>
         <Card>
@@ -353,6 +590,16 @@ export function Calendar() {
           <p className="text-sm text-slate-500">
             {selectedDayAppointments.length} visible appointments. Drag in the grid to change the time.
           </p>
+          {selectedDaySchedule && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant={selectedDaySchedule.isClosed ? "outline" : "secondary"}>
+                {selectedDaySchedule.isClosed ? "Booking closed" : "Booking open"}
+              </Badge>
+              <Badge variant="outline">
+                {selectedDaySchedule.slots.filter((slot) => slot.isAvailable).length} start times enabled
+              </Badge>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {filterOptions.map((filter) => (
@@ -369,6 +616,27 @@ export function Calendar() {
         </div>
       </div>
 
+      {upcomingCapacityReview.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Capacity review queue</p>
+              <p className="text-sm text-amber-800">
+                {upcomingCapacityReview.length} future booking{upcomingCapacityReview.length === 1 ? "" : "s"} still need a confirmed dog count before online capacity reopens.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setActiveFilter("capacity-review")}>
+                Show review items
+              </Button>
+              <Button type="button" size="sm" onClick={() => openCapacityReview(upcomingCapacityReview[0])}>
+                Review next booking
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="min-w-[880px] flex flex-col h-full">
@@ -377,27 +645,51 @@ export function Calendar() {
               {weekDays.map((day) => {
                 const dayAppointments = weekAppointments.filter((appointment) => isSameDay(appointment.date, day));
                 const isSelected = isSameDay(day, selectedDay);
+                const daySchedule = scheduleByDay.get(format(day, "EEEE"));
 
                 return (
-                  <button
+                  <div
                     key={day.toISOString()}
-                    type="button"
-                    onClick={() => setSelectedDay(day)}
                     className={cn(
                       "border-l border-slate-200 p-4 text-center transition-colors",
                       isSelected ? "bg-brand-50" : "hover:bg-slate-100",
                     )}
                   >
-                    <div className={cn("text-sm font-medium", isSelected ? "text-brand-700" : "text-slate-900")}>
-                      {format(day, "EEE")}
-                    </div>
-                    <div className={cn("mt-1 text-2xl font-light", isSelected ? "text-brand-700" : "text-slate-500")}>
-                      {format(day, "d")}
-                    </div>
-                    <div className="mt-1 text-[11px] font-medium text-slate-500">
-                      {dayAppointments.length} appt{dayAppointments.length === 1 ? "" : "s"}
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDay(day)}
+                      className="w-full"
+                    >
+                      <div className={cn("text-sm font-medium", isSelected ? "text-brand-700" : "text-slate-900")}>
+                        {format(day, "EEE")}
+                      </div>
+                      <div className={cn("mt-1 text-2xl font-light", isSelected ? "text-brand-700" : "text-slate-500")}>
+                        {format(day, "d")}
+                      </div>
+                      <div className="mt-1 text-[11px] font-medium text-slate-500">
+                        {dayAppointments.length} appt{dayAppointments.length === 1 ? "" : "s"}
+                      </div>
+                    </button>
+                    {daySchedule && (
+                      <div className="mt-3 flex flex-col items-center gap-2">
+                        <Badge variant={daySchedule.isClosed ? "outline" : "secondary"}>
+                          {daySchedule.isClosed ? "Closed" : "Open"}
+                        </Badge>
+                        {isAdmin && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 rounded-full px-3 text-xs"
+                            onClick={() => openScheduleSettings(day)}
+                          >
+                            <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+                            Schedule
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -454,8 +746,17 @@ export function Calendar() {
                                 <span className="ml-auto text-[9px] font-medium opacity-70 uppercase tracking-wide shrink-0">{formatStatusLabel(appointment.status)}</span>
                               </div>
                               <div className="truncate opacity-80">{appointment.service}</div>
+                              {height > 58 && (
+                                <div className="truncate opacity-75">{formatDogCountLabel(appointment.dogCount)}</div>
+                              )}
                               {height > 74 && (
                                 <div className="truncate opacity-70">{appointment.ownerName}</div>
+                              )}
+                              {height > 90 && appointment.dogCountConfirmed === false && (
+                                <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-amber-800">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Review dog count
+                                </div>
                               )}
                               {height > 90 && (
                                 <div className="mt-1 opacity-70 text-[10px]">
@@ -480,6 +781,95 @@ export function Calendar() {
 
         <Card className="h-fit xl:h-full">
           <CardHeader className="space-y-4">
+            {upcomingCapacityReview.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Capacity review queue</p>
+                    <p className="text-xs text-amber-800">Set the dog count here, then confirm without opening every booking.</p>
+                  </div>
+                  <Badge variant="outline" className="border-amber-200 bg-white text-amber-800">
+                    {upcomingCapacityReview.length} waiting
+                  </Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openCapacityReview(upcomingCapacityReview[0])}
+                    disabled={isConfirmingAllReviewItems}
+                  >
+                    Open next
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleConfirmAllReviewItems}
+                    disabled={isConfirmingAllReviewItems}
+                  >
+                    {isConfirmingAllReviewItems ? "Confirming queue..." : "Confirm all current counts"}
+                  </Button>
+                </div>
+                <div className="mt-3 max-h-[420px] space-y-2 overflow-auto pr-1">
+                  {upcomingCapacityReview.map((appointment) => {
+                    const isSaving = isConfirmingReviewItem(appointment.id);
+                    return (
+                      <div
+                        key={appointment.id}
+                        className="rounded-lg border border-amber-200 bg-white px-3 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-900">{appointment.petName}</p>
+                            <p className="text-sm text-slate-600">{format(appointment.date, "EEE d MMM • h:mm a")}</p>
+                            <p className="text-xs text-amber-800">{appointment.ownerName}</p>
+                          </div>
+                          <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                            Needs review
+                          </Badge>
+                        </div>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <div className="min-w-[110px]">
+                            <Select
+                              size="sm"
+                              value={String(getReviewDogCount(appointment))}
+                              onChange={(event) => handleReviewDogCountChange(appointment.id, event.target.value)}
+                              disabled={isSaving || isConfirmingAllReviewItems}
+                              aria-label={`Dog count for ${appointment.petName}`}
+                            >
+                              <option value="1">1 dog</option>
+                              <option value="2">2 dogs</option>
+                              <option value="3">3 dogs</option>
+                              <option value="4">4 dogs</option>
+                            </Select>
+                          </div>
+                          <div className="flex flex-1 flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleConfirmReviewItem(appointment)}
+                              disabled={isSaving || isConfirmingAllReviewItems}
+                            >
+                              {isSaving ? "Confirming..." : "Confirm count"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openCapacityReview(appointment)}
+                              disabled={isSaving || isConfirmingAllReviewItems}
+                            >
+                              Open booking
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div>
               <CardTitle>{format(selectedDay, "EEEE d MMMM")}</CardTitle>
               <p className="mt-1 text-sm text-slate-500">
@@ -559,11 +949,49 @@ export function Calendar() {
                             </span>
                             <span className="font-medium text-slate-900">{formatCurrency(appointment.price)}</span>
                           </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">{formatDogCountLabel(appointment.dogCount)}</Badge>
+                            {appointment.dogCountConfirmed === false ? (
+                              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                                Capacity review needed
+                              </Badge>
+                            ) : null}
+                          </div>
+                          {appointment.dogCountConfirmed !== false && (
+                            (() => {
+                              const reviewNote = formatDogCountReviewNote(appointment.dogCountReviewedAt, appointment.dogCountReviewedBy);
+                              return reviewNote ? (
+                                <p className="mt-2 text-xs font-medium text-brand-700">{reviewNote}</p>
+                              ) : null;
+                            })()
+                          )}
                           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                            <AppointmentStatusBar appointment={appointment} onUpdated={handleStatusUpdate} />
-                            <Button type="button" size="sm" variant="outline" onClick={() => handleAppointmentClick(appointment)}>
-                              Open
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              {appointment.customerId ? (
+                                <Button type="button" size="sm" variant="outline" onClick={() => openClientProfile(appointment.customerId)}>
+                                  <UserRound className="mr-1.5 h-3.5 w-3.5" />
+                                  Client
+                                </Button>
+                              ) : null}
+                              {appointment.dogId ? (
+                                <Button type="button" size="sm" variant="outline" onClick={() => openDogProfile(appointment.dogId)}>
+                                  <DogIcon className="mr-1.5 h-3.5 w-3.5" />
+                                  Dog
+                                </Button>
+                              ) : null}
+                              {appointment.customerId ? (
+                                <Button type="button" size="sm" variant="outline" onClick={() => openMessaging(appointment)}>
+                                  <Mail className="mr-1.5 h-3.5 w-3.5" />
+                                  Message
+                                </Button>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <AppointmentStatusBar appointment={appointment} onUpdated={handleStatusUpdate} />
+                              <Button type="button" size="sm" variant="outline" onClick={() => handleAppointmentClick(appointment)}>
+                                Open
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -582,6 +1010,38 @@ export function Calendar() {
         appointment={selectedAppointment}
         onSave={handleSaveAppointment}
       />
+      <Dialog
+        open={Boolean(editingScheduleDay)}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeScheduleSettings();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingScheduleDay} booking settings</DialogTitle>
+            <DialogDescription>
+              These controls only update online booking for {editingScheduleDay}. Monday to Wednesday default to open, while Thursday to Sunday default to closed.
+            </DialogDescription>
+          </DialogHeader>
+          {editingDaySchedule && (
+            <BookingScheduleEditor
+              schedule={scheduleDraft}
+              setSchedule={setScheduleDraft}
+              visibleDays={[editingDaySchedule.day]}
+            />
+          )}
+          <DialogFooter className="border-t border-slate-100 pt-4">
+            <Button type="button" variant="outline" onClick={closeScheduleSettings}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleSaveSchedule} disabled={isSavingSchedule}>
+              {isSavingSchedule ? "Saving..." : "Save Day Settings"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

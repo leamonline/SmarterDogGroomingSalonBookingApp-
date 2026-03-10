@@ -44,14 +44,19 @@ router.get('/schedule', (req, res) => {
 
 // Public: get available slots for a date
 router.get('/available-slots', (req, res) => {
-    const { date, duration } = req.query;
+    const { date, duration, dogCount } = req.query;
     if (!date) return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
 
     const dateStr = date as string;
     const dur = parseInt(duration as string) || 60;
+    const parsedDogCount = dogCount == null ? 1 : parseInt(dogCount as string);
 
-    const slots = getAvailableSlotsForDate(dateStr, dur);
-    res.json({ slots, date: dateStr, duration: dur });
+    if (!Number.isInteger(parsedDogCount) || parsedDogCount < 1 || parsedDogCount > 4) {
+        return res.status(400).json({ error: 'dogCount must be between 1 and 4' });
+    }
+
+    const slots = getAvailableSlotsForDate(dateStr, parsedDogCount);
+    res.json({ slots, date: dateStr, duration: dur, dogCount: parsedDogCount });
 });
 
 // Public: customer registration
@@ -105,20 +110,25 @@ router.post('/login', loginLimiter, (req, res) => {
 // Public: submit a booking (requires customer auth token)
 router.post('/bookings', authenticateToken, (req: Request, res: Response) => {
     const user = getUser(req);
-    const { serviceId, date, petName, breed, notes, customerId } = req.body;
+    const { serviceId, date, petName, breed, notes, customerId, dogCount } = req.body;
     if (!serviceId || !date || !petName) {
         return res.status(400).json({ error: 'serviceId, date, and petName are required' });
+    }
+
+    const normalizedDogCount = dogCount == null ? 1 : Number(dogCount);
+    if (!Number.isInteger(normalizedDogCount) || normalizedDogCount < 1 || normalizedDogCount > 4) {
+        return res.status(400).json({ error: 'Online booking currently supports between 1 and 4 dogs per request.' });
     }
 
     const service = db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId) as ServiceRow | undefined;
     if (!service) return res.status(404).json({ error: 'Service not found' });
 
-    const availability = getAppointmentAvailability(date, service.duration);
+    const availability = getAppointmentAvailability(date, normalizedDogCount);
     const conflictReason = getAvailabilityReason(availability);
     if (conflictReason) {
         return res.status(400).json({
             error: getAvailabilityErrorMessage(conflictReason),
-            suggestions: getNextAvailableSlots(date, service.duration, 3),
+            suggestions: getNextAvailableSlots(date, normalizedDogCount, 3),
         });
     }
 
@@ -126,15 +136,15 @@ router.post('/bookings', authenticateToken, (req: Request, res: Response) => {
     const apptId = crypto.randomUUID();
 
     db.prepare(`
-        INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, status, price, avatar, customerId, notes, depositRequired, depositAmount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, dogCount, dogCountConfirmed, status, price, avatar, customerId, notes, depositAmount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-        apptId, petName, breed || '', '', service.name, date, service.duration, status, service.price,
+        apptId, petName, breed || '', '', service.name, date, service.duration, normalizedDogCount, 1, status, service.price,
         'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80',
-        customerId || null, notes || '', service.depositRequired ? 1 : 0, service.depositAmount || 0
+        customerId || null, notes || '', service.depositAmount || 0
     );
 
-    logAudit(user.id, 'book', 'appointment', apptId, null, { serviceId, petName, status });
+    logAudit(user.id, 'book', 'appointment', apptId, null, { serviceId, petName, dogCount: normalizedDogCount, status });
 
     const triggerKey = status === 'pending-approval' ? 'booking_pending' : 'booking_confirmed';
     autoNotify(

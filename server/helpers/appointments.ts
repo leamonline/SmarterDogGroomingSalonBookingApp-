@@ -1,33 +1,42 @@
 import db from '../db.js';
 import {
-  BOOKING_SLOT_CAPACITY,
   BOOKING_SLOT_TIMES,
   DAY_NAMES_BY_INDEX,
   combineDateAndTime,
-  getSlotTimesForDuration,
   normalizeScheduleRows,
 } from './schedule.js';
 
-// Maximum grooming appointment duration used to bound the overlap query window.
-export const MAX_DURATION_MINUTES = 480; // 8 hours, generous upper bound
+export const MAX_BOOKING_DOGS = 4;
+export const MAX_DOGS_PER_DAY = 15;
 
 type ExistingAppointment = {
   id: string;
   date: string;
-  duration: number;
+  dogCount: number | null;
+  dogCountConfirmed: number | null;
 };
 
 export type AvailabilityReason =
   | 'invalid-date'
+  | 'invalid-dog-count'
   | 'closed-day'
+  | 'manual-review'
   | 'invalid-start-time'
-  | 'outside-hours'
   | 'slot-unavailable'
-  | 'slot-capacity';
+  | 'slot-capacity'
+  | 'slot-pair-unavailable'
+  | 'daily-dog-limit';
 
 export type AvailabilityCheck =
   | { ok: true }
   | { ok: false; reason: AvailabilityReason };
+
+type DayState = {
+  isManualReview: boolean;
+  scheduleDay: ReturnType<typeof normalizeScheduleRows>[number] | null;
+  slotCounts: number[];
+  totalDogs: number;
+};
 
 const NON_BLOCKING_STATUSES = ['cancelled-by-customer', 'cancelled-by-salon', 'no-show'] as const;
 
@@ -39,7 +48,7 @@ function loadScheduleByDay() {
 
 function loadAppointmentsInRange(windowStart: string, windowEnd: string, excludeId?: string) {
   const appointments = db.prepare(`
-    SELECT id, date, duration FROM appointments
+    SELECT id, date, dogCount, dogCountConfirmed FROM appointments
     WHERE date BETWEEN ? AND ?
       AND status NOT IN (${NON_BLOCKING_STATUSES.map(() => '?').join(', ')})
   `).all(windowStart, windowEnd, ...NON_BLOCKING_STATUSES) as ExistingAppointment[];
@@ -55,15 +64,148 @@ function formatTimeKey(date: Date) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function overlaps(windowStart: number, windowEnd: number, appointment: ExistingAppointment) {
-  const apptStart = new Date(appointment.date).getTime();
-  const apptEnd = apptStart + ((appointment.duration || 60) * 60000);
-  return windowStart < apptEnd && windowEnd > apptStart;
+function getDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function normalizeDogCount(dogCount?: number | null) {
+  const parsed = Number(dogCount ?? 1);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_BOOKING_DOGS) {
+    return null;
+  }
+  return parsed;
+}
+
+function isDogCountConfirmed(appointment: ExistingAppointment) {
+  return appointment.dogCountConfirmed === 1;
+}
+
+function getDogPlacement(dogCount: number) {
+  if (dogCount === 1) return [1];
+  if (dogCount === 2) return [2];
+  if (dogCount === 3) return [2, 1];
+  return [2, 2];
+}
+
+function calculateSlotCaps(slotCounts: number[]) {
+  return slotCounts.map((_, index) => {
+    if (index < 2) {
+      return 2;
+    }
+
+    return slotCounts[index - 1] === 2 && slotCounts[index - 2] === 2 ? 1 : 2;
+  });
+}
+
+function loadDayState(
+  targetDate: Date,
+  existingAppointments: ExistingAppointment[],
+  scheduleByDay: ReturnType<typeof loadScheduleByDay>,
+): DayState {
+  const dayName = DAY_NAMES_BY_INDEX[targetDate.getDay()];
+  const scheduleDay = scheduleByDay.get(dayName) || null;
+  if (!scheduleDay) {
+    return {
+      isManualReview: false,
+      scheduleDay: null,
+      slotCounts: [],
+      totalDogs: 0,
+    };
+  }
+
+  const dayKey = getDateKey(targetDate);
+  const dayAppointments = existingAppointments.filter((appointment) => {
+    const appointmentDate = new Date(appointment.date);
+    return !Number.isNaN(appointmentDate.getTime()) && getDateKey(appointmentDate) === dayKey;
+  });
+
+  if (dayAppointments.some((appointment) => !isDogCountConfirmed(appointment))) {
+    return {
+      isManualReview: true,
+      scheduleDay,
+      slotCounts: [],
+      totalDogs: 0,
+    };
+  }
+
+  if (scheduleDay.isClosed && dayAppointments.length > 0) {
+    return {
+      isManualReview: true,
+      scheduleDay,
+      slotCounts: [],
+      totalDogs: 0,
+    };
+  }
+
+  const slotCounts = BOOKING_SLOT_TIMES.map(() => 0);
+
+  for (const appointment of dayAppointments) {
+    const appointmentDate = new Date(appointment.date);
+    const timeKey = formatTimeKey(appointmentDate);
+    const slotIndex = BOOKING_SLOT_TIMES.findIndex((slotTime) => slotTime === timeKey);
+    const dogCount = normalizeDogCount(appointment.dogCount);
+
+    if (
+      Number.isNaN(appointmentDate.getTime())
+      || slotIndex === -1
+      || !dogCount
+    ) {
+      return {
+        isManualReview: true,
+        scheduleDay,
+        slotCounts: [],
+        totalDogs: 0,
+      };
+    }
+
+    const placement = getDogPlacement(dogCount);
+    if (slotIndex + placement.length > BOOKING_SLOT_TIMES.length) {
+      return {
+        isManualReview: true,
+        scheduleDay,
+        slotCounts: [],
+        totalDogs: 0,
+      };
+    }
+
+    for (let offset = 0; offset < placement.length; offset += 1) {
+      const scheduleSlot = scheduleDay.slots[slotIndex + offset];
+      if (!scheduleSlot?.isAvailable) {
+        return {
+          isManualReview: true,
+          scheduleDay,
+          slotCounts: [],
+          totalDogs: 0,
+        };
+      }
+      slotCounts[slotIndex + offset] += placement[offset];
+    }
+  }
+
+  const totalDogs = slotCounts.reduce((sum, count) => sum + count, 0);
+  const caps = calculateSlotCaps(slotCounts);
+  const exceedsCap = slotCounts.some((count, index) => count > caps[index]);
+
+  if (totalDogs > MAX_DOGS_PER_DAY || exceedsCap) {
+    return {
+      isManualReview: true,
+      scheduleDay,
+      slotCounts,
+      totalDogs,
+    };
+  }
+
+  return {
+    isManualReview: false,
+    scheduleDay,
+    slotCounts,
+    totalDogs,
+  };
 }
 
 function checkAvailabilityAgainstData(
   dateString: string,
-  duration: number,
+  dogCount: number,
   existingAppointments: ExistingAppointment[],
   scheduleByDay: ReturnType<typeof loadScheduleByDay>,
 ): AvailabilityCheck {
@@ -72,46 +214,52 @@ function checkAvailabilityAgainstData(
     return { ok: false, reason: 'invalid-date' };
   }
 
-  const dayName = DAY_NAMES_BY_INDEX[startDate.getDay()];
-  const daySchedule = scheduleByDay.get(dayName);
-  if (!daySchedule || daySchedule.isClosed) {
+  const normalizedDogCount = normalizeDogCount(dogCount);
+  if (!normalizedDogCount) {
+    return { ok: false, reason: 'invalid-dog-count' };
+  }
+
+  const dayState = loadDayState(startDate, existingAppointments, scheduleByDay);
+  if (dayState.isManualReview) {
+    return { ok: false, reason: 'manual-review' };
+  }
+
+  if (!dayState.scheduleDay || dayState.scheduleDay.isClosed) {
     return { ok: false, reason: 'closed-day' };
   }
 
   const startTime = formatTimeKey(startDate);
-  if (!BOOKING_SLOT_TIMES.includes(startTime as any)) {
+  const startSlotIndex = BOOKING_SLOT_TIMES.findIndex((slotTime) => slotTime === startTime);
+  if (startSlotIndex === -1) {
     return { ok: false, reason: 'invalid-start-time' };
   }
 
-  const startSlot = daySchedule.slots.find((slot) => slot.time === startTime);
-  if (!startSlot?.isAvailable) {
-    return { ok: false, reason: 'slot-unavailable' };
+  const placement = getDogPlacement(normalizedDogCount);
+  if (startSlotIndex + placement.length > BOOKING_SLOT_TIMES.length) {
+    return { ok: false, reason: placement.length > 1 ? 'slot-pair-unavailable' : 'slot-unavailable' };
   }
 
-  const appointmentEnd = new Date(startDate.getTime() + (duration * 60000));
-  const closingTime = combineDateAndTime(startDate, daySchedule.closeTime);
-  if (appointmentEnd.getTime() > closingTime.getTime()) {
-    return { ok: false, reason: 'outside-hours' };
+  for (let offset = 0; offset < placement.length; offset += 1) {
+    const slot = dayState.scheduleDay.slots[startSlotIndex + offset];
+    if (!slot?.isAvailable) {
+      return { ok: false, reason: placement.length > 1 ? 'slot-pair-unavailable' : 'slot-unavailable' };
+    }
   }
 
-  const slotMap = new Map(daySchedule.slots.map((slot) => [slot.time, slot]));
-  const coveredSlotTimes = getSlotTimesForDuration(startTime, duration);
+  const tentativeCounts = [...dayState.slotCounts];
+  for (let offset = 0; offset < placement.length; offset += 1) {
+    tentativeCounts[startSlotIndex + offset] += placement[offset];
+  }
 
-  for (const slotTime of coveredSlotTimes) {
-    const slotConfig = slotMap.get(slotTime as any);
-    if (!slotConfig?.isAvailable) {
-      return { ok: false, reason: 'slot-unavailable' };
-    }
+  const totalDogs = tentativeCounts.reduce((sum, count) => sum + count, 0);
+  if (totalDogs > MAX_DOGS_PER_DAY) {
+    return { ok: false, reason: 'daily-dog-limit' };
+  }
 
-    const slotWindowStart = combineDateAndTime(startDate, slotTime);
-    const slotWindowEnd = new Date(slotWindowStart.getTime() + (30 * 60000));
-    const concurrentAppointments = existingAppointments.filter((appointment) =>
-      overlaps(slotWindowStart.getTime(), slotWindowEnd.getTime(), appointment),
-    ).length;
-
-    if (concurrentAppointments >= BOOKING_SLOT_CAPACITY) {
-      return { ok: false, reason: 'slot-capacity' };
-    }
+  const caps = calculateSlotCaps(tentativeCounts);
+  const exceedsCap = tentativeCounts.some((count, index) => count > caps[index]);
+  if (exceedsCap) {
+    return { ok: false, reason: placement.length > 1 ? 'slot-pair-unavailable' : 'slot-capacity' };
   }
 
   return { ok: true };
@@ -119,14 +267,20 @@ function checkAvailabilityAgainstData(
 
 export function getAvailabilityErrorMessage(reason: AvailabilityReason) {
   switch (reason) {
+    case 'invalid-dog-count':
+      return 'Online booking currently supports up to 4 dogs per request. Please contact the salon for larger groups.';
     case 'closed-day':
       return 'This day is closed for bookings.';
+    case 'manual-review':
+      return 'This day needs a quick manual review before we can add another booking. Please contact the salon.';
     case 'invalid-start-time':
       return 'Appointments must start on one of the configured 30-minute booking slots.';
-    case 'outside-hours':
-      return 'This appointment would finish outside your booking hours.';
     case 'slot-unavailable':
-      return 'One or more of the required time slots are unavailable for booking.';
+      return 'One or more of the required drop-off slots are unavailable for booking.';
+    case 'slot-pair-unavailable':
+      return 'I do not have a suitable consecutive drop-off window for that number of dogs on this day.';
+    case 'daily-dog-limit':
+      return 'This day has already reached its 15-dog booking limit.';
     case 'slot-capacity':
       return 'This slot is already at capacity.';
     default:
@@ -138,28 +292,23 @@ export function getAvailabilityReason(availability: AvailabilityCheck) {
   return 'reason' in availability ? availability.reason : null;
 }
 
-export function getAvailableSlotsForDate(dateStr: string, duration: number, excludeId?: string) {
+export function getAvailableSlotsForDate(dateStr: string, dogCount: number, excludeId?: string) {
   const [year, month, day] = dateStr.split('-').map(Number);
   const localDate = new Date(year, month - 1, day);
   if (Number.isNaN(localDate.getTime())) {
     return [];
   }
 
-  const dayName = DAY_NAMES_BY_INDEX[localDate.getDay()];
   const scheduleByDay = loadScheduleByDay();
-  const daySchedule = scheduleByDay.get(dayName);
-  if (!daySchedule || daySchedule.isClosed) {
+  const existingAppointments = loadAppointmentsForLocalDay(localDate, excludeId);
+  const dayState = loadDayState(localDate, existingAppointments, scheduleByDay);
+  if (!dayState.scheduleDay || dayState.scheduleDay.isClosed || dayState.isManualReview) {
     return [];
   }
 
-  const dayStart = new Date(localDate);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(localDate);
-  dayEnd.setHours(23, 59, 59, 999);
-  const existingAppointments = loadAppointmentsInRange(dayStart.toISOString(), dayEnd.toISOString(), excludeId);
   const now = new Date();
 
-  return daySchedule.slots.flatMap((slot) => {
+  return dayState.scheduleDay.slots.flatMap((slot) => {
     if (!slot.isAvailable) {
       return [];
     }
@@ -171,7 +320,7 @@ export function getAvailableSlotsForDate(dateStr: string, duration: number, excl
 
     const availability = checkAvailabilityAgainstData(
       slotStart.toISOString(),
-      duration,
+      dogCount,
       existingAppointments,
       scheduleByDay,
     );
@@ -180,9 +329,17 @@ export function getAvailableSlotsForDate(dateStr: string, duration: number, excl
   });
 }
 
+function loadAppointmentsForLocalDay(localDate: Date, excludeId?: string) {
+  const dayStart = new Date(localDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(localDate);
+  dayEnd.setHours(23, 59, 59, 999);
+  return loadAppointmentsInRange(dayStart.toISOString(), dayEnd.toISOString(), excludeId);
+}
+
 export const getNextAvailableSlots = (
   fromIso: string,
-  duration: number,
+  dogCount: number,
   maxResults = 5,
   options?: { excludeId?: string },
 ) => {
@@ -191,22 +348,18 @@ export const getNextAvailableSlots = (
   const now = Number.isNaN(cursor.getTime()) ? new Date() : cursor;
   const scheduleByDay = loadScheduleByDay();
 
-  const searchWindowStart = new Date(now.getTime() - (MAX_DURATION_MINUTES * 60000)).toISOString();
-  const searchWindowEnd = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000) + (MAX_DURATION_MINUTES * 60000)).toISOString();
-  const existingAppointments = loadAppointmentsInRange(searchWindowStart, searchWindowEnd, options?.excludeId);
-
   for (let dayOffset = 0; dayOffset < 14 && upcoming.length < maxResults; dayOffset += 1) {
     const dayDate = new Date(now);
     dayDate.setHours(0, 0, 0, 0);
     dayDate.setDate(dayDate.getDate() + dayOffset);
 
-    const dayName = DAY_NAMES_BY_INDEX[dayDate.getDay()];
-    const daySchedule = scheduleByDay.get(dayName);
-    if (!daySchedule || daySchedule.isClosed) {
+    const dayAppointments = loadAppointmentsForLocalDay(dayDate, options?.excludeId);
+    const dayState = loadDayState(dayDate, dayAppointments, scheduleByDay);
+    if (!dayState.scheduleDay || dayState.scheduleDay.isClosed || dayState.isManualReview) {
       continue;
     }
 
-    for (const slot of daySchedule.slots) {
+    for (const slot of dayState.scheduleDay.slots) {
       if (upcoming.length >= maxResults || !slot.isAvailable) {
         continue;
       }
@@ -218,8 +371,8 @@ export const getNextAvailableSlots = (
 
       const availability = checkAvailabilityAgainstData(
         slotStart.toISOString(),
-        duration,
-        existingAppointments,
+        dogCount,
+        dayAppointments,
         scheduleByDay,
       );
 
@@ -232,21 +385,16 @@ export const getNextAvailableSlots = (
   return upcoming;
 };
 
-export function getAppointmentAvailability(dateString: string, duration: number, excludeId?: string): AvailabilityCheck {
+export function getAppointmentAvailability(dateString: string, dogCount: number, excludeId?: string): AvailabilityCheck {
   const startDate = new Date(dateString);
   if (Number.isNaN(startDate.getTime())) {
     return { ok: false, reason: 'invalid-date' } as const;
   }
 
-  const dayStart = new Date(startDate);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setHours(23, 59, 59, 999);
-
   return checkAvailabilityAgainstData(
     dateString,
-    duration,
-    loadAppointmentsInRange(dayStart.toISOString(), dayEnd.toISOString(), excludeId),
+    dogCount,
+    loadAppointmentsForLocalDay(startDate, excludeId),
     loadScheduleByDay(),
   );
 }
