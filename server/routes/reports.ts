@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import db from '../db.js';
-import { requireOwner, type AuthenticatedRequest } from '../middleware/auth.js';
+import { requireOwner, getUser } from '../middleware/auth.js';
 import { logAudit } from '../helpers/audit.js';
 import { validateBody, tagsSchema, clampLimit } from '../schema.js';
 import type { CountRow } from '../types.js';
@@ -29,7 +29,7 @@ router.get('/dogs/:id/tags', (req, res) => {
 });
 
 router.post('/dogs/:id/tags', validateBody(tagsSchema), (req: Request, res: Response) => {
-    const authReq = req as AuthenticatedRequest;
+    const user = getUser(req);
     const { tags } = req.body;
     const del = db.prepare('DELETE FROM dog_tags WHERE dogId = ?');
     const ins = db.prepare('INSERT INTO dog_tags (dogId, tag) VALUES (?, ?)');
@@ -37,7 +37,7 @@ router.post('/dogs/:id/tags', validateBody(tagsSchema), (req: Request, res: Resp
         del.run(req.params.id);
         for (const tag of tags) { ins.run(req.params.id, tag); }
     })();
-    logAudit(authReq.user?.id || null, 'update', 'dog_tags', req.params.id, null, { tags });
+    logAudit(user.id, 'update', 'dog_tags', req.params.id, null, { tags });
     res.json({ success: true });
 });
 

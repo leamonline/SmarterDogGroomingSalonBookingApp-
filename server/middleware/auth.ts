@@ -73,3 +73,6 @@ export const requireStaff = requireRole('groomer', 'receptionist', 'owner');
 export const requireAdmin = requireRole('receptionist', 'owner');
 // Shortcut: owner only
 export const requireOwner = requireRole('owner');
+
+/** Extract the authenticated user from a request. Use in routes behind authenticateToken. */
+export const getUser = (req: express.Request): JwtUser => (req as AuthenticatedRequest).user;

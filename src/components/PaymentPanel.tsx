@@ -124,7 +124,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
       </head>
       <body>
         <div class="header">
-          <h1>Savvy Pet Spa</h1>
+          <h1>Smarter Dog Grooming Salon</h1>
           <p>Receipt</p>
           <p>${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
@@ -145,7 +145,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
         ${balance > 0 ? `<div class="line-item" style="color:red"><span>Balance Due</span><span>${formatMoney(balance)}</span></div>` : ''}
         ${balance <= 0 ? `<div class="line-item" style="color:green"><span>✓ PAID IN FULL</span><span></span></div>` : ''}
         <div class="footer">
-          <p>Thank you for choosing Savvy Pet Spa</p>
+          <p>Thank you for choosing Smarter Dog Grooming Salon</p>
           <p>We hope to see you again soon!</p>
         </div>
         <button onclick="window.print()" style="display:block; width:100%; margin-top:16px; padding:8px; background:#333; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:14px;">Print Receipt</button>
