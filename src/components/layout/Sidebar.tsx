@@ -39,7 +39,7 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
 
   useEffect(() => {
     if (setOpen) setOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, setOpen]);
 
   return (
     <>
@@ -60,9 +60,7 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-3">
             {visibleNav.map((item) => {
-              const isActive =
-                location.pathname === item.href ||
-                (item.href === "/clients" && location.pathname === "/customers");
+              const isActive = location.pathname === item.href;
               return (
                 <Link
                   key={item.name}
