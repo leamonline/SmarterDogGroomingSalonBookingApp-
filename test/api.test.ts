@@ -70,6 +70,69 @@ describe("Authentication", () => {
     expect(res.status).toBe(401);
   });
 
+  it("allows login regardless of email casing", async () => {
+    const userId = crypto.randomUUID();
+    const storedEmail = `case_${Date.now()}@example.com`;
+    const password = "StrongPass123";
+
+    db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
+      userId,
+      storedEmail,
+      bcrypt.hashSync(password, 10),
+      "owner",
+    );
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: `  ${storedEmail.toUpperCase()}  `, password });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe(storedEmail);
+  });
+
+  it("normalizes mixed-case public registration and blocks case-variant duplicates", async () => {
+    const mixedEmail = `MiXeD_${Date.now()}@Example.com`;
+    const first = await request(app)
+      .post("/api/public/register")
+      .send({
+        email: `  ${mixedEmail}  `,
+        password: "StrongPass123",
+        firstName: "Casey",
+        lastName: "One",
+      });
+
+    expect(first.status).toBe(200);
+    expect(first.body.user.email).toBe(mixedEmail.trim().toLowerCase());
+
+    const duplicate = await request(app).post("/api/public/register").send({
+      email: mixedEmail.toLowerCase(),
+      password: "StrongPass123",
+      firstName: "Casey",
+      lastName: "Two",
+    });
+
+    expect(duplicate.status).toBe(400);
+    expect(duplicate.body.error).toBe("Email already exists");
+  });
+
+  it("normalizes mixed-case staff account creation email", async () => {
+    const mixedEmail = `Staff_${Date.now()}@Example.com`;
+    const res = await request(app)
+      .post("/api/staff")
+      .set(auth())
+      .send({
+        email: ` ${mixedEmail} `,
+        password: "StrongPass123",
+        role: "groomer",
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBe(mixedEmail.toLowerCase());
+
+    const row = db.prepare("SELECT email FROM users WHERE id = ?").get(res.body.id) as { email: string };
+    expect(row.email).toBe(mixedEmail.toLowerCase());
+  });
+
   it("requests a password reset, confirms it, and allows login with the new password", async () => {
     const userId = crypto.randomUUID();
     const email = `reset_${Date.now()}@example.com`;

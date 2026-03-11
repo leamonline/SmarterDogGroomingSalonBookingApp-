@@ -324,5 +324,5 @@ export const api = {
   search: (query: string) => fetchWithAuth(`/api/search?q=${encodeURIComponent(query)}`),
 
   // Notifications
-  getNotifications: () => fetchWithAuth("/api/notifications"),
+  getNotifications: () => fetchWithAuth("/api/settings/notifications"),
 };

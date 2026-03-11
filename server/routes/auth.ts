@@ -25,7 +25,12 @@ const loginLimiter = rateLimit({
 
 router.post("/auth/login", loginLimiter, (req, res) => {
   const { email, password } = req.body;
-  const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as UserRow | undefined;
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  const user = db.prepare("SELECT * FROM users WHERE email = ? COLLATE NOCASE").get(normalizedEmail) as
+    | UserRow
+    | undefined;
 
   if (user && bcrypt.compareSync(password, user.password)) {
     const role = user.role || "owner";
@@ -91,7 +96,10 @@ const pruneExpiredResetTokens = () => {
 
 router.post("/auth/password-reset/request", resetLimiter, (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ error: "Email is required" });
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedEmail) return res.status(400).json({ error: "Email is required" });
 
   pruneExpiredResetTokens();
   let resetBaseUrl: string | null = null;
@@ -104,7 +112,9 @@ router.post("/auth/password-reset/request", resetLimiter, (req, res) => {
   }
 
   // Always return success to prevent email enumeration
-  const user = db.prepare("SELECT id FROM users WHERE email = ?").get(email) as Pick<UserRow, "id"> | undefined;
+  const user = db.prepare("SELECT id FROM users WHERE email = ? COLLATE NOCASE").get(normalizedEmail) as
+    | Pick<UserRow, "id">
+    | undefined;
   if (user && resetBaseUrl) {
     const token = crypto.randomUUID();
     const resetUrl = buildResetUrl(token, { appUrl: resetBaseUrl });
@@ -119,7 +129,7 @@ router.post("/auth/password-reset/request", resetLimiter, (req, res) => {
     ).run(token, user.id, expiresAt, new Date().toISOString());
 
     dispatchMessage({
-      recipientEmail: email,
+      recipientEmail: normalizedEmail,
       channel: "email",
       templateName: "password_reset",
       subject: "Reset your Smarter Dog password",
@@ -137,7 +147,7 @@ router.post("/auth/password-reset/request", resetLimiter, (req, res) => {
     });
 
     if (process.env.NODE_ENV !== "production") {
-      logger.info("Password reset link generated", { email, resetUrl });
+      logger.info("Password reset link generated", { email: normalizedEmail, resetUrl });
     }
     logAudit(null, "password_reset_request", "user", user.id, null, null);
   }
@@ -201,7 +211,10 @@ router.get("/staff", authenticateToken, requireAdmin, (req, res) => {
 router.post("/staff", authenticateToken, requireAdmin, (req: Request, res: Response) => {
   const user = getUser(req);
   const { email, password, role } = req.body;
-  if (!email || !password) return res.status(400).json({ error: "Email and password required" });
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedEmail || !password) return res.status(400).json({ error: "Email and password required" });
   const pwError = validatePasswordStrength(password);
   if (pwError) return res.status(400).json({ error: pwError });
 
@@ -215,9 +228,14 @@ router.post("/staff", authenticateToken, requireAdmin, (req: Request, res: Respo
   try {
     const id = crypto.randomUUID();
     const hash = bcrypt.hashSync(password, 10);
-    db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(id, email, hash, assignedRole);
-    logAudit(user.id, "create", "user", id, null, { email, role: assignedRole });
-    return res.json({ success: true, id, email, role: assignedRole });
+    db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
+      id,
+      normalizedEmail,
+      hash,
+      assignedRole,
+    );
+    logAudit(user.id, "create", "user", id, null, { email: normalizedEmail, role: assignedRole });
+    return res.json({ success: true, id, email: normalizedEmail, role: assignedRole });
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       return res.status(400).json({ error: "Email already exists" });

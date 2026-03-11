@@ -416,6 +416,18 @@ migrate(6, () => {
   `);
 });
 
+// Migration 11: normalize user emails and enforce case-insensitive uniqueness
+migrate(11, () => {
+  db.exec(`
+    UPDATE users
+    SET email = lower(trim(email))
+    WHERE email IS NOT NULL;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique_nocase
+    ON users(email COLLATE NOCASE);
+  `);
+});
+
 // Migration 4: structured booking slots on schedule rows
 migrate(4, () => {
   safeAddColumn("schedule", "slotConfig", "TEXT");

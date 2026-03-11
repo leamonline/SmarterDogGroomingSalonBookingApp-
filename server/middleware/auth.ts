@@ -52,15 +52,35 @@ export const ROLE_HIERARCHY: Record<Role, number> = {
   owner: 3,
 };
 
-// Allows the given roles AND any role higher in the hierarchy.
-export const requireRole = (...allowedRoles: Role[]) => {
-  const minLevel = Math.min(...allowedRoles.map((r) => ROLE_HIERARCHY[r]));
+export type RoleMode = "exact" | "atLeast";
+
+/**
+ * Restrict by role with explicit mode:
+ * - exact (default): user role must be in allowedRoles
+ * - atLeast: user role must meet or exceed the lowest allowed role in hierarchy
+ */
+export const requireRole = (allowedRoles: Role[], options?: { mode?: RoleMode }) => {
+  const mode = options?.mode ?? "exact";
+
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const user = (req as AuthenticatedRequest).user;
     if (!user || !user.role) {
       return res.status(403).json({ error: "Access denied: no role assigned" });
     }
-    const userLevel = ROLE_HIERARCHY[user.role as Role] ?? -1;
+
+    const userLevel = ROLE_HIERARCHY[user.role as Role];
+    if (userLevel === undefined) {
+      return res.status(403).json({ error: "Access denied: invalid role" });
+    }
+
+    if (mode === "exact") {
+      if (!allowedRoles.includes(user.role as Role)) {
+        return res.status(403).json({ error: `Access denied: requires ${allowedRoles.join(" or ")} role` });
+      }
+      return next();
+    }
+
+    const minLevel = Math.min(...allowedRoles.map((r) => ROLE_HIERARCHY[r]));
     if (userLevel < minLevel) {
       return res.status(403).json({ error: `Access denied: requires ${allowedRoles.join(" or ")} role or higher` });
     }
@@ -69,11 +89,11 @@ export const requireRole = (...allowedRoles: Role[]) => {
 };
 
 // Shortcut: any staff (not customer)
-export const requireStaff = requireRole("groomer", "receptionist", "owner");
+export const requireStaff = requireRole(["groomer", "receptionist", "owner"], { mode: "atLeast" });
 // Shortcut: admin-level (receptionist or owner)
-export const requireAdmin = requireRole("receptionist", "owner");
+export const requireAdmin = requireRole(["receptionist", "owner"], { mode: "atLeast" });
 // Shortcut: owner only
-export const requireOwner = requireRole("owner");
+export const requireOwner = requireRole(["owner"], { mode: "exact" });
 
 /** Extract the authenticated user from a request. Use in routes behind authenticateToken. */
 export const getUser = (req: express.Request): JwtUser => (req as AuthenticatedRequest).user;
