@@ -65,7 +65,10 @@ router.get("/available-slots", (req, res) => {
 // Public: customer registration
 router.post("/register", (req, res) => {
   const { email, password, firstName, lastName, phone } = req.body;
-  if (!email || !password || !firstName) {
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedEmail || !password || !firstName) {
     return res.status(400).json({ error: "Email, password, and first name are required" });
   }
   const pwError = validatePasswordStrength(password);
@@ -79,19 +82,19 @@ router.post("/register", (req, res) => {
     db.transaction(() => {
       db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
         userId,
-        email,
+        normalizedEmail,
         hash,
         "customer",
       );
       db.prepare("INSERT INTO customers (id, name, email, phone) VALUES (?, ?, ?, ?)").run(
         customerId,
         `${firstName} ${lastName || ""}`.trim(),
-        email,
+        normalizedEmail,
         phone || "",
       );
     })();
 
-    const token = jwt.sign({ id: userId, email, role: "customer" }, JWT_SECRET!, { expiresIn: "24h" });
+    const token = jwt.sign({ id: userId, email: normalizedEmail, role: "customer" }, JWT_SECRET!, { expiresIn: "24h" });
 
     res.cookie("petspa_token", token, {
       httpOnly: true,
@@ -101,7 +104,7 @@ router.post("/register", (req, res) => {
       path: "/",
     });
 
-    return res.json({ user: { id: userId, email, role: "customer", customerId } });
+    return res.json({ user: { id: userId, email: normalizedEmail, role: "customer", customerId } });
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       return res.status(400).json({ error: "Email already exists" });
@@ -113,7 +116,12 @@ router.post("/register", (req, res) => {
 // Public: customer login
 router.post("/login", loginLimiter, (req, res) => {
   const { email, password } = req.body;
-  const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as UserRow | undefined;
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  const user = db.prepare("SELECT * FROM users WHERE email = ? COLLATE NOCASE").get(normalizedEmail) as
+    | UserRow
+    | undefined;
 
   if (user && bcrypt.compareSync(password, user.password)) {
     const role = user.role || "customer";
@@ -127,7 +135,9 @@ router.post("/login", loginLimiter, (req, res) => {
       path: "/",
     });
 
-    const customer = db.prepare("SELECT id FROM customers WHERE email = ?").get(email) as { id: string } | undefined;
+    const customer = db.prepare("SELECT id FROM customers WHERE email = ? COLLATE NOCASE").get(normalizedEmail) as
+      | { id: string }
+      | undefined;
     res.json({
       user: { id: user.id, email: user.email, role, customerId: customer?.id || null },
     });
@@ -142,7 +152,7 @@ router.post("/bookings", authenticateToken, (req: Request, res: Response) => {
   const { serviceId, date, petName, breed, notes, dogCount } = req.body;
 
   // Resolve customerId from the authenticated user's linked customer record — ignore any client-supplied value
-  const customerRow = db.prepare("SELECT id FROM customers WHERE email = ?").get(user.email) as
+  const customerRow = db.prepare("SELECT id FROM customers WHERE email = ? COLLATE NOCASE").get(user.email) as
     | { id: string }
     | undefined;
   const customerId = customerRow?.id || null;
