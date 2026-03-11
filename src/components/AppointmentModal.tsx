@@ -8,7 +8,19 @@ import { useFormValidation, required, positiveNumber } from "@/src/lib/useFormVa
 import { Badge } from "@/src/components/ui/badge";
 import { PaymentPanel } from "@/src/components/PaymentPanel";
 import { format } from "date-fns";
-import { CheckCircle, Clock, AlertTriangle, XCircle, Truck, Play, Pause, Search, UserCheck, UserPlus, X } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  AlertTriangle,
+  XCircle,
+  Truck,
+  Play,
+  Pause,
+  Search,
+  UserCheck,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { APPOINTMENT_STATUSES } from "@/src/types";
 import { CustomerModal } from "@/src/components/CustomerModal";
 import { api } from "@/src/lib/api";
@@ -57,40 +69,40 @@ export type Appointment = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; colour: string; icon: any }> = {
-  'pending-approval': { label: 'Pending Approval', colour: 'bg-gold-light text-purple', icon: Clock },
-  'confirmed': { label: 'Confirmed', colour: 'bg-sky-light text-brand-700', icon: CheckCircle },
-  'scheduled': { label: 'Scheduled', colour: 'bg-sky-light text-brand-700', icon: Clock },
-  'deposit-pending': { label: 'Deposit Pending', colour: 'bg-gold-light text-purple', icon: Clock },
-  'deposit-paid': { label: 'Deposit Paid', colour: 'bg-brand-50 text-brand-800', icon: CheckCircle },
-  'checked-in': { label: 'Checked In', colour: 'bg-brand-50 text-brand-800', icon: UserCheck },
-  'in-progress': { label: 'In Progress', colour: 'bg-purple-light/20 text-purple', icon: Play },
-  'ready-for-collection': { label: 'Ready for Collection', colour: 'bg-sage-light text-brand-700', icon: Truck },
-  'completed': { label: 'Completed', colour: 'bg-sage-light text-brand-700', icon: CheckCircle },
-  'cancelled-by-customer': { label: 'Cancelled (Customer)', colour: 'bg-coral-light text-coral', icon: XCircle },
-  'cancelled-by-salon': { label: 'Cancelled (Salon)', colour: 'bg-coral-light text-coral', icon: XCircle },
-  'no-show': { label: 'No Show', colour: 'bg-coral-light text-coral', icon: AlertTriangle },
-  'rescheduled': { label: 'Rescheduled', colour: 'bg-slate-100 text-slate-800', icon: Clock },
-  'incomplete': { label: 'Incomplete', colour: 'bg-gold-light text-purple', icon: Pause },
-  'incident-review': { label: 'Incident Review', colour: 'bg-coral-light text-coral', icon: AlertTriangle },
+  "pending-approval": { label: "Pending Approval", colour: "bg-gold-light text-purple", icon: Clock },
+  confirmed: { label: "Confirmed", colour: "bg-sky-light text-brand-700", icon: CheckCircle },
+  scheduled: { label: "Scheduled", colour: "bg-sky-light text-brand-700", icon: Clock },
+  "deposit-pending": { label: "Deposit Pending", colour: "bg-gold-light text-purple", icon: Clock },
+  "deposit-paid": { label: "Deposit Paid", colour: "bg-brand-50 text-brand-800", icon: CheckCircle },
+  "checked-in": { label: "Checked In", colour: "bg-brand-50 text-brand-800", icon: UserCheck },
+  "in-progress": { label: "In Progress", colour: "bg-purple-light/20 text-purple", icon: Play },
+  "ready-for-collection": { label: "Ready for Collection", colour: "bg-sage-light text-brand-700", icon: Truck },
+  completed: { label: "Completed", colour: "bg-sage-light text-brand-700", icon: CheckCircle },
+  "cancelled-by-customer": { label: "Cancelled (Customer)", colour: "bg-coral-light text-coral", icon: XCircle },
+  "cancelled-by-salon": { label: "Cancelled (Salon)", colour: "bg-coral-light text-coral", icon: XCircle },
+  "no-show": { label: "No Show", colour: "bg-coral-light text-coral", icon: AlertTriangle },
+  rescheduled: { label: "Rescheduled", colour: "bg-brand-50 text-brand-800", icon: Clock },
+  incomplete: { label: "Incomplete", colour: "bg-gold-light text-purple", icon: Pause },
+  "incident-review": { label: "Incident Review", colour: "bg-coral-light text-coral", icon: AlertTriangle },
 };
 
 // Valid next-status transitions
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  'pending-approval': ['confirmed', 'cancelled-by-salon'],
-  'confirmed': ['checked-in', 'cancelled-by-customer', 'cancelled-by-salon', 'no-show', 'rescheduled'],
-  'scheduled': ['checked-in', 'cancelled-by-customer', 'cancelled-by-salon', 'no-show', 'rescheduled'],
-  'deposit-pending': ['deposit-paid', 'cancelled-by-customer', 'cancelled-by-salon'],
-  'deposit-paid': ['confirmed', 'checked-in'],
-  'checked-in': ['in-progress', 'cancelled-by-salon'],
-  'in-progress': ['ready-for-collection', 'completed', 'incomplete', 'incident-review'],
-  'ready-for-collection': ['completed'],
-  'completed': [],
-  'cancelled-by-customer': [],
-  'cancelled-by-salon': [],
-  'no-show': [],
-  'rescheduled': ['confirmed', 'scheduled'],
-  'incomplete': ['incident-review'],
-  'incident-review': ['completed'],
+  "pending-approval": ["confirmed", "cancelled-by-salon"],
+  confirmed: ["checked-in", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled"],
+  scheduled: ["checked-in", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled"],
+  "deposit-pending": ["deposit-paid", "cancelled-by-customer", "cancelled-by-salon"],
+  "deposit-paid": ["confirmed", "checked-in"],
+  "checked-in": ["in-progress", "cancelled-by-salon"],
+  "in-progress": ["ready-for-collection", "completed", "incomplete", "incident-review"],
+  "ready-for-collection": ["completed"],
+  completed: [],
+  "cancelled-by-customer": [],
+  "cancelled-by-salon": [],
+  "no-show": [],
+  rescheduled: ["confirmed", "scheduled"],
+  incomplete: ["incident-review"],
+  "incident-review": ["completed"],
 };
 
 interface AppointmentModalProps {
@@ -118,10 +130,7 @@ function formatAgeFromDob(dob?: string | null) {
 }
 
 function buildAppointmentNotes(match: AppointmentClientLookupResult) {
-  return [
-    ...(match.petBehavioralNotes || []),
-    match.customerNotes || "",
-  ].filter(Boolean).join(" • ");
+  return [...(match.petBehavioralNotes || []), match.customerNotes || ""].filter(Boolean).join(" • ");
 }
 
 function snapToHalfHour(date: Date) {
@@ -153,7 +162,7 @@ function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
 export function AppointmentModal({ isOpen, onClose, appointment, initialData, onSave }: AppointmentModalProps) {
   const [formData, setFormData] = useState<Partial<Appointment>>({});
   const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'checkin' | 'groom' | 'checkout'>('details');
+  const [activeTab, setActiveTab] = useState<"details" | "checkin" | "groom" | "checkout">("details");
   const [lookupResults, setLookupResults] = useState<AppointmentClientLookupResult[]>([]);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [selectedLookupResult, setSelectedLookupResult] = useState<AppointmentClientLookupResult | null>(null);
@@ -164,19 +173,19 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
   );
 
   const { errors, validate, clearError, clearAll } = useFormValidation<Appointment>({
-    petName: required('Pet name'),
-    ownerName: required('Owner name'),
-    service: required('Service'),
-    date: (v: any) => (!v ? 'Date & time is required' : null),
-    duration: (v: any) => (!v || Number(v) <= 0 ? 'Duration must be greater than 0' : null),
+    petName: required("Pet name"),
+    ownerName: required("Owner name"),
+    service: required("Service"),
+    date: (v: any) => (!v ? "Date & time is required" : null),
+    duration: (v: any) => (!v || Number(v) <= 0 ? "Duration must be greater than 0" : null),
     dogCount: (v: any) => {
       const count = Number(v);
       if (!Number.isInteger(count) || count < 1 || count > 4) {
-        return 'Dog count must be between 1 and 4';
+        return "Dog count must be between 1 and 4";
       }
       return null;
     },
-    price: positiveNumber('Price'),
+    price: positiveNumber("Price"),
   });
   // Track the last appointment id we initialised for, so we only reset
   // when a *different* appointment is opened (not when the modal re-opens
@@ -192,7 +201,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     // New context: reset everything
     lastAppointmentIdRef.current = incomingId;
     setIsEditing(!appointment);
-    setActiveTab('details');
+    setActiveTab("details");
     setLookupResults([]);
     setSelectedLookupResult(null);
     setIsNewClientModalOpen(false);
@@ -221,14 +230,16 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointment, initialData, isOpen]);
 
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     clearError(name as keyof Appointment);
     setFormData((prev) => ({
       ...prev,
       ...(LINKED_LOOKUP_FIELDS.has(name) ? { customerId: undefined, dogId: undefined } : {}),
-      [name]: name === "price" || name === "duration" || name === "dogCount" || name === "surcharge" || name === "finalPrice" ? Number(value) : value,
+      [name]:
+        name === "price" || name === "duration" || name === "dogCount" || name === "surcharge" || name === "finalPrice"
+          ? Number(value)
+          : value,
     }));
     if (LINKED_LOOKUP_FIELDS.has(name)) {
       setSelectedLookupResult(null);
@@ -236,7 +247,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    clearError('date');
+    clearError("date");
     const newDate = snapToHalfHour(new Date(e.target.value));
     setFormData((prev) => ({ ...prev, date: newDate }));
   };
@@ -250,12 +261,15 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     }
   };
 
-  const lookupFilters = useMemo(() => ({
-    ownerName: String(formData.ownerName || "").trim(),
-    phone: String(formData.phone || "").trim(),
-    petName: String(formData.petName || "").trim(),
-    breed: String(formData.breed || "").trim(),
-  }), [formData.ownerName, formData.phone, formData.petName, formData.breed]);
+  const lookupFilters = useMemo(
+    () => ({
+      ownerName: String(formData.ownerName || "").trim(),
+      phone: String(formData.phone || "").trim(),
+      petName: String(formData.petName || "").trim(),
+      breed: String(formData.breed || "").trim(),
+    }),
+    [formData.ownerName, formData.phone, formData.petName, formData.breed],
+  );
 
   useEffect(() => {
     if (!isOpen || appointment) return;
@@ -272,7 +286,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
 
     const timeout = window.setTimeout(async () => {
       try {
-        const results = await api.lookupAppointmentClients(lookupFilters) as AppointmentClientLookupResult[];
+        const results = (await api.lookupAppointmentClients(lookupFilters)) as AppointmentClientLookupResult[];
         if (!isCancelled) {
           setLookupResults(results);
         }
@@ -308,7 +322,10 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
       dogId: match.petId,
       emergencyContact: match.emergencyContactName || "",
       emergencyPhone: match.emergencyContactPhone || "",
-      avatar: match.petPhoto || prev.avatar || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
+      avatar:
+        match.petPhoto ||
+        prev.avatar ||
+        "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
     }));
   };
 
@@ -328,7 +345,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     }
 
     try {
-      const createdCustomer = await api.createCustomer(customer) as Customer;
+      const createdCustomer = (await api.createCustomer(customer)) as Customer;
       const primaryPet = createdCustomer.pets?.[0];
 
       if (!primaryPet) {
@@ -370,21 +387,21 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
     const now = new Date().toISOString();
     const updates: Partial<Appointment> = { status: newStatus };
 
-    if (newStatus === 'checked-in') updates.checkedInAt = now;
-    if (newStatus === 'completed') {
+    if (newStatus === "checked-in") updates.checkedInAt = now;
+    if (newStatus === "completed") {
       updates.completedAt = now;
       updates.finalPrice = (formData.price || 0) + (formData.surcharge || 0);
     }
-    if (newStatus === 'ready-for-collection') updates.readyForCollectionAt = now;
-    if (newStatus === 'cancelled-by-customer' || newStatus === 'cancelled-by-salon') updates.cancelledAt = now;
+    if (newStatus === "ready-for-collection") updates.readyForCollectionAt = now;
+    if (newStatus === "cancelled-by-customer" || newStatus === "cancelled-by-salon") updates.cancelledAt = now;
 
     const updated = { ...formData, ...updates } as Appointment;
     setFormData(updated);
     onSave(updated);
   };
 
-  const currentStatus = formData.status || 'scheduled';
-  const statusInfo = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['scheduled'];
+  const currentStatus = formData.status || "scheduled";
+  const statusInfo = STATUS_CONFIG[currentStatus] || STATUS_CONFIG["scheduled"];
   const StatusIcon = statusInfo.icon;
   const nextStatuses = STATUS_TRANSITIONS[currentStatus] || [];
 
@@ -393,9 +410,13 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle>{appointment ? (isEditing ? "Edit Appointment" : "Appointment") : "New Appointment"}</DialogTitle>
+            <DialogTitle>
+              {appointment ? (isEditing ? "Edit Appointment" : "Appointment") : "New Appointment"}
+            </DialogTitle>
             {appointment && !isEditing && (
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo.colour}`}>
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo.colour}`}
+              >
                 <StatusIcon className="h-3.5 w-3.5" />
                 {statusInfo.label}
               </span>
@@ -407,20 +428,27 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
           <div className="space-y-4">
             {/* Workflow Tabs */}
             <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-              {(['details', 'checkin', 'groom', 'checkout'] as const).map(tab => (
+              {(["details", "checkin", "groom", "checkout"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors ${activeTab === tab ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                    }`}
+                  className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors ${
+                    activeTab === tab ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
                 >
-                  {tab === 'details' ? 'Details' : tab === 'checkin' ? 'Check-in' : tab === 'groom' ? 'Groom' : 'Check-out'}
+                  {tab === "details"
+                    ? "Details"
+                    : tab === "checkin"
+                      ? "Check-in"
+                      : tab === "groom"
+                        ? "Groom"
+                        : "Check-out"}
                 </button>
               ))}
             </div>
 
             {/* Details Tab */}
-            {activeTab === 'details' && (
+            {activeTab === "details" && (
               <div className="space-y-5">
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pet</h3>
@@ -431,7 +459,10 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                       </div>
                       <div>
                         <h4 className="font-bold text-slate-900">{formData.petName}</h4>
-                        <p className="text-sm text-slate-500">{formData.breed || "Unknown breed"}{formData.age ? ` • ${formData.age}` : ""}</p>
+                        <p className="text-sm text-slate-500">
+                          {formData.breed || "Unknown breed"}
+                          {formData.age ? ` • ${formData.age}` : ""}
+                        </p>
                       </div>
                     </div>
                     {formData.notes && (
@@ -445,13 +476,27 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner</h3>
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-1">
-                    <p className="text-sm"><span className="font-medium text-slate-700">Name:</span> {formData.ownerName}</p>
-                    <p className="text-sm"><span className="font-medium text-slate-700">Phone:</span> {formData.phone || "—"}</p>
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-700">Name:</span> {formData.ownerName}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-700">Phone:</span> {formData.phone || "—"}
+                    </p>
                     {(formData.emergencyContact || formData.emergencyPhone) && (
                       <div className="mt-2 pt-2 border-t border-slate-200">
-                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Emergency Contact</p>
-                        {formData.emergencyContact && <p className="text-sm"><span className="font-medium text-slate-700">Name:</span> {formData.emergencyContact}</p>}
-                        {formData.emergencyPhone && <p className="text-sm"><span className="font-medium text-slate-700">Phone:</span> {formData.emergencyPhone}</p>}
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                          Emergency Contact
+                        </p>
+                        {formData.emergencyContact && (
+                          <p className="text-sm">
+                            <span className="font-medium text-slate-700">Name:</span> {formData.emergencyContact}
+                          </p>
+                        )}
+                        {formData.emergencyPhone && (
+                          <p className="text-sm">
+                            <span className="font-medium text-slate-700">Phone:</span> {formData.emergencyPhone}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -460,11 +505,22 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                 <div className="space-y-2">
                   <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Service</h3>
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 grid grid-cols-2 gap-2">
-                    <p className="text-sm"><span className="font-medium text-slate-700">Service:</span> {formData.service}</p>
-                    <p className="text-sm"><span className="font-medium text-slate-700">Duration:</span> {formData.duration}m</p>
-                    <p className="text-sm"><span className="font-medium text-slate-700">Dogs:</span> {formatDogCountLabel(formData.dogCount)}</p>
-                    <p className="text-sm"><span className="font-medium text-slate-700">Date:</span> {formData.date ? format(formData.date, "EEE d MMM, h:mm a") : ""}</p>
-                    <p className="text-sm"><span className="font-medium text-slate-700">Price:</span> {formatCurrency(formData.price)}</p>
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-700">Service:</span> {formData.service}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-700">Duration:</span> {formData.duration}m
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-700">Dogs:</span> {formatDogCountLabel(formData.dogCount)}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-700">Date:</span>{" "}
+                      {formData.date ? format(formData.date, "EEE d MMM, h:mm a") : ""}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-700">Price:</span> {formatCurrency(formData.price)}
+                    </p>
                   </div>
                   {formData.dogCountConfirmed === false && (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -473,7 +529,8 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                         Dog count needs review
                       </div>
                       <p className="mt-1 text-xs text-amber-800">
-                        This booking was created before per-dog capacity tracking. Confirm the number of dogs and save to bring it back into online availability checks.
+                        This booking was created before per-dog capacity tracking. Confirm the number of dogs and save
+                        to bring it back into online availability checks.
                       </p>
                     </div>
                   )}
@@ -487,11 +544,12 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             )}
 
             {/* Check-in Tab */}
-            {activeTab === 'checkin' && (
+            {activeTab === "checkin" && (
               <div className="space-y-4">
                 {formData.checkedInAt && (
                   <div className="text-xs text-accent font-medium flex items-center gap-1">
-                    <CheckCircle className="h-3.5 w-3.5" /> Checked in at {format(new Date(formData.checkedInAt), "h:mm a")}
+                    <CheckCircle className="h-3.5 w-3.5" /> Checked in at{" "}
+                    {format(new Date(formData.checkedInAt), "h:mm a")}
                   </div>
                 )}
                 <div className="space-y-2">
@@ -516,19 +574,35 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             )}
 
             {/* Groom Tab */}
-            {activeTab === 'groom' && (
+            {activeTab === "groom" && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Groom Notes</label>
-                  <textarea name="groomNotes" value={formData.groomNotes || ""} onChange={handleChange} placeholder="Style details, clips used..." className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2" />
+                  <textarea
+                    name="groomNotes"
+                    value={formData.groomNotes || ""}
+                    onChange={handleChange}
+                    placeholder="Style details, clips used..."
+                    className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Products Used</label>
-                  <Input name="productsUsed" value={formData.productsUsed || ""} onChange={handleChange} placeholder="Shampoo, conditioner..." />
+                  <Input
+                    name="productsUsed"
+                    value={formData.productsUsed || ""}
+                    onChange={handleChange}
+                    placeholder="Shampoo, conditioner..."
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Behaviour During Groom</label>
-                  <Input name="behaviourDuringGroom" value={formData.behaviourDuringGroom || ""} onChange={handleChange} placeholder="Calm, anxious, bitey..." />
+                  <Input
+                    name="behaviourDuringGroom"
+                    value={formData.behaviourDuringGroom || ""}
+                    onChange={handleChange}
+                    placeholder="Calm, anxious, bitey..."
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -537,7 +611,12 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Surcharge Reason</label>
-                    <Input name="surchargeReason" value={formData.surchargeReason || ""} onChange={handleChange} placeholder="Matting, extra time..." />
+                    <Input
+                      name="surchargeReason"
+                      value={formData.surchargeReason || ""}
+                      onChange={handleChange}
+                      placeholder="Matting, extra time..."
+                    />
                   </div>
                 </div>
                 <Button
@@ -552,18 +631,24 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             )}
 
             {/* Check-out Tab */}
-            {activeTab === 'checkout' && (
+            {activeTab === "checkout" && (
               <div className="space-y-4">
                 {/* Payment Panel */}
                 <PaymentPanel
-                  appointmentId={formData.id || ''}
+                  appointmentId={formData.id || ""}
                   totalDue={(formData.price || 0) + (formData.surcharge || 0)}
                   depositRequired={formData.depositAmount as number | undefined}
                 />
 
                 <div className="border-t border-slate-100 pt-4 space-y-2">
                   <label className="text-sm font-medium text-slate-700">Aftercare Notes</label>
-                  <textarea name="aftercareNotes" value={formData.aftercareNotes || ""} onChange={handleChange} placeholder="Recommendations for the owner..." className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2" />
+                  <textarea
+                    name="aftercareNotes"
+                    value={formData.aftercareNotes || ""}
+                    onChange={handleChange}
+                    placeholder="Recommendations for the owner..."
+                    className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
+                  />
                   <Button
                     size="sm"
                     onClick={() => {
@@ -576,7 +661,8 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
 
                 {formData.completedAt && (
                   <div className="text-xs text-accent font-medium flex items-center gap-1">
-                    <CheckCircle className="h-3.5 w-3.5" /> Completed at {format(new Date(formData.completedAt), "h:mm a")}
+                    <CheckCircle className="h-3.5 w-3.5" /> Completed at{" "}
+                    {format(new Date(formData.completedAt), "h:mm a")}
                   </div>
                 )}
               </div>
@@ -587,7 +673,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
               <div className="border-t border-slate-100 pt-4 space-y-2">
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</h3>
                 <div className="flex flex-wrap gap-2">
-                  {nextStatuses.map(ns => {
+                  {nextStatuses.map((ns) => {
                     const cfg = STATUS_CONFIG[ns];
                     if (!cfg) return null;
                     const Icon = cfg.icon;
@@ -595,7 +681,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                       <Button
                         key={ns}
                         size="sm"
-                        variant={ns.startsWith('cancel') || ns === 'no-show' ? 'destructive' : 'outline'}
+                        variant={ns.startsWith("cancel") || ns === "no-show" ? "destructive" : "outline"}
                         onClick={() => handleStatusChange(ns)}
                         className="text-xs"
                       >
@@ -609,17 +695,28 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             )}
 
             {/* Cancellation reason input */}
-            {(currentStatus === 'cancelled-by-customer' || currentStatus === 'cancelled-by-salon') && (
+            {(currentStatus === "cancelled-by-customer" || currentStatus === "cancelled-by-salon") && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Cancellation Reason</label>
-                <Input name="cancellationReason" value={formData.cancellationReason || ""} onChange={handleChange} placeholder="Reason..." />
-                <Button size="sm" onClick={() => onSave(formData as Appointment)}>Save Reason</Button>
+                <Input
+                  name="cancellationReason"
+                  value={formData.cancellationReason || ""}
+                  onChange={handleChange}
+                  placeholder="Reason..."
+                />
+                <Button size="sm" onClick={() => onSave(formData as Appointment)}>
+                  Save Reason
+                </Button>
               </div>
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Close</Button>
-              <Button type="button" onClick={() => setIsEditing(true)}>Edit</Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Close
+              </Button>
+              <Button type="button" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
             </DialogFooter>
           </div>
         ) : (
@@ -646,7 +743,8 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                         {selectedLookupResult.petName} • {selectedLookupResult.customerName}
                       </p>
                       <p className="text-xs text-slate-500">
-                        {selectedLookupResult.petBreed || "Breed not set"} {selectedLookupResult.customerPhone ? `• ${selectedLookupResult.customerPhone}` : ""}
+                        {selectedLookupResult.petBreed || "Breed not set"}{" "}
+                        {selectedLookupResult.customerPhone ? `• ${selectedLookupResult.customerPhone}` : ""}
                       </p>
                     </div>
                     <Button type="button" variant="ghost" size="sm" onClick={clearSelectedLookup}>
@@ -664,25 +762,28 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                         Looking up matching dogs and owners...
                       </div>
                     )}
-                    {!isLookupLoading && lookupResults.map((match) => (
-                      <button
-                        key={`${match.customerId}-${match.petId}`}
-                        type="button"
-                        className="flex w-full items-start justify-between gap-3 border-b border-slate-100 px-3 py-3 text-left last:border-b-0 hover:bg-slate-50"
-                        onClick={() => applyLookupResult(match)}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900">{match.petName}</p>
-                          <p className="text-sm text-slate-600">
-                            {match.customerName}{match.customerPhone ? ` • ${match.customerPhone}` : ""}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {match.petBreed || "Breed not set"}{match.petCoatType ? ` • ${match.petCoatType}` : ""}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-xs font-medium text-brand-700">Use details</span>
-                      </button>
-                    ))}
+                    {!isLookupLoading &&
+                      lookupResults.map((match) => (
+                        <button
+                          key={`${match.customerId}-${match.petId}`}
+                          type="button"
+                          className="flex w-full items-start justify-between gap-3 border-b border-slate-100 px-3 py-3 text-left last:border-b-0 hover:bg-slate-50"
+                          onClick={() => applyLookupResult(match)}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">{match.petName}</p>
+                            <p className="text-sm text-slate-600">
+                              {match.customerName}
+                              {match.customerPhone ? ` • ${match.customerPhone}` : ""}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {match.petBreed || "Breed not set"}
+                              {match.petCoatType ? ` • ${match.petCoatType}` : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-xs font-medium text-brand-700">Use details</span>
+                        </button>
+                      ))}
                   </div>
                 )}
               </div>
@@ -692,7 +793,9 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             <div className="space-y-4">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pet Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="petName" className="text-right text-sm font-medium">{(formData.dogCount || 1) > 1 ? "Dog Name(s) *" : "Pet Name *"}</label>
+                <label htmlFor="petName" className="text-right text-sm font-medium">
+                  {(formData.dogCount || 1) > 1 ? "Dog Name(s) *" : "Pet Name *"}
+                </label>
                 <div className="col-span-3">
                   <Input
                     id="petName"
@@ -706,16 +809,42 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="breed" className="text-right text-sm font-medium">Breed</label>
-                <Input id="breed" name="breed" value={formData.breed || ""} onChange={handleChange} className="col-span-3" />
+                <label htmlFor="breed" className="text-right text-sm font-medium">
+                  Breed
+                </label>
+                <Input
+                  id="breed"
+                  name="breed"
+                  value={formData.breed || ""}
+                  onChange={handleChange}
+                  className="col-span-3"
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="age" className="text-right text-sm font-medium">Age</label>
-                <Input id="age" name="age" value={formData.age || ""} onChange={handleChange} className="col-span-3" placeholder="e.g. 2 yrs" />
+                <label htmlFor="age" className="text-right text-sm font-medium">
+                  Age
+                </label>
+                <Input
+                  id="age"
+                  name="age"
+                  value={formData.age || ""}
+                  onChange={handleChange}
+                  className="col-span-3"
+                  placeholder="e.g. 2 yrs"
+                />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="notes" className="text-right text-sm font-medium">Notes</label>
-                <Input id="notes" name="notes" value={formData.notes || ""} onChange={handleChange} className="col-span-3" placeholder="Behavior, allergies, etc." />
+                <label htmlFor="notes" className="text-right text-sm font-medium">
+                  Notes
+                </label>
+                <Input
+                  id="notes"
+                  name="notes"
+                  value={formData.notes || ""}
+                  onChange={handleChange}
+                  className="col-span-3"
+                  placeholder="Behavior, allergies, etc."
+                />
               </div>
             </div>
 
@@ -723,15 +852,32 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="ownerName" className="text-right text-sm font-medium">Owner Name *</label>
+                <label htmlFor="ownerName" className="text-right text-sm font-medium">
+                  Owner Name *
+                </label>
                 <div className="col-span-3">
-                  <Input id="ownerName" name="ownerName" value={formData.ownerName || ""} onChange={handleChange} aria-invalid={!!errors.ownerName} />
+                  <Input
+                    id="ownerName"
+                    name="ownerName"
+                    value={formData.ownerName || ""}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.ownerName}
+                  />
                   <FieldError message={errors.ownerName} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="phone" className="text-right text-sm font-medium">Phone</label>
-                <Input id="phone" name="phone" type="tel" value={formData.phone || ""} onChange={handleChange} className="col-span-3" />
+                <label htmlFor="phone" className="text-right text-sm font-medium">
+                  Phone
+                </label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone || ""}
+                  onChange={handleChange}
+                  className="col-span-3"
+                />
               </div>
             </div>
 
@@ -739,33 +885,72 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Appointment Details</h4>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="service" className="text-right text-sm font-medium">Service *</label>
+                <label htmlFor="service" className="text-right text-sm font-medium">
+                  Service *
+                </label>
                 <div className="col-span-3">
-                  <Input id="service" name="service" value={formData.service || ""} onChange={handleChange} aria-invalid={!!errors.service} />
+                  <Input
+                    id="service"
+                    name="service"
+                    value={formData.service || ""}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.service}
+                  />
                   <FieldError message={errors.service} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="date" className="text-right text-sm font-medium">Date & Time *</label>
+                <label htmlFor="date" className="text-right text-sm font-medium">
+                  Date & Time *
+                </label>
                 <div className="col-span-3">
-                  <Input id="date" name="date" type="datetime-local" step={1800} value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""} onChange={handleDateChange} aria-invalid={!!errors.date} />
+                  <Input
+                    id="date"
+                    name="date"
+                    type="datetime-local"
+                    step={1800}
+                    value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""}
+                    onChange={handleDateChange}
+                    aria-invalid={!!errors.date}
+                  />
                   <p className="mt-1 text-xs text-slate-500">
-                    Booking starts are set in 30-minute slots between {formatScheduleTime(BOOKING_OPEN_TIME)} and {formatScheduleTime(BOOKING_CLOSE_TIME)}.
+                    Booking starts are set in 30-minute slots between {formatScheduleTime(BOOKING_OPEN_TIME)} and{" "}
+                    {formatScheduleTime(BOOKING_CLOSE_TIME)}.
                   </p>
                   <FieldError message={errors.date} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="duration" className="text-right text-sm font-medium">Duration (m) *</label>
+                <label htmlFor="duration" className="text-right text-sm font-medium">
+                  Duration (m) *
+                </label>
                 <div className="col-span-3">
-                  <Input id="duration" name="duration" type="number" value={formData.duration || ""} onChange={handleChange} aria-invalid={!!errors.duration} />
+                  <Input
+                    id="duration"
+                    name="duration"
+                    type="number"
+                    value={formData.duration || ""}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.duration}
+                  />
                   <FieldError message={errors.duration} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="dogCount" className="text-right text-sm font-medium">Dogs *</label>
+                <label htmlFor="dogCount" className="text-right text-sm font-medium">
+                  Dogs *
+                </label>
                 <div className="col-span-3">
-                  <Input id="dogCount" name="dogCount" type="number" min={1} max={4} value={formData.dogCount || 1} onChange={handleChange} aria-invalid={!!errors.dogCount} />
+                  <Input
+                    id="dogCount"
+                    name="dogCount"
+                    type="number"
+                    min={1}
+                    max={4}
+                    value={formData.dogCount || 1}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.dogCount}
+                  />
                   <p className="mt-1 text-xs text-slate-500">
                     Online booking rules support up to 4 dogs. Bookings for 3 or 4 dogs need consecutive drop-off slots.
                   </p>
@@ -775,32 +960,49 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                     </p>
                   )}
                   {dogCountReviewNote && formData.dogCountConfirmed !== false && (
-                    <p className="mt-2 text-xs font-medium text-brand-700">
-                      {dogCountReviewNote}
-                    </p>
+                    <p className="mt-2 text-xs font-medium text-brand-700">{dogCountReviewNote}</p>
                   )}
                   <FieldError message={errors.dogCount} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="price" className="text-right text-sm font-medium">Price (GBP) *</label>
+                <label htmlFor="price" className="text-right text-sm font-medium">
+                  Price (GBP) *
+                </label>
                 <div className="col-span-3">
-                  <Input id="price" name="price" type="number" value={formData.price || ""} onChange={handleChange} aria-invalid={!!errors.price} />
+                  <Input
+                    id="price"
+                    name="price"
+                    type="number"
+                    value={formData.price || ""}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.price}
+                  />
                   <FieldError message={errors.price} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="status" className="text-right text-sm font-medium">Status</label>
-                <select id="status" name="status" value={formData.status || ""} onChange={handleChange} className="col-span-3 flex h-10 w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2">
-                  {APPOINTMENT_STATUSES.map(s => (
-                    <option key={s} value={s}>{STATUS_CONFIG[s]?.label || s}</option>
+                <label htmlFor="status" className="text-right text-sm font-medium">
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  value={formData.status || ""}
+                  onChange={handleChange}
+                  className="col-span-3 flex h-10 w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
+                >
+                  {APPOINTMENT_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_CONFIG[s]?.label || s}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
 
             <DialogFooter className="pt-4 border-t border-slate-100 mt-4">
-              <Button type="button" variant="outline" onClick={() => appointment ? setIsEditing(false) : onClose()}>
+              <Button type="button" variant="outline" onClick={() => (appointment ? setIsEditing(false) : onClose())}>
                 Cancel
               </Button>
               <Button type="submit">{appointment ? "Save changes" : "Create Appointment"}</Button>

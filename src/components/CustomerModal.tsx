@@ -15,14 +15,20 @@ interface CustomerModalProps {
 }
 
 export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerModalProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'pets' | 'notes'>('info');
+  const [activeTab, setActiveTab] = useState<"info" | "pets" | "notes">("info");
   const [formData, setFormData] = useState<Partial<Customer>>({});
   const [pets, setPets] = useState<Pet[]>([]);
 
   // State for a new pet being added
   const [isAddingPet, setIsAddingPet] = useState(false);
   const [newPet, setNewPet] = useState<Partial<Pet>>({
-    name: "", breed: "", weight: 0, dob: "", coatType: "", behavioralNotes: [], vaccinations: []
+    name: "",
+    breed: "",
+    weight: 0,
+    dob: "",
+    coatType: "",
+    behavioralNotes: [],
+    vaccinations: [],
   });
   const [newBehavior, setNewBehavior] = useState("");
   const [newVaxName, setNewVaxName] = useState("");
@@ -31,7 +37,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { errors, validate, clearError, clearAll } = useFormValidation<Customer>({
-    name: required('Name'),
+    name: required("Name"),
     email: emailRule,
     phone: phoneRule,
   });
@@ -56,7 +62,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
       });
       setPets([]);
     }
-    setActiveTab('info');
+    setActiveTab("info");
     setIsAddingPet(false);
     clearAll();
   }, [customer, isOpen]);
@@ -105,18 +111,18 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
 
   const handleAddBehavior = () => {
     if (newBehavior.trim()) {
-      setNewPet(prev => ({
+      setNewPet((prev) => ({
         ...prev,
-        behavioralNotes: [...(prev.behavioralNotes || []), newBehavior.trim()]
+        behavioralNotes: [...(prev.behavioralNotes || []), newBehavior.trim()],
       }));
       setNewBehavior("");
     }
   };
 
   const handleRemoveBehavior = (behaviorToRemove: string) => {
-    setNewPet(prev => ({
+    setNewPet((prev) => ({
       ...prev,
-      behavioralNotes: (prev.behavioralNotes || []).filter(b => b !== behaviorToRemove)
+      behavioralNotes: (prev.behavioralNotes || []).filter((b) => b !== behaviorToRemove),
     }));
   };
 
@@ -126,11 +132,11 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
       const newVax: Vaccination = {
         name: newVaxName.trim(),
         expiryDate: newVaxDate,
-        status: isExpired ? 'expired' : 'valid'
+        status: isExpired ? "expired" : "valid",
       };
-      setNewPet(prev => ({
+      setNewPet((prev) => ({
         ...prev,
-        vaccinations: [...(prev.vaccinations || []), newVax]
+        vaccinations: [...(prev.vaccinations || []), newVax],
       }));
       setNewVaxName("");
       setNewVaxDate("");
@@ -138,33 +144,33 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
   };
 
   const handleRemoveVax = (vaxName: string) => {
-    setNewPet(prev => ({
+    setNewPet((prev) => ({
       ...prev,
-      vaccinations: (prev.vaccinations || []).filter(v => v.name !== vaxName)
+      vaccinations: (prev.vaccinations || []).filter((v) => v.name !== vaxName),
     }));
   };
 
   const handleAddWarning = () => {
     if (newWarning.trim()) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        warnings: [...(prev.warnings || []), newWarning.trim()]
+        warnings: [...(prev.warnings || []), newWarning.trim()],
       }));
       setNewWarning("");
     }
   };
 
   const handleRemoveWarning = (warningToRemove: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      warnings: (prev.warnings || []).filter(w => w !== warningToRemove)
+      warnings: (prev.warnings || []).filter((w) => w !== warningToRemove),
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate(formData)) {
-      setActiveTab('info'); // Switch to the tab with errors
+      setActiveTab("info"); // Switch to the tab with errors
       return;
     }
     setIsSubmitting(true);
@@ -188,81 +194,142 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
         <div className="flex border-b border-slate-200 mb-4 overflow-x-auto">
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'info' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('info')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === "info" ? "border-brand-600 text-brand-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+            onClick={() => setActiveTab("info")}
           >
             Client Info
           </button>
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'pets' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('pets')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === "pets" ? "border-brand-600 text-brand-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+            onClick={() => setActiveTab("pets")}
           >
             Pets ({pets.length})
           </button>
           <button
             type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'notes' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('notes')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === "notes" ? "border-brand-600 text-brand-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+            onClick={() => setActiveTab("notes")}
           >
             Notes & Warnings
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {activeTab === 'info' && (
+          {activeTab === "info" && (
             <div className="space-y-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="name" className="text-right text-sm font-medium">Name *</label>
+                <label htmlFor="name" className="text-right text-sm font-medium">
+                  Name *
+                </label>
                 <div className="col-span-3">
-                  <Input id="name" name="name" value={formData.name || ""} onChange={handleChange} aria-invalid={!!errors.name} />
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name || ""}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.name}
+                  />
                   <FieldError message={errors.name} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="email" className="text-right text-sm font-medium">Email *</label>
+                <label htmlFor="email" className="text-right text-sm font-medium">
+                  Email *
+                </label>
                 <div className="col-span-3">
-                  <Input id="email" name="email" type="email" value={formData.email || ""} onChange={handleChange} aria-invalid={!!errors.email} />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={formData.email || ""}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.email}
+                  />
                   <FieldError message={errors.email} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="phone" className="text-right text-sm font-medium">Phone *</label>
+                <label htmlFor="phone" className="text-right text-sm font-medium">
+                  Phone *
+                </label>
                 <div className="col-span-3">
-                  <Input id="phone" name="phone" type="tel" value={formData.phone || ""} onChange={handleChange} aria-invalid={!!errors.phone} />
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone || ""}
+                    onChange={handleChange}
+                    aria-invalid={!!errors.phone}
+                  />
                   <FieldError message={errors.phone} />
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <label htmlFor="address" className="text-right text-sm font-medium">Address</label>
-                <Input id="address" name="address" value={formData.address || ""} onChange={handleChange} className="col-span-3" />
+                <label htmlFor="address" className="text-right text-sm font-medium">
+                  Address
+                </label>
+                <Input
+                  id="address"
+                  name="address"
+                  value={formData.address || ""}
+                  onChange={handleChange}
+                  className="col-span-3"
+                />
               </div>
 
               <div className="pt-4 border-t border-slate-100">
                 <h4 className="text-sm font-medium text-purple mb-3">Emergency Contact</h4>
                 <div className="grid grid-cols-4 items-center gap-4 mb-3">
-                  <label htmlFor="emergency_name" className="text-right text-sm font-medium text-slate-500">Name</label>
-                  <Input id="emergency_name" name="emergency_name" value={formData.emergencyContact?.name || ""} onChange={handleChange} className="col-span-3" />
+                  <label htmlFor="emergency_name" className="text-right text-sm font-medium text-slate-500">
+                    Name
+                  </label>
+                  <Input
+                    id="emergency_name"
+                    name="emergency_name"
+                    value={formData.emergencyContact?.name || ""}
+                    onChange={handleChange}
+                    className="col-span-3"
+                  />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <label htmlFor="emergency_phone" className="text-right text-sm font-medium text-slate-500">Phone</label>
-                  <Input id="emergency_phone" name="emergency_phone" value={formData.emergencyContact?.phone || ""} onChange={handleChange} className="col-span-3" />
+                  <label htmlFor="emergency_phone" className="text-right text-sm font-medium text-slate-500">
+                    Phone
+                  </label>
+                  <Input
+                    id="emergency_phone"
+                    name="emergency_phone"
+                    value={formData.emergencyContact?.phone || ""}
+                    onChange={handleChange}
+                    className="col-span-3"
+                  />
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'pets' && (
+          {activeTab === "pets" && (
             <div className="space-y-4">
               {pets.length > 0 && !isAddingPet && (
                 <div className="space-y-3">
                   {pets.map((pet) => (
-                    <div key={pet.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50">
+                    <div
+                      key={pet.id}
+                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50"
+                    >
                       <div>
                         <div className="font-medium text-slate-900">{pet.name}</div>
-                        <div className="text-xs text-slate-500">{pet.breed} • {pet.weight} lbs</div>
+                        <div className="text-xs text-slate-500">
+                          {pet.breed} • {pet.weight} lbs
+                        </div>
                       </div>
-                      <Button type="button" variant="ghost" size="icon" className="text-coral hover:text-coral/80 hover:bg-coral-light" onClick={() => handleRemovePet(pet.id)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-coral hover:text-coral/80 hover:bg-coral-light"
+                        onClick={() => handleRemovePet(pet.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -271,7 +338,12 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
               )}
 
               {!isAddingPet ? (
-                <Button type="button" variant="outline" className="w-full border-dashed" onClick={() => setIsAddingPet(true)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-dashed"
+                  onClick={() => setIsAddingPet(true)}
+                >
                   <Plus className="mr-2 h-4 w-4" /> Add Pet
                 </Button>
               ) : (
@@ -280,23 +352,41 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-medium">Name *</label>
-                      <Input value={newPet.name || ""} onChange={(e) => setNewPet({ ...newPet, name: e.target.value })} />
+                      <Input
+                        value={newPet.name || ""}
+                        onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium">Breed</label>
-                      <Input value={newPet.breed || ""} onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })} />
+                      <Input
+                        value={newPet.breed || ""}
+                        onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium">Weight (lbs)</label>
-                      <Input type="number" value={newPet.weight || ""} onChange={(e) => setNewPet({ ...newPet, weight: Number(e.target.value) })} />
+                      <Input
+                        type="number"
+                        value={newPet.weight || ""}
+                        onChange={(e) => setNewPet({ ...newPet, weight: Number(e.target.value) })}
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-medium">DOB</label>
-                      <Input type="date" value={newPet.dob || ""} onChange={(e) => setNewPet({ ...newPet, dob: e.target.value })} />
+                      <Input
+                        type="date"
+                        value={newPet.dob || ""}
+                        onChange={(e) => setNewPet({ ...newPet, dob: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-1 col-span-2">
                       <label className="text-xs font-medium">Coat Type</label>
-                      <Input value={newPet.coatType || ""} onChange={(e) => setNewPet({ ...newPet, coatType: e.target.value })} placeholder="e.g., Double Coat, Curly, Short" />
+                      <Input
+                        value={newPet.coatType || ""}
+                        onChange={(e) => setNewPet({ ...newPet, coatType: e.target.value })}
+                        placeholder="e.g., Double Coat, Curly, Short"
+                      />
                     </div>
                   </div>
 
@@ -310,20 +400,30 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                         onChange={(e) => setNewBehavior(e.target.value)}
                         placeholder="e.g., Anxious, Biter"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             e.preventDefault();
                             handleAddBehavior();
                           }
                         }}
                       />
-                      <Button type="button" size="sm" variant="secondary" onClick={handleAddBehavior}>Add</Button>
+                      <Button type="button" size="sm" variant="secondary" onClick={handleAddBehavior}>
+                        Add
+                      </Button>
                     </div>
                     {(newPet.behavioralNotes || []).length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {(newPet.behavioralNotes || []).map((note, idx) => (
-                          <div key={idx} className="flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-xs">
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-xs"
+                          >
                             <span>{note}</span>
-                            <button type="button" onClick={() => handleRemoveBehavior(note)} className="hover:text-amber-950" title="Remove behavior">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBehavior(note)}
+                              className="hover:text-amber-950"
+                              title="Remove behavior"
+                            >
                               <X className="h-3 w-3" />
                             </button>
                           </div>
@@ -348,18 +448,30 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                         value={newVaxDate}
                         onChange={(e) => setNewVaxDate(e.target.value)}
                       />
-                      <Button type="button" size="sm" variant="secondary" onClick={handleAddVax}>Add</Button>
+                      <Button type="button" size="sm" variant="secondary" onClick={handleAddVax}>
+                        Add
+                      </Button>
                     </div>
                     {(newPet.vaccinations || []).length > 0 && (
                       <div className="space-y-1 pt-1">
                         {(newPet.vaccinations || []).map((vax, idx) => (
-                          <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 px-2 py-1 rounded text-xs">
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between bg-white border border-slate-200 px-2 py-1 rounded text-xs"
+                          >
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{vax.name}</span>
                               <span className="text-slate-500">Exp: {vax.expiryDate}</span>
-                              <div className={`h-1.5 w-1.5 rounded-full ${vax.status === 'valid' ? 'bg-accent' : 'bg-coral'}`} />
+                              <div
+                                className={`h-1.5 w-1.5 rounded-full ${vax.status === "valid" ? "bg-accent" : "bg-coral"}`}
+                              />
                             </div>
-                            <button type="button" onClick={() => handleRemoveVax(vax.name)} className="text-slate-400 hover:text-coral" title="Remove vaccination">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVax(vax.name)}
+                              className="text-slate-400 hover:text-coral"
+                              title="Remove vaccination"
+                            >
                               <X className="h-3 w-3" />
                             </button>
                           </div>
@@ -369,15 +481,19 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                   </div>
 
                   <div className="flex justify-end gap-2 pt-4 border-t border-slate-200">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingPet(false)}>Cancel</Button>
-                    <Button type="button" size="sm" onClick={handleAddPet} disabled={!newPet.name}>Save Pet</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddingPet(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="button" size="sm" onClick={handleAddPet} disabled={!newPet.name}>
+                      Save Pet
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {activeTab === 'notes' && (
+          {activeTab === "notes" && (
             <div className="space-y-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-900">General Notes</label>
@@ -400,21 +516,31 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
                     onChange={(e) => setNewWarning(e.target.value)}
                     placeholder="e.g., Late cancellation risk"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         e.preventDefault();
                         handleAddWarning();
                       }
                     }}
                   />
-                  <Button type="button" variant="secondary" onClick={handleAddWarning}>Add</Button>
+                  <Button type="button" variant="secondary" onClick={handleAddWarning}>
+                    Add
+                  </Button>
                 </div>
 
                 {(formData.warnings || []).length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-2">
                     {(formData.warnings || []).map((warning, idx) => (
-                      <div key={idx} className="flex items-center gap-1 bg-coral-light text-coral border border-coral/30 px-2 py-1 rounded-md text-sm">
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1 bg-coral-light text-coral border border-coral/30 px-2 py-1 rounded-md text-sm"
+                      >
                         <span>{warning}</span>
-                        <button type="button" onClick={() => handleRemoveWarning(warning)} className="text-coral/60 hover:text-coral" title="Remove warning">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveWarning(warning)}
+                          className="text-coral/60 hover:text-coral"
+                          title="Remove warning"
+                        >
                           <X className="h-3 w-3" />
                         </button>
                       </div>
@@ -429,7 +555,9 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : customer ? "Save changes" : "Create Customer"}</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : customer ? "Save changes" : "Create Customer"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -7,17 +7,7 @@ import { Badge } from "@/src/components/ui/badge";
 import { Button } from "@/src/components/ui/button";
 import { api } from "@/src/lib/api";
 import { format, isToday } from "date-fns";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Calendar,
-  Clock,
-  Dog,
-  DollarSign,
-  Scissors,
-  Truck,
-  Users,
-} from "lucide-react";
+import { AlertTriangle, ArrowRight, Calendar, Clock, Dog, DollarSign, Scissors, Truck, Users } from "lucide-react";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { AppointmentStatusBar } from "@/src/components/AppointmentStatusBar";
 import { formatCurrency } from "@/src/lib/utils";
@@ -51,7 +41,10 @@ function getStatusBadge(appointment: Appointment) {
     return { label: "Checked In", className: "bg-brand-50 text-brand-700 hover:bg-brand-50" };
   }
   if (appointment.status.includes("cancelled") || appointment.status === "no-show") {
-    return { label: formatStatusLabel(appointment.status), className: "bg-coral-light text-coral hover:bg-coral-light" };
+    return {
+      label: formatStatusLabel(appointment.status),
+      className: "bg-coral-light text-coral hover:bg-coral-light",
+    };
   }
 
   return { label: formatStatusLabel(appointment.status), className: "" };
@@ -74,10 +67,7 @@ export function Dashboard() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [aptData, analyticsData] = await Promise.all([
-          api.getAppointments(),
-          api.getAnalytics(),
-        ]);
+        const [aptData, analyticsData] = await Promise.all([api.getAppointments(), api.getAnalytics()]);
         setAppointments(aptData.map((d: any) => ({ ...d, date: new Date(d.date) })));
         setAnalytics(analyticsData);
       } catch (err) {
@@ -99,18 +89,23 @@ export function Dashboard() {
   const expectedTodayRevenue = todayAppointments
     .filter((appointment) => !appointment.status.includes("cancelled") && appointment.status !== "no-show")
     .reduce((sum, appointment) => sum + (appointment.price || 0), 0);
-  const nextAppointment = todayAppointments.find((appointment) => appointment.date.getTime() >= now.getTime() && !DONE_STATUSES.has(appointment.status)) ?? null;
-  const attentionAppointments = sortedAppointments.filter((appointment) => {
-    if (ATTENTION_STATUSES.has(appointment.status)) {
-      return true;
-    }
+  const nextAppointment =
+    todayAppointments.find(
+      (appointment) => appointment.date.getTime() >= now.getTime() && !DONE_STATUSES.has(appointment.status),
+    ) ?? null;
+  const attentionAppointments = sortedAppointments
+    .filter((appointment) => {
+      if (ATTENTION_STATUSES.has(appointment.status)) {
+        return true;
+      }
 
-    return (
-      isToday(appointment.date) &&
-      appointment.date.getTime() < now.getTime() - 15 * 60 * 1000 &&
-      ["scheduled", "confirmed", "deposit-paid", "deposit-pending"].includes(appointment.status)
-    );
-  }).slice(0, 5);
+      return (
+        isToday(appointment.date) &&
+        appointment.date.getTime() < now.getTime() - 15 * 60 * 1000 &&
+        ["scheduled", "confirmed", "deposit-paid", "deposit-pending"].includes(appointment.status)
+      );
+    })
+    .slice(0, 5);
 
   const visibleTodayAppointments = todayAppointments.filter((appointment) => {
     if (scheduleFilter === "upcoming") {
@@ -156,7 +151,9 @@ export function Dashboard() {
     } catch (err: any) {
       const suggestions: string[] = err?.details?.suggestions || [];
       if (suggestions.length > 0) {
-        toast.error(`${err.message} Next openings: ${suggestions.map((slot) => format(new Date(slot), "EEE h:mm a")).join(", ")}`);
+        toast.error(
+          `${err.message} Next openings: ${suggestions.map((slot) => format(new Date(slot), "EEE h:mm a")).join(", ")}`,
+        );
       } else {
         handleError(err, "Failed to save appointment");
       }
@@ -175,10 +172,16 @@ export function Dashboard() {
     {
       value: "upcoming",
       label: "Upcoming",
-      count: todayAppointments.filter((appointment) => appointment.date.getTime() >= now.getTime() && !DONE_STATUSES.has(appointment.status)).length,
+      count: todayAppointments.filter(
+        (appointment) => appointment.date.getTime() >= now.getTime() && !DONE_STATUSES.has(appointment.status),
+      ).length,
     },
     { value: "active", label: "In Salon", count: activeAppointments.length },
-    { value: "done", label: "Done", count: todayAppointments.filter((appointment) => DONE_STATUSES.has(appointment.status)).length },
+    {
+      value: "done",
+      label: "Done",
+      count: todayAppointments.filter((appointment) => DONE_STATUSES.has(appointment.status)).length,
+    },
   ];
 
   return (
@@ -236,7 +239,9 @@ export function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{readyForCollection.length}</div>
-                <p className={`text-xs ${readyForCollection.length > 0 ? "text-purple font-medium" : "text-slate-500"}`}>
+                <p
+                  className={`text-xs ${readyForCollection.length > 0 ? "text-purple font-medium" : "text-slate-500"}`}
+                >
                   {readyForCollection.length > 0 ? "Action needed — contact owners" : "Owners to contact or greet"}
                 </p>
               </CardContent>
@@ -286,7 +291,9 @@ export function Dashboard() {
                         <Dog className="h-7 w-7 text-brand-500" />
                       </div>
                       <h3 className="mt-4 text-sm font-semibold text-slate-900">All clear — no appointments here!</h3>
-                      <p className="mt-1 text-sm text-slate-500 max-w-xs">Try a different filter, or head to the calendar to schedule something new.</p>
+                      <p className="mt-1 text-sm text-slate-500 max-w-xs">
+                        Try a different filter, or head to the calendar to schedule something new.
+                      </p>
                     </div>
                   ) : (
                     visibleTodayAppointments.map((appointment) => {
@@ -370,7 +377,9 @@ export function Dashboard() {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="font-semibold text-slate-900">{nextAppointment.petName}</p>
-                          <p className="text-sm text-slate-600">{nextAppointment.service} for {nextAppointment.ownerName}</p>
+                          <p className="text-sm text-slate-600">
+                            {nextAppointment.service} for {nextAppointment.ownerName}
+                          </p>
                         </div>
                         <p className="text-sm font-semibold text-brand-700">{format(nextAppointment.date, "h:mm a")}</p>
                       </div>
@@ -413,7 +422,9 @@ export function Dashboard() {
                           >
                             <div className="space-y-1">
                               <p className="font-semibold text-slate-900">{appointment.petName}</p>
-                              <p className="text-sm text-slate-600">{appointment.service} for {appointment.ownerName}</p>
+                              <p className="text-sm text-slate-600">
+                                {appointment.service} for {appointment.ownerName}
+                              </p>
                               <div className="flex items-center gap-2 text-xs text-slate-500">
                                 <Clock className="h-3.5 w-3.5" />
                                 {format(appointment.date, isToday(appointment.date) ? "h:mm a" : "EEE h:mm a")}

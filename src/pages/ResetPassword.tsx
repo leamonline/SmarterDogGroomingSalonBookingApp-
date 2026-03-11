@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Dog } from 'lucide-react';
-import { Button } from '@/src/components/ui/button';
-import { Input } from '@/src/components/ui/input';
-import { FieldError } from '@/src/components/ui/field-error';
-import { api } from '@/src/lib/api';
-import { validatePasswordStrength } from '@/src/lib/passwordValidation';
-import { useFormValidation, required } from '@/src/lib/useFormValidation';
+import React, { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Dog } from "lucide-react";
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import { FieldError } from "@/src/components/ui/field-error";
+import { api } from "@/src/lib/api";
+import { validatePasswordStrength } from "@/src/lib/passwordValidation";
+import { useFormValidation, required } from "@/src/lib/useFormValidation";
 
 type ResetPasswordForm = {
   newPassword: string;
@@ -16,30 +16,30 @@ type ResetPasswordForm = {
 export function ResetPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get("token") ?? "";
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
   const { errors, validate, clearError } = useFormValidation<ResetPasswordForm>({
-    newPassword: (value) => required('New password')(value) || validatePasswordStrength(value),
+    newPassword: (value) => required("New password")(value) || validatePasswordStrength(value),
     confirmPassword: (value, data) => {
-      const missing = required('Confirm password')(value);
+      const missing = required("Confirm password")(value);
       if (missing) return missing;
-      if (value !== data.newPassword) return 'Passwords do not match';
+      if (value !== data.newPassword) return "Passwords do not match";
       return null;
     },
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!token) {
-      setError('This reset link is missing a token. Please request a new email.');
+      setError("This reset link is missing a token. Please request a new email.");
       return;
     }
 
@@ -52,7 +52,7 @@ export function ResetPassword() {
       await api.confirmPasswordReset(token, newPassword);
       setIsComplete(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to reset your password right now.');
+      setError(err instanceof Error ? err.message : "Unable to reset your password right now.");
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +72,8 @@ export function ResetPassword() {
             Reset password
           </h1>
           <p className="mt-2 text-center text-sm text-slate-500">
-            Choose a new password for your <span className="font-accent text-lg text-brand-600">Smarter Dog</span> account.
+            Choose a new password for your <span className="font-accent text-lg text-brand-600">Smarter Dog</span>{" "}
+            account.
           </p>
         </div>
 
@@ -81,7 +82,7 @@ export function ResetPassword() {
             <div className="rounded-2xl bg-brand-50 px-4 py-4 text-center text-sm font-medium text-brand-700">
               Your password has been updated. You can sign in straight away.
             </div>
-            <Button className="w-full font-bold shadow-md" onClick={() => navigate('/login?reset=success')}>
+            <Button className="w-full font-bold shadow-md" onClick={() => navigate("/login?reset=success")}>
               Back to sign in
             </Button>
           </div>
@@ -101,7 +102,7 @@ export function ResetPassword() {
                   value={newPassword}
                   onChange={(e) => {
                     setNewPassword(e.target.value);
-                    clearError('newPassword');
+                    clearError("newPassword");
                   }}
                   aria-invalid={!!errors.newPassword}
                 />
@@ -121,7 +122,7 @@ export function ResetPassword() {
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value);
-                    clearError('confirmPassword');
+                    clearError("confirmPassword");
                   }}
                   aria-invalid={!!errors.confirmPassword}
                 />
@@ -140,28 +141,17 @@ export function ResetPassword() {
             )}
 
             <div className="space-y-3">
-              <Button
-                type="submit"
-                className="w-full font-bold shadow-md"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Updating password...' : 'Update password'}
+              <Button type="submit" className="w-full font-bold shadow-md" disabled={isLoading}>
+                {isLoading ? "Updating password..." : "Update password"}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => navigate('/login')}
-              >
+              <Button type="button" variant="outline" className="w-full" onClick={() => navigate("/login")}>
                 Back to sign in
               </Button>
             </div>
           </form>
         )}
 
-        <p className="text-center font-accent text-sm text-slate-400">
-          Come scruffy. Leave gorgeous.
-        </p>
+        <p className="text-center font-accent text-sm text-slate-400">Come scruffy. Leave gorgeous.</p>
       </div>
     </div>
   );

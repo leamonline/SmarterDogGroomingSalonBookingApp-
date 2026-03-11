@@ -3,43 +3,43 @@
 // ────────────────────────────
 
 export const APPOINTMENT_STATUSES = [
-  'pending-approval',
-  'confirmed',
-  'deposit-pending',
-  'deposit-paid',
-  'checked-in',
-  'in-progress',
-  'ready-for-collection',
-  'completed',
-  'cancelled-by-customer',
-  'cancelled-by-salon',
-  'no-show',
-  'rescheduled',
-  'incomplete',
-  'incident-review',
+  "pending-approval",
+  "confirmed",
+  "deposit-pending",
+  "deposit-paid",
+  "checked-in",
+  "in-progress",
+  "ready-for-collection",
+  "completed",
+  "cancelled-by-customer",
+  "cancelled-by-salon",
+  "no-show",
+  "rescheduled",
+  "incomplete",
+  "incident-review",
   // Legacy statuses kept for backwards compat
-  'scheduled',
+  "scheduled",
 ] as const;
 
-export type AppointmentStatus = typeof APPOINTMENT_STATUSES[number];
+export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 
-export const USER_ROLES = ['customer', 'groomer', 'receptionist', 'owner'] as const;
-export type UserRole = typeof USER_ROLES[number];
+export const USER_ROLES = ["customer", "groomer", "receptionist", "owner"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
 
-export const PAYMENT_METHODS = ['card', 'cash', 'bank-transfer'] as const;
-export type PaymentMethod = typeof PAYMENT_METHODS[number];
+export const PAYMENT_METHODS = ["card", "cash", "bank-transfer"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-export const PAYMENT_TYPES = ['deposit', 'full', 'partial', 'refund', 'partial-refund'] as const;
-export type PaymentType = typeof PAYMENT_TYPES[number];
+export const PAYMENT_TYPES = ["deposit", "full", "partial", "refund", "partial-refund"] as const;
+export type PaymentType = (typeof PAYMENT_TYPES)[number];
 
-export const PRICE_TYPES = ['fixed', 'variable', 'from'] as const;
-export type PriceType = typeof PRICE_TYPES[number];
+export const PRICE_TYPES = ["fixed", "variable", "from"] as const;
+export type PriceType = (typeof PRICE_TYPES)[number];
 
-export const TOLERANCE_LEVELS = ['good', 'fair', 'poor', 'unknown'] as const;
-export type ToleranceLevel = typeof TOLERANCE_LEVELS[number];
+export const TOLERANCE_LEVELS = ["good", "fair", "poor", "unknown"] as const;
+export type ToleranceLevel = (typeof TOLERANCE_LEVELS)[number];
 
-export const MESSAGE_CHANNELS = ['email', 'sms'] as const;
-export type MessageChannel = typeof MESSAGE_CHANNELS[number];
+export const MESSAGE_CHANNELS = ["email", "sms"] as const;
+export type MessageChannel = (typeof MESSAGE_CHANNELS)[number];
 
 // ────────────────────────────
 // Vaccinations
@@ -48,7 +48,7 @@ export type MessageChannel = typeof MESSAGE_CHANNELS[number];
 export type Vaccination = {
   name: string;
   expiryDate: string;
-  status: 'valid' | 'expired' | 'missing';
+  status: "valid" | "expired" | "missing";
 };
 
 // ────────────────────────────
@@ -135,7 +135,7 @@ export type Customer = {
   // Sprint 1: Expanded profile
   preferredName?: string;
   postcode?: string;
-  preferredContact?: 'email' | 'phone' | 'sms';
+  preferredContact?: "email" | "phone" | "sms";
   marketingConsent?: boolean;
   tags?: string[];
 };
@@ -259,7 +259,7 @@ export type Payment = {
 export type FormField = {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'checkbox' | 'select' | 'date' | 'signature';
+  type: "text" | "textarea" | "checkbox" | "select" | "date" | "signature";
   required?: boolean;
   options?: string[];
   conditionalOn?: string;

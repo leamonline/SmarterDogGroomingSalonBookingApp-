@@ -51,9 +51,35 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
   const flatResults = useMemo(() => {
     if (!results) return [];
     const items: { type: string; id: string; label: string; sub?: string; navigateTo: string; navState: any }[] = [];
-    results.customers?.forEach((c: any) => items.push({ type: "customer", id: c.id, label: c.name, sub: c.email, navigateTo: "/clients", navState: { customerId: c.id } }));
-    results.pets?.forEach((p: any) => items.push({ type: "pet", id: p.id, label: p.name, sub: p.breed, navigateTo: "/dogs", navState: { dogId: p.id } }));
-    results.appointments?.forEach((a: any) => items.push({ type: "appointment", id: a.id, label: `${a.petName} - ${a.service}`, navigateTo: "/calendar", navState: { appointmentId: a.id } }));
+    results.customers?.forEach((c: any) =>
+      items.push({
+        type: "customer",
+        id: c.id,
+        label: c.name,
+        sub: c.email,
+        navigateTo: "/clients",
+        navState: { customerId: c.id },
+      }),
+    );
+    results.pets?.forEach((p: any) =>
+      items.push({
+        type: "pet",
+        id: p.id,
+        label: p.name,
+        sub: p.breed,
+        navigateTo: "/dogs",
+        navState: { dogId: p.id },
+      }),
+    );
+    results.appointments?.forEach((a: any) =>
+      items.push({
+        type: "appointment",
+        id: a.id,
+        label: `${a.petName} - ${a.service}`,
+        navigateTo: "/calendar",
+        navState: { appointmentId: a.id },
+      }),
+    );
     return items;
   }, [results]);
 
@@ -78,13 +104,17 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
       }
 
       // Arrow key navigation in search results
-      if (showResults && flatResults.length > 0 && (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter")) {
+      if (
+        showResults &&
+        flatResults.length > 0 &&
+        (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter")
+      ) {
         if (event.key === "ArrowDown") {
           event.preventDefault();
-          setActiveResultIdx(prev => (prev < flatResults.length - 1 ? prev + 1 : 0));
+          setActiveResultIdx((prev) => (prev < flatResults.length - 1 ? prev + 1 : 0));
         } else if (event.key === "ArrowUp") {
           event.preventDefault();
-          setActiveResultIdx(prev => (prev > 0 ? prev - 1 : flatResults.length - 1));
+          setActiveResultIdx((prev) => (prev > 0 ? prev - 1 : flatResults.length - 1));
         } else if (event.key === "Enter" && activeResultIdx >= 0 && activeResultIdx < flatResults.length) {
           event.preventDefault();
           const item = flatResults[activeResultIdx];
@@ -142,45 +172,107 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
           )}
 
           {showResults && results && query.length > 0 && (
-            <div id="search-results-listbox" role="listbox" aria-label="Search results" className="absolute top-full mt-2 w-full z-50 rounded-2xl border border-brand-100 bg-white shadow-lg overflow-hidden py-2" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div
+              id="search-results-listbox"
+              role="listbox"
+              aria-label="Search results"
+              className="absolute top-full mt-2 w-full z-50 rounded-2xl border border-brand-100 bg-white shadow-lg overflow-hidden py-2"
+              style={{ maxHeight: "400px", overflowY: "auto" }}
+            >
               {flatResults.length > 0 ? (
                 <>
                   {results.customers?.length > 0 && (
                     <div className="px-4 py-2">
-                      <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2" aria-hidden="true">Clients</h3>
+                      <h3
+                        className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2"
+                        aria-hidden="true"
+                      >
+                        Clients
+                      </h3>
                       {results.customers.map((c: any) => {
-                        const idx = flatResults.findIndex(f => f.type === "customer" && f.id === c.id);
+                        const idx = flatResults.findIndex((f) => f.type === "customer" && f.id === c.id);
                         return (
-                          <div key={c.id} id={`search-result-${idx}`} role="option" aria-selected={activeResultIdx === idx} className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`} onClick={() => { navigate('/clients', { state: { customerId: c.id } }); setShowResults(false); setQuery(""); }}>{c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span></div>
+                          <div
+                            key={c.id}
+                            id={`search-result-${idx}`}
+                            role="option"
+                            aria-selected={activeResultIdx === idx}
+                            className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`}
+                            onClick={() => {
+                              navigate("/clients", { state: { customerId: c.id } });
+                              setShowResults(false);
+                              setQuery("");
+                            }}
+                          >
+                            {c.name} <span className="text-slate-400 text-xs ml-2">{c.email}</span>
+                          </div>
                         );
                       })}
                     </div>
                   )}
                   {results.pets?.length > 0 && (
                     <div className="px-4 py-2">
-                      <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2" aria-hidden="true">Dogs</h3>
+                      <h3
+                        className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2"
+                        aria-hidden="true"
+                      >
+                        Dogs
+                      </h3>
                       {results.pets.map((p: any) => {
-                        const idx = flatResults.findIndex(f => f.type === "pet" && f.id === p.id);
+                        const idx = flatResults.findIndex((f) => f.type === "pet" && f.id === p.id);
                         return (
-                          <div key={p.id} id={`search-result-${idx}`} role="option" aria-selected={activeResultIdx === idx} className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`} onClick={() => { navigate('/dogs', { state: { dogId: p.id } }); setShowResults(false); setQuery(""); }}>{p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span></div>
+                          <div
+                            key={p.id}
+                            id={`search-result-${idx}`}
+                            role="option"
+                            aria-selected={activeResultIdx === idx}
+                            className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`}
+                            onClick={() => {
+                              navigate("/dogs", { state: { dogId: p.id } });
+                              setShowResults(false);
+                              setQuery("");
+                            }}
+                          >
+                            {p.name} <span className="text-slate-400 text-xs ml-2">{p.breed}</span>
+                          </div>
                         );
                       })}
                     </div>
                   )}
                   {results.appointments?.length > 0 && (
                     <div className="px-4 py-2">
-                      <h3 className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2" aria-hidden="true">Appointments</h3>
+                      <h3
+                        className="text-xs font-semibold text-brand-500 uppercase tracking-wider mb-2"
+                        aria-hidden="true"
+                      >
+                        Appointments
+                      </h3>
                       {results.appointments.map((a: any) => {
-                        const idx = flatResults.findIndex(f => f.type === "appointment" && f.id === a.id);
+                        const idx = flatResults.findIndex((f) => f.type === "appointment" && f.id === a.id);
                         return (
-                          <div key={a.id} id={`search-result-${idx}`} role="option" aria-selected={activeResultIdx === idx} className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`} onClick={() => { navigate('/calendar', { state: { appointmentId: a.id } }); setShowResults(false); setQuery(""); }}>{a.petName} - {a.service}</div>
+                          <div
+                            key={a.id}
+                            id={`search-result-${idx}`}
+                            role="option"
+                            aria-selected={activeResultIdx === idx}
+                            className={`text-sm py-1.5 cursor-pointer rounded-lg px-2 transition-colors ${activeResultIdx === idx ? "bg-brand-100 text-brand-900" : "hover:bg-brand-50"}`}
+                            onClick={() => {
+                              navigate("/calendar", { state: { appointmentId: a.id } });
+                              setShowResults(false);
+                              setQuery("");
+                            }}
+                          >
+                            {a.petName} - {a.service}
+                          </div>
                         );
                       })}
                     </div>
                   )}
                 </>
               ) : (
-                <div className="p-4 text-sm text-slate-500 text-center" role="status">No results found</div>
+                <div className="p-4 text-sm text-slate-500 text-center" role="status">
+                  No results found
+                </div>
               )}
             </div>
           )}

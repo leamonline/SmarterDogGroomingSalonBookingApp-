@@ -11,23 +11,20 @@ import { validatePasswordStrength } from "@/src/lib/passwordValidation";
 import { useAuth } from "@/src/lib/AuthContext";
 import { Shield, UserPlus, Users, Scissors } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  type BookingScheduleDay,
-  normalizeScheduleDays,
-} from "@/src/lib/bookingSchedule";
+import { type BookingScheduleDay, normalizeScheduleDays } from "@/src/lib/bookingSchedule";
 
 const ROLE_LABELS: Record<string, string> = {
-  owner: 'Owner',
-  receptionist: 'Receptionist',
-  groomer: 'Groomer',
-  customer: 'Customer',
+  owner: "Owner",
+  receptionist: "Receptionist",
+  groomer: "Groomer",
+  customer: "Customer",
 };
 
 const ROLE_COLOURS: Record<string, string> = {
-  owner: 'bg-purple-light/30 text-purple',
-  receptionist: 'bg-sky-light text-brand-700',
-  groomer: 'bg-sage-light text-brand-700',
-  customer: 'bg-slate-100 text-slate-800',
+  owner: "bg-purple-light/30 text-purple",
+  receptionist: "bg-sky-light text-brand-700",
+  groomer: "bg-sage-light text-brand-700",
+  customer: "bg-slate-100 text-slate-800",
 };
 
 export function Settings() {
@@ -137,7 +134,7 @@ export function Settings() {
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       await api.updateStaffRole(userId, newRole);
-      setStaff(prev => prev.map(s => s.id === userId ? { ...s, role: newRole } : s));
+      setStaff((prev) => prev.map((s) => (s.id === userId ? { ...s, role: newRole } : s)));
       toast.success("Role updated");
     } catch (err: any) {
       toast.error(err.message || "Failed to update role");
@@ -156,7 +153,9 @@ export function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Secondary tools</CardTitle>
-              <CardDescription>Keep service setup available without putting it in the main daily navigation.</CardDescription>
+              <CardDescription>
+                Keep service setup available without putting it in the main daily navigation.
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
               <Button variant="outline" onClick={() => navigate("/services")}>
@@ -178,15 +177,15 @@ export function Settings() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-900">Shop Name</label>
-                  <Input value={shopName} onChange={e => setShopName(e.target.value)} />
+                  <Input value={shopName} onChange={(e) => setShopName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-900">Phone Number</label>
-                  <Input value={shopPhone} onChange={e => setShopPhone(e.target.value)} />
+                  <Input value={shopPhone} onChange={(e) => setShopPhone(e.target.value)} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-slate-900">Address</label>
-                  <Input value={shopAddress} onChange={e => setShopAddress(e.target.value)} />
+                  <Input value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} />
                 </div>
               </div>
             </CardContent>
@@ -201,7 +200,9 @@ export function Settings() {
           <Card>
             <CardHeader>
               <CardTitle>Booking Schedule</CardTitle>
-              <CardDescription>Choose which days are open and exactly which start times can be booked online.</CardDescription>
+              <CardDescription>
+                Choose which days are open and exactly which start times can be booked online.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <BookingScheduleEditor schedule={schedule} setSchedule={setSchedule} />
@@ -215,22 +216,24 @@ export function Settings() {
         {/* Password — always visible */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-slate-400" /> Security</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-slate-400" /> Security
+            </CardTitle>
             <CardDescription>Change your password.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium text-slate-900">Current Password</label>
-                <Input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+                <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-900">New Password</label>
-                <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-900">Confirm New Password</label>
-                <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
               </div>
             </div>
           </CardContent>
@@ -243,7 +246,9 @@ export function Settings() {
         {isAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-slate-400" /> Staff Accounts</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-slate-400" /> Staff Accounts
+              </CardTitle>
               <CardDescription>Manage staff access and roles.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -251,20 +256,27 @@ export function Settings() {
                 <h4 className="text-sm font-medium text-slate-900">Current Staff</h4>
                 <div className="grid gap-2">
                   {staff.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50">
+                    <div
+                      key={s.id}
+                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50"
+                    >
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-slate-900">{s.email}</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLOURS[s.role] || ROLE_COLOURS.groomer}`}>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLOURS[s.role] || ROLE_COLOURS.groomer}`}
+                        >
                           {ROLE_LABELS[s.role] || s.role}
                         </span>
                         {s.id === currentUser?.id && (
-                          <Badge variant="outline" className="text-xs">You</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            You
+                          </Badge>
                         )}
                       </div>
                       {isOwner && s.id !== currentUser?.id && (
                         <select
                           title="Change user role"
-                          value={s.role || 'groomer'}
+                          value={s.role || "groomer"}
                           onChange={(e) => handleRoleChange(s.id, e.target.value)}
                           className="text-sm border border-brand-200 rounded-xl px-2 py-1 bg-white text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
                         >
@@ -279,15 +291,27 @@ export function Settings() {
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                <h4 className="text-sm font-medium text-slate-900 mb-4 flex items-center gap-2"><UserPlus className="h-4 w-4" /> Add Staff Member</h4>
+                <h4 className="text-sm font-medium text-slate-900 mb-4 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" /> Add Staff Member
+                </h4>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-900">Email Address</label>
-                    <Input type="email" value={newStaffEmail} onChange={e => setNewStaffEmail(e.target.value)} placeholder="Email" />
+                    <Input
+                      type="email"
+                      value={newStaffEmail}
+                      onChange={(e) => setNewStaffEmail(e.target.value)}
+                      placeholder="Email"
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-900">Password</label>
-                    <Input type="password" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} placeholder="Password" />
+                    <Input
+                      type="password"
+                      value={newStaffPassword}
+                      onChange={(e) => setNewStaffPassword(e.target.value)}
+                      placeholder="Password"
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-900">Role</label>
@@ -316,8 +340,12 @@ export function Settings() {
           <Card>
             <CardContent className="py-8 text-center">
               <Shield className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-500">Shop settings and staff management are restricted to Receptionists and Owners.</p>
-              <p className="text-xs text-slate-400 mt-1">Your role: <span className="font-medium">{ROLE_LABELS[currentUser?.role || ''] || 'Unknown'}</span></p>
+              <p className="text-sm font-medium text-slate-500">
+                Shop settings and staff management are restricted to Receptionists and Owners.
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Your role: <span className="font-medium">{ROLE_LABELS[currentUser?.role || ""] || "Unknown"}</span>
+              </p>
             </CardContent>
           </Card>
         )}

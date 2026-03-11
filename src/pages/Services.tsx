@@ -163,7 +163,9 @@ export function Services() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-slate-900">
-                      {service.priceType === "from" ? `From ${formatCurrency(service.price)}` : formatCurrency(service.price)}
+                      {service.priceType === "from"
+                        ? `From ${formatCurrency(service.price)}`
+                        : formatCurrency(service.price)}
                     </div>
                     <div className="text-xs text-slate-500">{service.duration} mins</div>
                   </div>
@@ -179,14 +181,22 @@ export function Services() {
                   {service.isApprovalRequired && <Badge variant="outline">Approval required</Badge>}
                 </div>
                 <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                  <div className="text-sm font-medium text-slate-500">
-                    Duration: {service.duration} mins
-                  </div>
+                  <div className="text-sm font-medium text-slate-500">Duration: {service.duration} mins</div>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-brand-600" onClick={() => handleEdit(service)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-brand-600"
+                      onClick={() => handleEdit(service)}
+                    >
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-coral" onClick={() => handleDelete(service.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-coral"
+                      onClick={() => handleDelete(service.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

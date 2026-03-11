@@ -29,6 +29,7 @@ The booking wizard places authentication (Step 2) between service selection (Ste
 **Risk:** Users who are "just checking" availability bounce at the auth wall. The real-world analogy would be a salon receptionist demanding your name and phone number before telling you whether they have any openings — most people would hang up.
 
 **What to test:**
+
 - A/B test moving auth to Step 4 (after date/time + pet details, before confirmation)
 - Measure drop-off rate at each wizard step
 - Usability test: ask 5 customers to book an appointment and note where they hesitate
@@ -44,6 +45,7 @@ When no slots are available for the selected date, the "Find first available" bu
 **Risk:** The toast disappears after a few seconds. The customer is left staring at the same date picker with no slots, unsure what to do next. There's no call-to-action (phone number, waitlist, alternative location) to recover the interaction.
 
 **What to test:**
+
 - Track how often "Find first available" returns zero results in production
 - Test a persistent "fully booked" state with a phone number CTA vs. the current toast
 - Interview salon staff: how often do customers call because online booking showed no availability?
@@ -57,6 +59,7 @@ The booking stepper uses `hidden sm:inline` for step labels. On mobile, customer
 **Risk:** A customer at Step 2 (auth) doesn't know whether they'll need to provide pet medical history, vaccination records, or payment details in later steps. This uncertainty may cause some users to abandon rather than risk a lengthy process.
 
 **What to test:**
+
 - Mobile usability test: do users express uncertainty about what comes next?
 - Compare completion rates with abbreviated labels ("Service → Login → Time → Pet → Done") vs. numbers only
 
@@ -76,6 +79,7 @@ The four top-level stat cards (Today's Bookings, Live In Salon, Ready for Collec
 **Risk:** During a busy day with 15+ appointments, staff glance at the dashboard for a quick status update. If the card that needs action looks the same as the cards that don't, the "ready for collection" dogs wait longer — causing customer complaints and kennel congestion.
 
 **What to test:**
+
 - Contextual inquiry: observe staff using the dashboard during peak hours — which cards do they look at first?
 - Test a variant where the "Ready for Collection" card gets a warm accent border or background when count > 0
 - Survey staff: "When you open the dashboard, what are you usually looking for?"
@@ -89,6 +93,7 @@ The calendar's right sidebar lists all appointments for the selected day in a fl
 **Risk:** A groomer mid-shift wants to know "which dogs are waiting?" — they don't care about the 9 AM appointment that's already completed. The flat list forces them to scan past irrelevant entries. The filter buttons (All / Needs Action / In Salon / Done) help, but require an extra click and mental model switch.
 
 **What to test:**
+
 - Task analysis: ask staff "show me which appointments need attention right now" and time how long it takes with current UI vs. a grouped-by-status variant
 - Check filter usage analytics: do staff actually use the sidebar filter buttons, or do they leave it on "All"?
 
@@ -101,6 +106,7 @@ The Dashboard's attention system flags appointments as "late" if their scheduled
 **Risk:** A full groom (2+ hours) starting 15 minutes late may still be fine operationally, while a quick nail trim starting 10 minutes late might already be causing a cascade of delays. A single threshold may generate false positives (unnecessary alerts) or false negatives (missing genuinely problematic delays).
 
 **What to test:**
+
 - Interview groomers: "When does a late arrival actually become a problem? Does it depend on the service type?"
 - Analyse historical data: what's the actual distribution of arrival times vs. scheduled times?
 
@@ -120,6 +126,7 @@ The calendar uses mouse-based drag-and-drop with 30-minute grid snapping to resc
 **Risk:** If staff are using tablets or touchscreens in the salon (near the grooming stations, at reception), drag-and-drop may be unreliable on touch devices. Additionally, the 30-minute snap grid means rescheduling to 10:15 AM isn't possible via drag — only through the modal.
 
 **What to test:**
+
 - Device audit: what devices do salon staff actually use? Desktop, tablet, or phone?
 - Observation: do staff use drag-and-drop in practice, or do they open the appointment modal to change times?
 - If tablets are common: test touch-based rescheduling accuracy
@@ -133,6 +140,7 @@ There is no keyboard-accessible way to move an appointment to a different time s
 **Risk:** Staff with motor impairments, temporary injuries, or strong keyboard-navigation preferences cannot use the primary rescheduling workflow. The modal workaround is functional but significantly slower (open modal → find date field → change value → save).
 
 **What to test:**
+
 - Accessibility audit with keyboard-only navigation: can all core tasks be completed?
 - Staff survey: does anyone currently find rescheduling difficult?
 
@@ -152,6 +160,7 @@ The login page's "Forgot password?" link triggers a raw browser `alert()` with t
 **Risk:** Browser alerts look like errors or security warnings. A customer who sees one may assume the site is broken or untrustworthy, and choose to call for the entire booking rather than use the online system at all.
 
 **What to test:**
+
 - Replace with an inline styled message and track whether "forgot password" interactions increase
 - Interview customers who've called the salon: did any of them try to book online first?
 
@@ -164,6 +173,7 @@ The app consistently uses `toast.error()` for error communication (failed API ca
 **Risk:** During a busy salon day, a groomer updating an appointment status might click a button, glance away at the dog they're working on, and miss the error toast entirely. They'd assume the action succeeded when it didn't.
 
 **What to test:**
+
 - Track toast display duration vs. interaction rate (do users click/dismiss, or do toasts expire naturally?)
 - Test persistent inline errors for critical operations (status changes, appointment saves) vs. toasts
 - Observe: do staff notice toast messages during multitasking?
@@ -177,6 +187,7 @@ The header Bell icon shows an unread count badge but clicking it produces "Notif
 **Risk:** After encountering a non-functional UI element, users may lose confidence in other elements. "If the notification bell doesn't work, does the appointment status actually update?" This is a small trust erosion with potentially outsized impact.
 
 **What to test:**
+
 - Remove the bell icon and count badge entirely; measure whether staff report missing it
 - If keeping: implement even a minimal notification panel (recent status changes, new bookings today)
 
@@ -196,6 +207,7 @@ The Customers page loads 50 records at a time with a "Load More" button. There's
 **Risk:** If staff need to find "that customer who came in last month, their name was something like Smith or Schmidt," they might scroll through Load More repeatedly rather than using search. The search bar does client-side filtering on loaded pages, meaning it can only find customers in pages already loaded into memory.
 
 **What to test:**
+
 - Analytics: how often is "Load More" clicked? How deep do users go?
 - Does the search bar satisfy most lookup needs, or do staff resort to scrolling?
 - Would server-side search with typeahead be more effective?
@@ -209,6 +221,7 @@ Emergency contact information (name, phone, relationship) is displayed in a high
 **Risk:** In a genuine emergency (dog has an allergic reaction during grooming), the groomer needs to contact the owner immediately. If the emergency contact is only visible in the customer details panel (not on the appointment card or in-progress view), there's an extra navigation step during a time-critical moment.
 
 **What to test:**
+
 - Scenario test: "A dog is having a reaction. Find the owner's emergency contact." Time the task.
 - Staff interview: have you ever needed an emergency contact during a groom? Where did you look?
 
@@ -228,6 +241,7 @@ Calendar appointment blocks use colour alone to communicate status (teal = confi
 **Risk:** Salon lighting may include fluorescent overhead lights, natural light variation through the day, and wet/steamy conditions near washing stations. Colours that look distinct on a developer's monitor may be harder to differentiate in a real salon. Additionally, roughly 8% of men have some form of colour vision deficiency.
 
 **What to test:**
+
 - View the calendar under simulated colour vision deficiency (protanopia, deuteranopia)
 - Add icons or text labels to calendar blocks alongside colour
 - Staff survey: "Can you always tell at a glance what status an appointment is in on the calendar?"
@@ -241,6 +255,7 @@ The app uses Quicksand (headings), Montserrat (body), and Caveat (accents) — a
 **Risk:** If the salon's internet is slow or intermittent (common in small businesses), font loading may fail silently. Quicksand and Montserrat falling back to system sans-serif would look acceptable but lose brand personality. Caveat falling back to `cursive` could produce wildly different results depending on the OS (Comic Sans on Windows, Snell Roundhand on macOS).
 
 **What to test:**
+
 - Test the app with Google Fonts blocked — does it still look professional?
 - Consider self-hosting the font files to eliminate the external dependency
 
@@ -248,22 +263,22 @@ The app uses Quicksand (headings), Montserrat (body), and Caveat (accents) — a
 
 ## Insights → Opportunities Matrix
 
-| Insight | User Impact | Business Impact | Effort to Validate | Research Method |
-|---------|-------------|-----------------|--------------------|--------------------|
-| Auth wall before availability check | High (customer) | High (conversion) | Low | A/B test step order |
-| "Find first available" dead end | Medium (customer) | Medium (lost bookings) | Low | Production analytics |
-| Stat cards don't signal urgency | Medium (staff) | Medium (service delays) | Low | 5-min observation study |
-| Calendar sidebar flat list | Medium (staff) | Low (slower triage) | Medium | Task timing comparison |
-| 15-min late threshold assumption | Low (staff) | Medium (false alerts) | Medium | Data analysis + interviews |
-| Drag-and-drop device mismatch | High (staff) | High (if tablets used) | Low | Device audit |
-| No keyboard rescheduling | Low (most staff) | Low (unless required) | Low | Accessibility audit |
-| `alert()` for forgot password | Medium (customer) | Medium (trust) | Low | Replace and measure |
-| Toast-only error feedback | Medium (staff) | High (silent failures) | Medium | Observation study |
-| Non-functional notification bell | Low (staff) | Low (trust erosion) | Low | Remove and survey |
-| Load More vs. search behaviour | Low (staff) | Low (time cost) | Medium | Usage analytics |
-| Emergency contact visibility | Low (frequency) | High (severity) | Low | Scenario task test |
-| Colour-only status encoding | Medium (staff) | Medium (misreads) | Low | CVD simulation |
-| Font loading resilience | Low (usually) | Low (brand) | Low | Offline test |
+| Insight                             | User Impact       | Business Impact         | Effort to Validate | Research Method            |
+| ----------------------------------- | ----------------- | ----------------------- | ------------------ | -------------------------- |
+| Auth wall before availability check | High (customer)   | High (conversion)       | Low                | A/B test step order        |
+| "Find first available" dead end     | Medium (customer) | Medium (lost bookings)  | Low                | Production analytics       |
+| Stat cards don't signal urgency     | Medium (staff)    | Medium (service delays) | Low                | 5-min observation study    |
+| Calendar sidebar flat list          | Medium (staff)    | Low (slower triage)     | Medium             | Task timing comparison     |
+| 15-min late threshold assumption    | Low (staff)       | Medium (false alerts)   | Medium             | Data analysis + interviews |
+| Drag-and-drop device mismatch       | High (staff)      | High (if tablets used)  | Low                | Device audit               |
+| No keyboard rescheduling            | Low (most staff)  | Low (unless required)   | Low                | Accessibility audit        |
+| `alert()` for forgot password       | Medium (customer) | Medium (trust)          | Low                | Replace and measure        |
+| Toast-only error feedback           | Medium (staff)    | High (silent failures)  | Medium             | Observation study          |
+| Non-functional notification bell    | Low (staff)       | Low (trust erosion)     | Low                | Remove and survey          |
+| Load More vs. search behaviour      | Low (staff)       | Low (time cost)         | Medium             | Usage analytics            |
+| Emergency contact visibility        | Low (frequency)   | High (severity)         | Low                | Scenario task test         |
+| Colour-only status encoding         | Medium (staff)    | Medium (misreads)       | Low                | CVD simulation             |
+| Font loading resilience             | Low (usually)     | Low (brand)             | Low                | Offline test               |
 
 ---
 
@@ -308,6 +323,7 @@ This synthesis was produced through **code-level heuristic analysis**, not prima
 - Applying Nielsen's 10 usability heuristics, WCAG 2.1 AA guidelines, and common e-commerce conversion patterns
 
 **Limitations:**
+
 - No real users were observed or interviewed
 - No analytics data was available
 - No A/B test results exist
@@ -315,4 +331,4 @@ This synthesis was produced through **code-level heuristic analysis**, not prima
 - All "user behaviour" claims are predictions based on established UX patterns, not observations
 - Business context (salon size, booking volume, staff count) was not available
 
-**Confidence calibration:** Treat every finding as a hypothesis to be validated, not a confirmed insight. The value of this document is in structuring the *questions* to ask, not in providing *answers*.
+**Confidence calibration:** Treat every finding as a hypothesis to be validated, not a confirmed insight. The value of this document is in structuring the _questions_ to ask, not in providing _answers_.

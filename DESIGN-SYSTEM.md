@@ -15,41 +15,41 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 ### Naming Consistency
 
-| Issue | Components | Recommendation |
-|-------|------------|----------------|
-| Focus ring split: `brand-500` vs `brand-600` | Textarea, Dialog close, CustomerModal, FormsManager, BookingPage | Standardise all to `ring-brand-600` |
-| Border-radius mix: `rounded-md` across app | DropdownMenu, AppointmentStatusBar, PaymentPanel, FormsManager, CustomerModal | Use `rounded-xl` for inputs, `rounded-lg` for containers, `rounded-full` for pills/buttons |
-| Raw Tailwind colours for status semantics | Dashboard, Customers, BookingPage, PaymentPanel, FormsManager, ReportsPage | Map `amber-*` → `gold-*`, `orange-*` → `coral-*` or new `warning-*` token |
-| Hardcoded hex in source files | 4 unique hex values (`#333`, `#999`, `#666`, `#fff`) | Replace with `slate-*` or `brand-*` tokens |
-| Arbitrary text sizes: `text-[10px]`, `text-[11px]`, `text-[8px]`, `text-[9px]` | Calendar, BookingPage, MessagingPage, ReportsPage, PaymentPanel, FormsManager | Define `--text-2xs: 10px` and `--text-3xs: 8px` tokens |
+| Issue                                                                          | Components                                                                    | Recommendation                                                                             |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Focus ring split: `brand-500` vs `brand-600`                                   | Textarea, Dialog close, CustomerModal, FormsManager, BookingPage              | Standardise all to `ring-brand-600`                                                        |
+| Border-radius mix: `rounded-md` across app                                     | DropdownMenu, AppointmentStatusBar, PaymentPanel, FormsManager, CustomerModal | Use `rounded-xl` for inputs, `rounded-lg` for containers, `rounded-full` for pills/buttons |
+| Raw Tailwind colours for status semantics                                      | Dashboard, Customers, BookingPage, PaymentPanel, FormsManager, ReportsPage    | Map `amber-*` → `gold-*`, `orange-*` → `coral-*` or new `warning-*` token                  |
+| Hardcoded hex in source files                                                  | 4 unique hex values (`#333`, `#999`, `#666`, `#fff`)                          | Replace with `slate-*` or `brand-*` tokens                                                 |
+| Arbitrary text sizes: `text-[10px]`, `text-[11px]`, `text-[8px]`, `text-[9px]` | Calendar, BookingPage, MessagingPage, ReportsPage, PaymentPanel, FormsManager | Define `--text-2xs: 10px` and `--text-3xs: 8px` tokens                                     |
 
 ### Token Coverage
 
-| Category | Defined Tokens | Hardcoded Values Found | Coverage |
-|----------|---------------|----------------------|----------|
-| **Colours** | 20 tokens (brand-50–900, accent, coral, sky, gold, sage, purple, surface) | 461 raw `slate-*` + 40 raw `amber/orange/red/green` + 4 hex values | ~30% |
-| **Typography** | 3 font families (heading, body, accent) | 0 hardcoded font families | 100% |
-| **Spacing** | 0 custom tokens (uses Tailwind defaults) | N/A — Tailwind handles this well | OK |
-| **Border Radius** | 0 custom tokens | 4 different radii used inconsistently | 0% |
-| **Shadows** | 0 custom tokens | 4 shadow levels used (`sm`, `md`, `lg`, `xl`) | 0% |
-| **Focus Rings** | 0 custom tokens | 2 competing values (`brand-500`, `brand-600`) | 0% |
+| Category          | Defined Tokens                                                            | Hardcoded Values Found                                             | Coverage |
+| ----------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------- |
+| **Colours**       | 20 tokens (brand-50–900, accent, coral, sky, gold, sage, purple, surface) | 461 raw `slate-*` + 40 raw `amber/orange/red/green` + 4 hex values | ~30%     |
+| **Typography**    | 3 font families (heading, body, accent)                                   | 0 hardcoded font families                                          | 100%     |
+| **Spacing**       | 0 custom tokens (uses Tailwind defaults)                                  | N/A — Tailwind handles this well                                   | OK       |
+| **Border Radius** | 0 custom tokens                                                           | 4 different radii used inconsistently                              | 0%       |
+| **Shadows**       | 0 custom tokens                                                           | 4 shadow levels used (`sm`, `md`, `lg`, `xl`)                      | 0%       |
+| **Focus Rings**   | 0 custom tokens                                                           | 2 competing values (`brand-500`, `brand-600`)                      | 0%       |
 
 ### Component Completeness
 
-| Component | States | Variants | Consistency | Score |
-|-----------|--------|----------|-------------|-------|
-| **Button** | ✅ hover, focus, disabled | ✅ 6 variants, 4 sizes | ✅ | 10/10 |
-| **Input** | ✅ focus, disabled, placeholder | ⚠️ 1 variant | ✅ | 8/10 |
-| **Textarea** | ✅ focus, disabled | ⚠️ 1 variant | ❌ focus ring is `brand-500` | 6/10 |
-| **Badge** | ✅ hover, focus | ✅ 4 variants | ✅ | 9/10 |
-| **Card** | ⚠️ no hover/focus | ⚠️ 1 variant | ✅ | 7/10 |
-| **Dialog** | ✅ open/close animation | ⚠️ 1 variant | ❌ close btn ring `brand-500` | 7/10 |
-| **DropdownMenu** | ✅ focus, disabled, open/close | ✅ 3 item types | ❌ uses `slate-*` not `brand-*` | 5/10 |
-| **Avatar** | ❌ no interactive states | ❌ no size variants | ⚠️ | 4/10 |
-| **Label** | ⚠️ peer-disabled only | ❌ 1 variant | ✅ | 5/10 |
-| **Skeleton** | ✅ pulse animation | ✅ 6 layout presets | ✅ | 9/10 |
-| **Table** | ✅ hover, selected | ⚠️ 1 variant | ⚠️ uses `slate-*` | 6/10 |
-| **FieldError** | N/A | N/A | ✅ uses `coral` token | 8/10 |
+| Component        | States                          | Variants               | Consistency                     | Score |
+| ---------------- | ------------------------------- | ---------------------- | ------------------------------- | ----- |
+| **Button**       | ✅ hover, focus, disabled       | ✅ 6 variants, 4 sizes | ✅                              | 10/10 |
+| **Input**        | ✅ focus, disabled, placeholder | ⚠️ 1 variant           | ✅                              | 8/10  |
+| **Textarea**     | ✅ focus, disabled              | ⚠️ 1 variant           | ❌ focus ring is `brand-500`    | 6/10  |
+| **Badge**        | ✅ hover, focus                 | ✅ 4 variants          | ✅                              | 9/10  |
+| **Card**         | ⚠️ no hover/focus               | ⚠️ 1 variant           | ✅                              | 7/10  |
+| **Dialog**       | ✅ open/close animation         | ⚠️ 1 variant           | ❌ close btn ring `brand-500`   | 7/10  |
+| **DropdownMenu** | ✅ focus, disabled, open/close  | ✅ 3 item types        | ❌ uses `slate-*` not `brand-*` | 5/10  |
+| **Avatar**       | ❌ no interactive states        | ❌ no size variants    | ⚠️                              | 4/10  |
+| **Label**        | ⚠️ peer-disabled only           | ❌ 1 variant           | ✅                              | 5/10  |
+| **Skeleton**     | ✅ pulse animation              | ✅ 6 layout presets    | ✅                              | 9/10  |
+| **Table**        | ✅ hover, selected              | ⚠️ 1 variant           | ⚠️ uses `slate-*`               | 6/10  |
+| **FieldError**   | N/A                             | N/A                    | ✅ uses `coral` token           | 8/10  |
 
 ### Priority Actions
 
@@ -71,32 +71,32 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 **Variants:**
 
-| Variant | Use When | Visual |
-|---------|----------|--------|
-| `default` | Primary actions (Save, Confirm) | Brand-600 bg, white text |
-| `destructive` | Delete, cancel actions | Coral bg, white text |
-| `outline` | Secondary actions | White bg, brand border |
-| `secondary` | Tertiary actions | Brand-50 bg, brand text |
-| `ghost` | Toolbar buttons, minimal actions | Transparent, hover reveals bg |
-| `link` | Inline text links | Underline on hover |
+| Variant       | Use When                         | Visual                        |
+| ------------- | -------------------------------- | ----------------------------- |
+| `default`     | Primary actions (Save, Confirm)  | Brand-600 bg, white text      |
+| `destructive` | Delete, cancel actions           | Coral bg, white text          |
+| `outline`     | Secondary actions                | White bg, brand border        |
+| `secondary`   | Tertiary actions                 | Brand-50 bg, brand text       |
+| `ghost`       | Toolbar buttons, minimal actions | Transparent, hover reveals bg |
+| `link`        | Inline text links                | Underline on hover            |
 
 **Sizes:**
 
-| Size | Dimensions | Use When |
-|------|-----------|----------|
-| `default` | h-10, px-5 | Most buttons |
-| `sm` | h-9, px-4 | Compact UIs, table rows |
-| `lg` | h-11, px-8 | Hero CTAs, full-width |
-| `icon` | h-10, w-10 | Icon-only buttons |
+| Size      | Dimensions | Use When                |
+| --------- | ---------- | ----------------------- |
+| `default` | h-10, px-5 | Most buttons            |
+| `sm`      | h-9, px-4  | Compact UIs, table rows |
+| `lg`      | h-11, px-8 | Hero CTAs, full-width   |
+| `icon`    | h-10, w-10 | Icon-only buttons       |
 
 **States:**
 
-| State | Visual | Behavior |
-|-------|--------|----------|
-| Default | Solid fill | — |
-| Hover | Lighter/darker shade | Cursor pointer |
-| Focus | `ring-2 ring-brand-600 ring-offset-2` | Keyboard accessible |
-| Disabled | `opacity-50` | `pointer-events-none` |
+| State    | Visual                                | Behavior              |
+| -------- | ------------------------------------- | --------------------- |
+| Default  | Solid fill                            | —                     |
+| Hover    | Lighter/darker shade                  | Cursor pointer        |
+| Focus    | `ring-2 ring-brand-600 ring-offset-2` | Keyboard accessible   |
+| Disabled | `opacity-50`                          | `pointer-events-none` |
 
 **Accessibility:** Renders as `<button>`. Keyboard: Tab to focus, Enter/Space to activate. Focus ring is 2px brand-600 with 2px offset.
 
@@ -108,19 +108,19 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 **Props:**
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `type` | string | `"text"` | HTML input type |
-| `className` | string | — | Merge additional classes via `cn()` |
+| Property    | Type   | Default  | Description                         |
+| ----------- | ------ | -------- | ----------------------------------- |
+| `type`      | string | `"text"` | HTML input type                     |
+| `className` | string | —        | Merge additional classes via `cn()` |
 
 **States:**
 
-| State | Visual | Behavior |
-|-------|--------|----------|
-| Default | White bg, brand-200 border | — |
-| Focus | `ring-2 ring-brand-600 ring-offset-2` | Blue ring appears |
-| Disabled | `opacity-50` | `cursor-not-allowed` |
-| Placeholder | `text-slate-400` | Italic-free, muted |
+| State       | Visual                                | Behavior             |
+| ----------- | ------------------------------------- | -------------------- |
+| Default     | White bg, brand-200 border            | —                    |
+| Focus       | `ring-2 ring-brand-600 ring-offset-2` | Blue ring appears    |
+| Disabled    | `opacity-50`                          | `cursor-not-allowed` |
+| Placeholder | `text-slate-400`                      | Italic-free, muted   |
 
 **Accessibility:** Standard `<input>`. Pair with `<Label>` using `htmlFor`. Focus ring meets WCAG 2.1 AA.
 
@@ -142,12 +142,12 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 **Variants:**
 
-| Variant | Use When | Visual |
-|---------|----------|--------|
-| `default` | Active/primary status | Brand-600 bg, white text |
-| `secondary` | Neutral status | Brand-50 bg, brand-700 text |
-| `destructive` | Error/warning status | Coral bg, white text |
-| `outline` | Subtle status | Transparent, brand-200 border |
+| Variant       | Use When              | Visual                        |
+| ------------- | --------------------- | ----------------------------- |
+| `default`     | Active/primary status | Brand-600 bg, white text      |
+| `secondary`   | Neutral status        | Brand-50 bg, brand-700 text   |
+| `destructive` | Error/warning status  | Coral bg, white text          |
+| `outline`     | Subtle status         | Transparent, brand-200 border |
 
 **Accessibility:** Rendered as `<div>`. Has `focus:ring-2 ring-brand-600` for keyboard users.
 
@@ -159,14 +159,14 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 **Sub-components:**
 
-| Component | Element | Purpose |
-|-----------|---------|---------|
-| `Card` | `<div>` | Outer container |
-| `CardHeader` | `<div>` | Title + description area |
-| `CardTitle` | `<h3>` | Purple heading text |
-| `CardDescription` | `<p>` | Muted slate-500 description |
-| `CardContent` | `<div>` | Main content area |
-| `CardFooter` | `<div>` | Action buttons row |
+| Component         | Element | Purpose                     |
+| ----------------- | ------- | --------------------------- |
+| `Card`            | `<div>` | Outer container             |
+| `CardHeader`      | `<div>` | Title + description area    |
+| `CardTitle`       | `<h3>`  | Purple heading text         |
+| `CardDescription` | `<p>`   | Muted slate-500 description |
+| `CardContent`     | `<div>` | Main content area           |
+| `CardFooter`      | `<div>` | Action buttons row          |
 
 ---
 
@@ -232,20 +232,20 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 **Existing Patterns:**
 
-| Related Component | Similarity | Why It's Not Enough |
-|-------------------|-----------|---------------------|
-| Input | Same border/radius/focus pattern | No dropdown behavior |
-| DropdownMenu | Has dropdown behavior | Too complex, different styling |
+| Related Component | Similarity                       | Why It's Not Enough            |
+| ----------------- | -------------------------------- | ------------------------------ |
+| Input             | Same border/radius/focus pattern | No dropdown behavior           |
+| DropdownMenu      | Has dropdown behavior            | Too complex, different styling |
 
 **Proposed Design:**
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `options` | `Array<{value, label}>` | — | Available choices |
-| `value` | `string` | — | Controlled value |
-| `onChange` | `(value: string) => void` | — | Change handler |
-| `placeholder` | `string` | `"Select..."` | Empty state text |
-| `disabled` | `boolean` | `false` | Disabled state |
+| Property      | Type                      | Default       | Description       |
+| ------------- | ------------------------- | ------------- | ----------------- |
+| `options`     | `Array<{value, label}>`   | —             | Available choices |
+| `value`       | `string`                  | —             | Controlled value  |
+| `onChange`    | `(value: string) => void` | —             | Change handler    |
+| `placeholder` | `string`                  | `"Select..."` | Empty state text  |
+| `disabled`    | `boolean`                 | `false`       | Disabled state    |
 
 **Tokens Used:** `rounded-xl`, `border-brand-200`, `ring-brand-600`, `bg-white`, `text-slate-900`.
 
@@ -257,10 +257,10 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 **Proposed Design:**
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Spinner diameter |
-| `className` | `string` | — | Custom classes |
+| Property    | Type                   | Default | Description      |
+| ----------- | ---------------------- | ------- | ---------------- |
+| `size`      | `"sm" \| "md" \| "lg"` | `"md"`  | Spinner diameter |
+| `className` | `string`               | —       | Custom classes   |
 
 **Variants:** 3 sizes — `sm` (16px), `md` (24px), `lg` (32px). Uses `border-brand-200` track and `border-brand-600` indicator with CSS animation.
 
@@ -290,25 +290,25 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 ```css
 /* ── Semantic Colours ── */
---color-warning:       var(--color-gold);
+--color-warning: var(--color-gold);
 --color-warning-light: var(--color-gold-light);
---color-error:         var(--color-coral);
---color-error-light:   var(--color-coral-light);
---color-success:       var(--color-accent);
+--color-error: var(--color-coral);
+--color-error-light: var(--color-coral-light);
+--color-success: var(--color-accent);
 --color-success-light: #e8f5e9;
---color-info:          var(--color-sky);
---color-info-light:    var(--color-sky-light);
+--color-info: var(--color-sky);
+--color-info-light: var(--color-sky-light);
 ```
 
 **Mapping guide:**
 
-| Raw Tailwind | Semantic Token | Used For |
-|-------------|---------------|----------|
-| `bg-amber-100 text-amber-800` | `bg-warning-light text-purple` | Pending states, deposits |
+| Raw Tailwind                    | Semantic Token                 | Used For                  |
+| ------------------------------- | ------------------------------ | ------------------------- |
+| `bg-amber-100 text-amber-800`   | `bg-warning-light text-purple` | Pending states, deposits  |
 | `bg-orange-100 text-orange-800` | `bg-warning-light text-purple` | Partial refunds, no-shows |
-| `bg-red-50 text-red-800` | `bg-error-light text-error` | Error boundary, failures |
-| `bg-emerald-400` | `bg-success` | Online indicator |
-| `bg-teal-100 text-teal-800` | `bg-brand-50 text-brand-800` | Active/confirmed states |
+| `bg-red-50 text-red-800`        | `bg-error-light text-error`    | Error boundary, failures  |
+| `bg-emerald-400`                | `bg-success`                   | Online indicator          |
+| `bg-teal-100 text-teal-800`     | `bg-brand-50 text-brand-800`   | Active/confirmed states   |
 
 ---
 
@@ -318,12 +318,12 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 ```css
 /* ── Radius Scale ── */
---radius-sm:   0.375rem;  /* 6px — dropdown items, small pills */
---radius-md:   0.5rem;    /* 8px — status bars, inline elements */
---radius-lg:   0.75rem;   /* 12px — containers, cards-within-cards */
---radius-xl:   1rem;      /* 16px — inputs, textareas */
---radius-2xl:  1.5rem;    /* 24px — cards, dialogs */
---radius-full: 9999px;    /* buttons, badges, avatars */
+--radius-sm: 0.375rem; /* 6px — dropdown items, small pills */
+--radius-md: 0.5rem; /* 8px — status bars, inline elements */
+--radius-lg: 0.75rem; /* 12px — containers, cards-within-cards */
+--radius-xl: 1rem; /* 16px — inputs, textareas */
+--radius-2xl: 1.5rem; /* 24px — cards, dialogs */
+--radius-full: 9999px; /* buttons, badges, avatars */
 ```
 
 ---
@@ -334,8 +334,8 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 ```css
 /* ── Micro Typography ── */
---text-2xs: 0.625rem;   /* 10px — status pills, timestamps */
---text-3xs: 0.5rem;     /* 8px — chart axis labels only */
+--text-2xs: 0.625rem; /* 10px — status pills, timestamps */
+--text-3xs: 0.5rem; /* 8px — chart axis labels only */
 ```
 
 ---
@@ -344,19 +344,19 @@ The PetSpa codebase has a solid foundation — a well-defined `@theme` token set
 
 These files still need attention (not fixed in the design critique pass):
 
-| File | Issue | Fix |
-|------|-------|-----|
-| `ui/textarea.tsx` | `ring-brand-500` | → `ring-brand-600` |
-| `ui/dialog.tsx` | Close button `ring-brand-500` | → `ring-brand-600` |
-| `CustomerModal.tsx` | Textarea `ring-brand-500`, `rounded-md`, `border-slate-200` | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
-| `FormsManager.tsx` | Textarea `ring-brand-500`, `rounded-md`, `border-slate-200` | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
-| `BookingPage.tsx` | Textarea `ring-brand-500`, `rounded-md`, `border-slate-200` | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
-| `MessagingPage.tsx` | Two textareas `ring-slate-950`, `rounded-md`, `border-slate-200` | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
-| `PaymentPanel.tsx` | Input `rounded-md`, `border-slate-200` | → `rounded-xl`, `border-brand-200` |
-| `FormsManager.tsx` | Three inputs/selects `rounded-md`, `border-slate-200` | → `rounded-xl`, `border-brand-200` |
-| `DropdownMenu.tsx` | Content `rounded-md`, items `rounded-sm` | → `rounded-lg`, `rounded-md` |
-| `AppointmentStatusBar.tsx` | Warning button `bg-amber-500` | → `bg-warning` |
-| `Sidebar.tsx` | Health dots `bg-emerald-400`, `bg-red-400`, `bg-yellow-400` | → `bg-success`, `bg-error`, `bg-warning` |
-| `Customers.tsx` | Emergency contact section `bg-orange-50`, `border-orange-100` | → `bg-warning-light`, `border-warning` |
-| `BookingPage.tsx` | Deposit display `bg-orange-50`, `text-orange-*` | → `bg-warning-light`, `text-warning` |
-| `ErrorBoundary.tsx` | Uses `bg-red-50`, `border-red-200`, `text-red-*` | → `bg-error-light`, `border-error`, `text-error` |
+| File                       | Issue                                                            | Fix                                                  |
+| -------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------- |
+| `ui/textarea.tsx`          | `ring-brand-500`                                                 | → `ring-brand-600`                                   |
+| `ui/dialog.tsx`            | Close button `ring-brand-500`                                    | → `ring-brand-600`                                   |
+| `CustomerModal.tsx`        | Textarea `ring-brand-500`, `rounded-md`, `border-slate-200`      | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
+| `FormsManager.tsx`         | Textarea `ring-brand-500`, `rounded-md`, `border-slate-200`      | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
+| `BookingPage.tsx`          | Textarea `ring-brand-500`, `rounded-md`, `border-slate-200`      | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
+| `MessagingPage.tsx`        | Two textareas `ring-slate-950`, `rounded-md`, `border-slate-200` | → `ring-brand-600`, `rounded-xl`, `border-brand-200` |
+| `PaymentPanel.tsx`         | Input `rounded-md`, `border-slate-200`                           | → `rounded-xl`, `border-brand-200`                   |
+| `FormsManager.tsx`         | Three inputs/selects `rounded-md`, `border-slate-200`            | → `rounded-xl`, `border-brand-200`                   |
+| `DropdownMenu.tsx`         | Content `rounded-md`, items `rounded-sm`                         | → `rounded-lg`, `rounded-md`                         |
+| `AppointmentStatusBar.tsx` | Warning button `bg-amber-500`                                    | → `bg-warning`                                       |
+| `Sidebar.tsx`              | Health dots `bg-emerald-400`, `bg-red-400`, `bg-yellow-400`      | → `bg-success`, `bg-error`, `bg-warning`             |
+| `Customers.tsx`            | Emergency contact section `bg-orange-50`, `border-orange-100`    | → `bg-warning-light`, `border-warning`               |
+| `BookingPage.tsx`          | Deposit display `bg-orange-50`, `text-orange-*`                  | → `bg-warning-light`, `text-warning`                 |
+| `ErrorBoundary.tsx`        | Uses `bg-red-50`, `border-red-200`, `text-red-*`                 | → `bg-error-light`, `border-error`, `text-error`     |

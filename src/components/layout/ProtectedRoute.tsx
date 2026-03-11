@@ -1,20 +1,20 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/src/lib/AuthContext';
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/src/lib/AuthContext";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-    const { user } = useAuth();
-    const navigate = useNavigate();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        if (!user) {
-            navigate('/login');
-        }
-    }, [user, navigate]);
-
+  useEffect(() => {
     if (!user) {
-        return null; // or a loading spinner
+      navigate("/login");
     }
+  }, [user, navigate]);
 
-    return <>{children}</>;
+  if (!user) {
+    return null; // or a loading spinner
+  }
+
+  return <>{children}</>;
 }

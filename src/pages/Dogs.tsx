@@ -23,13 +23,7 @@ import { CustomerModal } from "@/src/components/CustomerModal";
 import { Button } from "@/src/components/ui/button";
 import { Badge } from "@/src/components/ui/badge";
 import { Input } from "@/src/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/src/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/src/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,14 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/src/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/src/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/src/components/ui/table";
 import { CustomersSkeleton } from "@/src/components/ui/skeleton";
 
 const PAGE_SIZE = 50;
@@ -113,7 +100,7 @@ export function Dogs() {
       const json = await api.getDogsPage(targetPage, PAGE_SIZE);
       const items: DogSummary[] = json.data ?? json;
       const total: number = json.pagination?.total ?? items.length;
-      setDogs((prev) => replace ? items : [...prev, ...items]);
+      setDogs((prev) => (replace ? items : [...prev, ...items]));
       setTotalDogs(total);
       setHasMore(targetPage * PAGE_SIZE < total);
       setPage(targetPage);
@@ -140,10 +127,7 @@ export function Dogs() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [, appointmentData] = await Promise.all([
-          loadDogs(1, true),
-          api.getAppointments(),
-        ]);
+        const [, appointmentData] = await Promise.all([loadDogs(1, true), api.getAppointments()]);
         setAppointments(appointmentData.map((appointment: any) => normalizeAppointment(appointment)));
       } catch (err) {
         handleError(err, "Failed to load dogs");
@@ -172,10 +156,7 @@ export function Dogs() {
     }
   }, [dogs, loadDogDetail, loading, location.state]);
 
-  const filteredDogs = useMemo(
-    () => dogs.filter((dog) => isMatchingDog(dog, searchTerm)),
-    [dogs, searchTerm],
-  );
+  const filteredDogs = useMemo(() => dogs.filter((dog) => isMatchingDog(dog, searchTerm)), [dogs, searchTerm]);
 
   const handleQuickBook = useCallback((dog: DogSummary | DogProfile) => {
     setSelectedAppointment(null);
@@ -190,18 +171,24 @@ export function Dogs() {
     setIsAppointmentModalOpen(true);
   }, []);
 
-  const handleOpenMessaging = useCallback((dog: DogSummary | DogProfile) => {
-    navigate("/messaging", {
-      state: {
-        customerId: dog.customerId,
-        dogId: dog.id,
-      },
-    });
-  }, [navigate]);
+  const handleOpenMessaging = useCallback(
+    (dog: DogSummary | DogProfile) => {
+      navigate("/messaging", {
+        state: {
+          customerId: dog.customerId,
+          dogId: dog.id,
+        },
+      });
+    },
+    [navigate],
+  );
 
-  const handleOpenClient = useCallback((customerId: string) => {
-    navigate("/clients", { state: { customerId } });
-  }, [navigate]);
+  const handleOpenClient = useCallback(
+    (customerId: string) => {
+      navigate("/clients", { state: { customerId } });
+    },
+    [navigate],
+  );
 
   const handleOpenCustomerEditor = useCallback(async (customerId?: string) => {
     if (!customerId) {
@@ -219,47 +206,56 @@ export function Dogs() {
     }
   }, []);
 
-  const handleSaveCustomer = useCallback(async (updatedCustomer: Customer) => {
-    try {
-      const exists = Boolean(updatedCustomer.id && updatedCustomer.id.length > 0 && customerToEdit);
-      if (exists) {
-        await api.updateCustomer(updatedCustomer.id, updatedCustomer);
-      } else {
-        await api.createCustomer(updatedCustomer);
-      }
+  const handleSaveCustomer = useCallback(
+    async (updatedCustomer: Customer) => {
+      try {
+        const exists = Boolean(updatedCustomer.id && updatedCustomer.id.length > 0 && customerToEdit);
+        if (exists) {
+          await api.updateCustomer(updatedCustomer.id, updatedCustomer);
+        } else {
+          await api.createCustomer(updatedCustomer);
+        }
 
-      await loadDogs(1, true);
-      if (selectedDog && (selectedDog.customerId === updatedCustomer.id || selectedDog.customerId === customerToEdit?.id)) {
-        await loadDogDetail(selectedDog.id);
+        await loadDogs(1, true);
+        if (
+          selectedDog &&
+          (selectedDog.customerId === updatedCustomer.id || selectedDog.customerId === customerToEdit?.id)
+        ) {
+          await loadDogDetail(selectedDog.id);
+        }
+        return true;
+      } catch (err) {
+        handleError(err, "Failed to save client");
+        return false;
       }
-      return true;
-    } catch (err) {
-      handleError(err, "Failed to save client");
-      return false;
-    }
-  }, [customerToEdit, loadDogDetail, loadDogs, selectedDog]);
+    },
+    [customerToEdit, loadDogDetail, loadDogs, selectedDog],
+  );
 
-  const handleSaveAppointment = useCallback(async (updatedAppointment: Appointment) => {
-    try {
-      const exists = appointments.some((appointment) => appointment.id === updatedAppointment.id);
-      const savedAppointment = normalizeAppointment(
-        exists
-          ? await api.updateAppointment(updatedAppointment.id, updatedAppointment)
-          : await api.createAppointment(updatedAppointment),
-      );
-      if (exists) {
-        setAppointments((prev) =>
-          prev.map((appointment) => appointment.id === updatedAppointment.id ? savedAppointment : appointment),
+  const handleSaveAppointment = useCallback(
+    async (updatedAppointment: Appointment) => {
+      try {
+        const exists = appointments.some((appointment) => appointment.id === updatedAppointment.id);
+        const savedAppointment = normalizeAppointment(
+          exists
+            ? await api.updateAppointment(updatedAppointment.id, updatedAppointment)
+            : await api.createAppointment(updatedAppointment),
         );
-      } else {
-        setAppointments((prev) => [...prev, savedAppointment]);
+        if (exists) {
+          setAppointments((prev) =>
+            prev.map((appointment) => (appointment.id === updatedAppointment.id ? savedAppointment : appointment)),
+          );
+        } else {
+          setAppointments((prev) => [...prev, savedAppointment]);
+        }
+        return true;
+      } catch (err) {
+        handleError(err, "Failed to save appointment");
+        return false;
       }
-      return true;
-    } catch (err) {
-      handleError(err, "Failed to save appointment");
-      return false;
-    }
-  }, [appointments]);
+    },
+    [appointments],
+  );
 
   const dogAppointments = useMemo(() => {
     if (!selectedDog) return [];
@@ -274,9 +270,12 @@ export function Dogs() {
       return detailAppointments;
     }
 
-    return appointments.filter((appointment) =>
-      appointment.dogId === selectedDog.id ||
-      (!appointment.dogId && appointment.petName === selectedDog.name && appointment.customerId === selectedDog.customerId),
+    return appointments.filter(
+      (appointment) =>
+        appointment.dogId === selectedDog.id ||
+        (!appointment.dogId &&
+          appointment.petName === selectedDog.name &&
+          appointment.customerId === selectedDog.customerId),
     );
   }, [appointments, selectedDog]);
 
@@ -289,7 +288,9 @@ export function Dogs() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-purple">Dogs</h1>
-          <p className="text-sm text-slate-500">Search dog profiles, jump into bookings, and keep the owner context close.</p>
+          <p className="text-sm text-slate-500">
+            Search dog profiles, jump into bookings, and keep the owner context close.
+          </p>
         </div>
         <Button onClick={() => handleOpenCustomerEditor()}>
           <DogIcon className="mr-2 h-4 w-4" />
@@ -338,62 +339,70 @@ export function Dogs() {
                   </div>
                 </TableCell>
               </TableRow>
-            ) : filteredDogs.map((dog) => (
-              <TableRow key={dog.id} className="cursor-pointer" onClick={() => loadDogDetail(dog.id)}>
-                <TableCell>
-                  <div className="flex items-center gap-2 font-medium text-slate-900">
-                    {dog.name}
-                    {dog.approvalRequired ? <ShieldAlert className="h-4 w-4 text-coral" /> : null}
-                  </div>
-                  {dog.tags?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {dog.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="outline">{tag}</Badge>
-                      ))}
+            ) : (
+              filteredDogs.map((dog) => (
+                <TableRow key={dog.id} className="cursor-pointer" onClick={() => loadDogDetail(dog.id)}>
+                  <TableCell>
+                    <div className="flex items-center gap-2 font-medium text-slate-900">
+                      {dog.name}
+                      {dog.approvalRequired ? <ShieldAlert className="h-4 w-4 text-coral" /> : null}
                     </div>
-                  ) : null}
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm font-medium text-slate-900">{dog.customerName}</div>
-                  <div className="text-xs text-slate-400">{dog.customerPhone || dog.customerEmail || "No contact saved"}</div>
-                </TableCell>
-                <TableCell className="text-slate-600">{dog.breed}</TableCell>
-                <TableCell className="text-slate-600">
-                  {dog.lastAppointmentDate ? format(new Date(dog.lastAppointmentDate), "MMM d, yyyy") : "No history yet"}
-                </TableCell>
-                <TableCell className="text-right font-medium text-slate-900">{dog.appointmentCount}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuLabel>Quick actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleQuickBook(dog)}>
-                        <CalendarPlus className="mr-2 h-4 w-4" />
-                        Quick Book
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleOpenClient(dog.customerId)}>
-                        <UserRound className="mr-2 h-4 w-4" />
-                        Open Client
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleOpenMessaging(dog)}>
-                        <Mail className="mr-2 h-4 w-4" />
-                        Message Owner
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+                    {dog.tags?.length ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {dog.tags.slice(0, 3).map((tag) => (
+                          <Badge key={tag} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium text-slate-900">{dog.customerName}</div>
+                    <div className="text-xs text-slate-400">
+                      {dog.customerPhone || dog.customerEmail || "No contact saved"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-slate-600">{dog.breed}</TableCell>
+                  <TableCell className="text-slate-600">
+                    {dog.lastAppointmentDate
+                      ? format(new Date(dog.lastAppointmentDate), "MMM d, yyyy")
+                      : "No history yet"}
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-slate-900">{dog.appointmentCount}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel>Quick actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleQuickBook(dog)}>
+                          <CalendarPlus className="mr-2 h-4 w-4" />
+                          Quick Book
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenClient(dog.customerId)}>
+                          <UserRound className="mr-2 h-4 w-4" />
+                          Open Client
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenMessaging(dog)}>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Message Owner
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -408,9 +417,15 @@ export function Dogs() {
             className="gap-2"
           >
             {loadingMore ? (
-              <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />Loading...</>
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+                Loading...
+              </>
             ) : (
-              <><ChevronDown className="h-3.5 w-3.5" />Load more ({totalDogs - dogs.length} remaining)</>
+              <>
+                <ChevronDown className="h-3.5 w-3.5" />
+                Load more ({totalDogs - dogs.length} remaining)
+              </>
             )}
           </Button>
         </div>
@@ -436,20 +451,39 @@ export function Dogs() {
                       <h3 className="text-lg font-semibold text-slate-900">{selectedDog.name}</h3>
                       <p className="text-sm text-slate-500">{selectedDog.breed}</p>
                     </div>
-                    <Badge variant="secondary">{selectedDog.appointmentCount} booking{selectedDog.appointmentCount === 1 ? "" : "s"}</Badge>
+                    <Badge variant="secondary">
+                      {selectedDog.appointmentCount} booking{selectedDog.appointmentCount === 1 ? "" : "s"}
+                    </Badge>
                   </div>
                   <div className="mt-4 grid gap-2 text-sm text-slate-600">
-                    {selectedDog.dob ? <div><span className="font-medium text-slate-900">DOB:</span> {selectedDog.dob}</div> : null}
-                    {selectedDog.weight ? <div><span className="font-medium text-slate-900">Weight:</span> {selectedDog.weight} lbs</div> : null}
-                    {selectedDog.coatType ? <div><span className="font-medium text-slate-900">Coat:</span> {selectedDog.coatType}</div> : null}
+                    {selectedDog.dob ? (
+                      <div>
+                        <span className="font-medium text-slate-900">DOB:</span> {selectedDog.dob}
+                      </div>
+                    ) : null}
+                    {selectedDog.weight ? (
+                      <div>
+                        <span className="font-medium text-slate-900">Weight:</span> {selectedDog.weight} lbs
+                      </div>
+                    ) : null}
+                    {selectedDog.coatType ? (
+                      <div>
+                        <span className="font-medium text-slate-900">Coat:</span> {selectedDog.coatType}
+                      </div>
+                    ) : null}
                     {selectedDog.lastAppointmentDate ? (
-                      <div><span className="font-medium text-slate-900">Last visit:</span> {format(new Date(selectedDog.lastAppointmentDate), "MMM d, yyyy")}</div>
+                      <div>
+                        <span className="font-medium text-slate-900">Last visit:</span>{" "}
+                        {format(new Date(selectedDog.lastAppointmentDate), "MMM d, yyyy")}
+                      </div>
                     ) : null}
                   </div>
                   {selectedDog.tags?.length ? (
                     <div className="mt-4 flex flex-wrap gap-2">
                       {selectedDog.tags.map((tag) => (
-                        <Badge key={tag} variant="outline">{tag}</Badge>
+                        <Badge key={tag} variant="outline">
+                          {tag}
+                        </Badge>
                       ))}
                     </div>
                   ) : null}
@@ -458,12 +492,20 @@ export function Dogs() {
                 <div className="rounded-xl border border-slate-200 bg-white p-4">
                   <h3 className="text-sm font-semibold text-slate-900">Linked owner</h3>
                   <div className="mt-3 space-y-2 text-sm text-slate-600">
-                    <div className="font-medium text-slate-900">{selectedDog.customer?.name || selectedDog.customerName}</div>
+                    <div className="font-medium text-slate-900">
+                      {selectedDog.customer?.name || selectedDog.customerName}
+                    </div>
                     {selectedDog.customer?.phone ? (
-                      <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-slate-400" />{selectedDog.customer.phone}</div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-slate-400" />
+                        {selectedDog.customer.phone}
+                      </div>
                     ) : null}
                     {selectedDog.customer?.email ? (
-                      <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-slate-400" />{selectedDog.customer.email}</div>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-slate-400" />
+                        {selectedDog.customer.email}
+                      </div>
                     ) : null}
                     {selectedDog.customer?.warnings?.length ? (
                       <div className="rounded-lg border border-coral/20 bg-coral-light p-3 text-coral">
@@ -476,7 +518,11 @@ export function Dogs() {
                       <UserRound className="mr-1.5 h-3.5 w-3.5" />
                       Open Client
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleOpenCustomerEditor(selectedDog.customerId)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenCustomerEditor(selectedDog.customerId)}
+                    >
                       Edit Record
                     </Button>
                   </div>
@@ -503,7 +549,9 @@ export function Dogs() {
                   {selectedDog.behavioralNotes?.length ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {selectedDog.behavioralNotes.map((note) => (
-                        <Badge key={note} variant="secondary">{note}</Badge>
+                        <Badge key={note} variant="secondary">
+                          {note}
+                        </Badge>
                       ))}
                     </div>
                   ) : (
@@ -514,7 +562,10 @@ export function Dogs() {
                   {selectedDog.vaccinations?.length ? (
                     <div className="mt-3 space-y-2">
                       {selectedDog.vaccinations.map((vaccination) => (
-                        <div key={`${vaccination.name}-${vaccination.expiryDate}`} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
+                        <div
+                          key={`${vaccination.name}-${vaccination.expiryDate}`}
+                          className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm"
+                        >
                           <span className="font-medium text-slate-900">{vaccination.name}</span>
                           <span className="text-slate-500">{vaccination.expiryDate}</span>
                         </div>
@@ -537,9 +588,13 @@ export function Dogs() {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="font-medium text-slate-900">{appointment.service}</p>
-                              <p className="text-sm text-slate-500">{format(appointment.date, "MMM d, yyyy 'at' h:mm a")}</p>
+                              <p className="text-sm text-slate-500">
+                                {format(appointment.date, "MMM d, yyyy 'at' h:mm a")}
+                              </p>
                             </div>
-                            <Badge variant="outline" className="capitalize">{appointment.status}</Badge>
+                            <Badge variant="outline" className="capitalize">
+                              {appointment.status}
+                            </Badge>
                           </div>
                           <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
                             <span>{appointment.duration} mins</span>
@@ -553,14 +608,16 @@ export function Dogs() {
                               </Badge>
                             ) : null}
                           </div>
-                          {appointment.dogCountConfirmed !== false && (
+                          {appointment.dogCountConfirmed !== false &&
                             (() => {
-                              const reviewNote = formatDogCountReviewNote(appointment.dogCountReviewedAt, appointment.dogCountReviewedBy);
+                              const reviewNote = formatDogCountReviewNote(
+                                appointment.dogCountReviewedAt,
+                                appointment.dogCountReviewedBy,
+                              );
                               return reviewNote ? (
                                 <p className="mt-2 text-xs font-medium text-brand-700">{reviewNote}</p>
                               ) : null;
-                            })()
-                          )}
+                            })()}
                         </div>
                       ))}
                     </div>

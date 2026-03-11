@@ -39,23 +39,26 @@ export function ClientMessagingPanel({
   const recipient = channel === "email" ? customer.email : customer.phone;
   const canSend = channel === "email" ? Boolean(customer.email) : Boolean(customer.phone);
 
-  const quickDrafts = useMemo(() => [
-    {
-      label: "Booking update",
-      subject: `Update for ${primaryPetName}`,
-      body: `Hi ${customer.name},\n\nJust a quick update about ${primaryPetName}'s booking.\n\nPlease reply if you need anything from us.\n\nSmarter Dog Grooming Salon`,
-    },
-    {
-      label: "Ready for collection",
-      subject: `${primaryPetName} is ready`,
-      body: `Hi ${customer.name},\n\n${primaryPetName} is ready for collection.\n\nSee you soon.\n\nSmarter Dog Grooming Salon`,
-    },
-    {
-      label: "Follow-up",
-      subject: `Checking in about ${primaryPetName}`,
-      body: `Hi ${customer.name},\n\nJust checking in after ${primaryPetName}'s visit.\n\nLet us know how everything is going.\n\nSmarter Dog Grooming Salon`,
-    },
-  ], [customer.name, primaryPetName]);
+  const quickDrafts = useMemo(
+    () => [
+      {
+        label: "Booking update",
+        subject: `Update for ${primaryPetName}`,
+        body: `Hi ${customer.name},\n\nJust a quick update about ${primaryPetName}'s booking.\n\nPlease reply if you need anything from us.\n\nSmarter Dog Grooming Salon`,
+      },
+      {
+        label: "Ready for collection",
+        subject: `${primaryPetName} is ready`,
+        body: `Hi ${customer.name},\n\n${primaryPetName} is ready for collection.\n\nSee you soon.\n\nSmarter Dog Grooming Salon`,
+      },
+      {
+        label: "Follow-up",
+        subject: `Checking in about ${primaryPetName}`,
+        body: `Hi ${customer.name},\n\nJust checking in after ${primaryPetName}'s visit.\n\nLet us know how everything is going.\n\nSmarter Dog Grooming Salon`,
+      },
+    ],
+    [customer.name, primaryPetName],
+  );
 
   useEffect(() => {
     setChannel(customer.phone ? "sms" : "email");
@@ -105,7 +108,9 @@ export function ClientMessagingPanel({
     }
 
     if (!canSend) {
-      toast.error(channel === "email" ? "This client does not have an email address" : "This client does not have a phone number");
+      toast.error(
+        channel === "email" ? "This client does not have an email address" : "This client does not have a phone number",
+      );
       return;
     }
 
@@ -146,7 +151,9 @@ export function ClientMessagingPanel({
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{customer.name}</Badge>
             {customer.pets?.length ? (
-              <Badge variant="secondary">{customer.pets.length} dog{customer.pets.length === 1 ? "" : "s"}</Badge>
+              <Badge variant="secondary">
+                {customer.pets.length} dog{customer.pets.length === 1 ? "" : "s"}
+              </Badge>
             ) : null}
           </div>
         </div>
@@ -191,11 +198,7 @@ export function ClientMessagingPanel({
           </div>
 
           {channel === "email" ? (
-            <Input
-              value={subject}
-              onChange={(event) => setSubject(event.target.value)}
-              placeholder="Subject"
-            />
+            <Input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Subject" />
           ) : null}
 
           <textarea
@@ -228,7 +231,9 @@ export function ClientMessagingPanel({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-900">Recent history</h3>
-            <Badge variant="outline">{messages.length} message{messages.length === 1 ? "" : "s"}</Badge>
+            <Badge variant="outline">
+              {messages.length} message{messages.length === 1 ? "" : "s"}
+            </Badge>
           </div>
 
           {loading ? (
@@ -246,7 +251,9 @@ export function ClientMessagingPanel({
                 <div key={message.id} className="rounded-xl border border-slate-200 bg-white p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="capitalize">{message.channel}</Badge>
+                      <Badge variant="secondary" className="capitalize">
+                        {message.channel}
+                      </Badge>
                       <span className="text-xs text-slate-500">
                         {new Date(message.createdAt).toLocaleString("en-GB")}
                       </span>

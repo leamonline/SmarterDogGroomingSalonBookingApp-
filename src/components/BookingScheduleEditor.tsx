@@ -37,9 +37,7 @@ export function BookingScheduleEditor({
   const toggleSlotAvailability = (day: string, time: string) => {
     updateScheduleDay(day, (current) => ({
       ...current,
-      slots: current.slots.map((slot) =>
-        slot.time === time ? { ...slot, isAvailable: !slot.isAvailable } : slot,
-      ),
+      slots: current.slots.map((slot) => (slot.time === time ? { ...slot, isAvailable: !slot.isAvailable } : slot)),
     }));
   };
 
@@ -134,7 +132,9 @@ export function BookingScheduleEditor({
                 </div>
               </div>
 
-              <div className={`mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5 ${daySchedule.isClosed ? "opacity-70" : ""}`}>
+              <div
+                className={`mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5 ${daySchedule.isClosed ? "opacity-70" : ""}`}
+              >
                 {daySchedule.slots.map((slot) => (
                   <button
                     key={`${daySchedule.day}-${slot.time}`}
@@ -147,9 +147,7 @@ export function BookingScheduleEditor({
                     }`}
                   >
                     <div className="text-sm font-semibold">{formatScheduleTime(slot.time)}</div>
-                    <div className="mt-1 text-xs">
-                      {slot.isAvailable ? "Available to book" : "Unavailable"}
-                    </div>
+                    <div className="mt-1 text-xs">{slot.isAvailable ? "Available to book" : "Unavailable"}</div>
                   </button>
                 ))}
               </div>

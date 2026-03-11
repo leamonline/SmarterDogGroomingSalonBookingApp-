@@ -1,46 +1,42 @@
 export const BOOKING_DAY_ORDER = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ] as const;
 
-export const BOOKING_DEFAULT_OPEN_DAYS = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-] as const;
+export const BOOKING_DEFAULT_OPEN_DAYS = ["Monday", "Tuesday", "Wednesday"] as const;
 
 export const DAY_NAMES_BY_INDEX = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ] as const;
 
-export const BOOKING_OPEN_TIME = '08:30';
-export const BOOKING_CLOSE_TIME = '15:30';
+export const BOOKING_OPEN_TIME = "08:30";
+export const BOOKING_CLOSE_TIME = "15:30";
 export const BOOKING_SLOT_CAPACITY = 2;
 export const BOOKING_SLOT_TIMES = [
-  '08:30',
-  '09:00',
-  '09:30',
-  '10:00',
-  '10:30',
-  '11:00',
-  '11:30',
-  '12:00',
-  '12:30',
-  '13:00',
+  "08:30",
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
 ] as const;
 
-export type BookingSlotTime = typeof BOOKING_SLOT_TIMES[number];
+export type BookingSlotTime = (typeof BOOKING_SLOT_TIMES)[number];
 
 export type RawScheduleRow = {
   day: string;
@@ -67,9 +63,7 @@ export type NormalizedScheduleDay = {
 const DEFAULT_OPEN_DAY_SET = new Set<string>(BOOKING_DEFAULT_OPEN_DAYS);
 
 export function createDefaultSlotConfig() {
-  return JSON.stringify(
-    Object.fromEntries(BOOKING_SLOT_TIMES.map((time) => [time, true])),
-  );
+  return JSON.stringify(Object.fromEntries(BOOKING_SLOT_TIMES.map((time) => [time, true])));
 }
 
 export function isBookingDayClosedByDefault(day: string) {
@@ -82,7 +76,7 @@ export function parseSlotConfig(slotConfig?: string | null) {
   if (slotConfig) {
     try {
       const value = JSON.parse(slotConfig);
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
         parsed = value as Record<string, unknown>;
       }
     } catch {
@@ -91,7 +85,7 @@ export function parseSlotConfig(slotConfig?: string | null) {
   }
 
   return Object.fromEntries(
-    BOOKING_SLOT_TIMES.map((time) => [time, typeof parsed[time] === 'boolean' ? Boolean(parsed[time]) : true]),
+    BOOKING_SLOT_TIMES.map((time) => [time, typeof parsed[time] === "boolean" ? Boolean(parsed[time]) : true]),
   ) as Record<BookingSlotTime, boolean>;
 }
 
@@ -104,20 +98,20 @@ export function serializeSlotConfig(
 
   const entries = Array.isArray(slots)
     ? slots.reduce<Record<string, boolean>>((acc, slot) => {
-      acc[slot.time] = slot.isAvailable !== false;
-      return acc;
-    }, {})
+        acc[slot.time] = slot.isAvailable !== false;
+        return acc;
+      }, {})
     : slots;
 
   return JSON.stringify(
     Object.fromEntries(
-      BOOKING_SLOT_TIMES.map((time) => [time, typeof entries[time] === 'boolean' ? Boolean(entries[time]) : true]),
+      BOOKING_SLOT_TIMES.map((time) => [time, typeof entries[time] === "boolean" ? Boolean(entries[time]) : true]),
     ),
   );
 }
 
 export function normalizeScheduleRow(row?: RawScheduleRow | null, dayOverride?: string): NormalizedScheduleDay {
-  const day = dayOverride || row?.day || 'Monday';
+  const day = dayOverride || row?.day || "Monday";
   const slotAvailability = parseSlotConfig(row?.slotConfig);
 
   return {
@@ -139,12 +133,12 @@ export function normalizeScheduleRows(rows: RawScheduleRow[]) {
 }
 
 export function timeToMinutes(time: string) {
-  const [hours, minutes] = time.split(':').map(Number);
-  return (hours * 60) + minutes;
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
 }
 
 export function combineDateAndTime(baseDate: Date, time: string) {
-  const [hours, minutes] = time.split(':').map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
   const combined = new Date(baseDate);
   combined.setHours(hours, minutes, 0, 0);
   return combined;
@@ -156,10 +150,10 @@ export function getSlotTimesForDuration(startTime: string, duration: number) {
   const slotCount = Math.max(1, Math.ceil(duration / 30));
 
   for (let index = 0; index < slotCount; index += 1) {
-    const minutes = startMinutes + (index * 30);
+    const minutes = startMinutes + index * 30;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    slotTimes.push(`${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`);
+    slotTimes.push(`${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`);
   }
 
   return slotTimes;

@@ -1,9 +1,9 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
-import { logger } from './lib/logger.js';
-import { mockAppointments, mockCustomers, mockServices } from '../src/data/mockData.js';
+import Database from "better-sqlite3";
+import path from "path";
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import { logger } from "./lib/logger.js";
+import { mockAppointments, mockCustomers, mockServices } from "../src/data/mockData.js";
 import {
   BOOKING_CLOSE_TIME,
   BOOKING_DAY_ORDER,
@@ -12,15 +12,13 @@ import {
   isBookingDayClosedByDefault,
   parseSlotConfig,
   type RawScheduleRow,
-} from './helpers/schedule.js';
+} from "./helpers/schedule.js";
 
-const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
-const dbPath = isTestEnv
-  ? ':memory:'
-  : path.resolve(process.cwd(), 'petspa.db');
+const isTestEnv = process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+const dbPath = isTestEnv ? ":memory:" : path.resolve(process.cwd(), "petspa.db");
 const db = new Database(dbPath);
 
-db.pragma('journal_mode = WAL');
+db.pragma("journal_mode = WAL");
 
 // Migrations / Table Creation
 db.exec(`
@@ -260,20 +258,20 @@ db.exec(`
 `);
 
 const appliedVersions = new Set(
-  (db.prepare('SELECT version FROM schema_migrations').all() as { version: number }[]).map(r => r.version)
+  (db.prepare("SELECT version FROM schema_migrations").all() as { version: number }[]).map((r) => r.version),
 );
 
 const migrate = (version: number, fn: () => void) => {
   if (appliedVersions.has(version)) return;
   fn();
-  db.prepare('INSERT INTO schema_migrations (version, appliedAt) VALUES (?, ?)').run(version, new Date().toISOString());
+  db.prepare("INSERT INTO schema_migrations (version, appliedAt) VALUES (?, ?)").run(version, new Date().toISOString());
   appliedVersions.add(version);
 };
 
 /** Add a column to a table only if it doesn't already exist. */
 const safeAddColumn = (table: string, column: string, type: string) => {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!cols.some(c => c.name === column)) {
+  if (!cols.some((c) => c.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
   }
 };
@@ -281,82 +279,82 @@ const safeAddColumn = (table: string, column: string, type: string) => {
 // Migration 1: roles, expanded customer/pet/appointment/service columns
 migrate(1, () => {
   // Users
-  safeAddColumn('users', 'role', "TEXT DEFAULT 'staff'");
+  safeAddColumn("users", "role", "TEXT DEFAULT 'staff'");
 
   // Customers
-  safeAddColumn('customers', 'preferredName', 'TEXT');
-  safeAddColumn('customers', 'postcode', 'TEXT');
-  safeAddColumn('customers', 'preferredContact', "TEXT DEFAULT 'email'");
-  safeAddColumn('customers', 'marketingConsent', 'INTEGER DEFAULT 0');
+  safeAddColumn("customers", "preferredName", "TEXT");
+  safeAddColumn("customers", "postcode", "TEXT");
+  safeAddColumn("customers", "preferredContact", "TEXT DEFAULT 'email'");
+  safeAddColumn("customers", "marketingConsent", "INTEGER DEFAULT 0");
 
   // Pets
-  safeAddColumn('pets', 'photo', 'TEXT');
-  safeAddColumn('pets', 'sex', 'TEXT');
-  safeAddColumn('pets', 'neuteredStatus', 'TEXT');
-  safeAddColumn('pets', 'coatLength', 'TEXT');
-  safeAddColumn('pets', 'colour', 'TEXT');
-  safeAddColumn('pets', 'vetName', 'TEXT');
-  safeAddColumn('pets', 'vetPhone', 'TEXT');
-  safeAddColumn('pets', 'sizeCategory', 'TEXT');
-  safeAddColumn('pets', 'estimatedGroomDuration', 'INTEGER');
-  safeAddColumn('pets', 'dryingTolerance', 'TEXT');
-  safeAddColumn('pets', 'clipperTolerance', 'TEXT');
-  safeAddColumn('pets', 'scissorTolerance', 'TEXT');
-  safeAddColumn('pets', 'nailTrimTolerance', 'TEXT');
-  safeAddColumn('pets', 'mattingTendency', 'TEXT');
-  safeAddColumn('pets', 'medicalNotes', 'TEXT');
-  safeAddColumn('pets', 'allergies', 'TEXT');
-  safeAddColumn('pets', 'mobilityNotes', 'TEXT');
-  safeAddColumn('pets', 'seniorCareNotes', 'TEXT');
-  safeAddColumn('pets', 'biteRisk', 'TEXT');
-  safeAddColumn('pets', 'approvalRequired', 'INTEGER DEFAULT 0');
-  safeAddColumn('pets', 'stylePreferences', 'TEXT');
-  safeAddColumn('pets', 'isArchived', 'INTEGER DEFAULT 0');
+  safeAddColumn("pets", "photo", "TEXT");
+  safeAddColumn("pets", "sex", "TEXT");
+  safeAddColumn("pets", "neuteredStatus", "TEXT");
+  safeAddColumn("pets", "coatLength", "TEXT");
+  safeAddColumn("pets", "colour", "TEXT");
+  safeAddColumn("pets", "vetName", "TEXT");
+  safeAddColumn("pets", "vetPhone", "TEXT");
+  safeAddColumn("pets", "sizeCategory", "TEXT");
+  safeAddColumn("pets", "estimatedGroomDuration", "INTEGER");
+  safeAddColumn("pets", "dryingTolerance", "TEXT");
+  safeAddColumn("pets", "clipperTolerance", "TEXT");
+  safeAddColumn("pets", "scissorTolerance", "TEXT");
+  safeAddColumn("pets", "nailTrimTolerance", "TEXT");
+  safeAddColumn("pets", "mattingTendency", "TEXT");
+  safeAddColumn("pets", "medicalNotes", "TEXT");
+  safeAddColumn("pets", "allergies", "TEXT");
+  safeAddColumn("pets", "mobilityNotes", "TEXT");
+  safeAddColumn("pets", "seniorCareNotes", "TEXT");
+  safeAddColumn("pets", "biteRisk", "TEXT");
+  safeAddColumn("pets", "approvalRequired", "INTEGER DEFAULT 0");
+  safeAddColumn("pets", "stylePreferences", "TEXT");
+  safeAddColumn("pets", "isArchived", "INTEGER DEFAULT 0");
 
   // Appointments
-  safeAddColumn('appointments', 'age', 'TEXT');
-  safeAddColumn('appointments', 'notes', 'TEXT');
-  safeAddColumn('appointments', 'phone', 'TEXT');
-  safeAddColumn('appointments', 'customerId', 'TEXT');
-  safeAddColumn('appointments', 'dogId', 'TEXT');
-  safeAddColumn('appointments', 'staffId', 'TEXT');
-  safeAddColumn('appointments', 'dogCount', 'INTEGER DEFAULT 1');
-  safeAddColumn('appointments', 'dogCountConfirmed', 'INTEGER DEFAULT 1');
-  safeAddColumn('appointments', 'depositAmount', 'REAL DEFAULT 0');
-  safeAddColumn('appointments', 'depositPaid', 'INTEGER DEFAULT 0');
-  safeAddColumn('appointments', 'cancelledAt', 'TEXT');
-  safeAddColumn('appointments', 'cancelledBy', 'TEXT');
-  safeAddColumn('appointments', 'cancellationReason', 'TEXT');
-  safeAddColumn('appointments', 'checkedInAt', 'TEXT');
-  safeAddColumn('appointments', 'checkedInNotes', 'TEXT');
-  safeAddColumn('appointments', 'groomNotes', 'TEXT');
-  safeAddColumn('appointments', 'productsUsed', 'TEXT');
-  safeAddColumn('appointments', 'behaviourDuringGroom', 'TEXT');
-  safeAddColumn('appointments', 'completedAt', 'TEXT');
-  safeAddColumn('appointments', 'aftercareNotes', 'TEXT');
-  safeAddColumn('appointments', 'readyForCollectionAt', 'TEXT');
-  safeAddColumn('appointments', 'surcharge', 'REAL DEFAULT 0');
-  safeAddColumn('appointments', 'surchargeReason', 'TEXT');
-  safeAddColumn('appointments', 'finalPrice', 'REAL');
-  safeAddColumn('appointments', 'beforePhotos', 'TEXT');
-  safeAddColumn('appointments', 'afterPhotos', 'TEXT');
+  safeAddColumn("appointments", "age", "TEXT");
+  safeAddColumn("appointments", "notes", "TEXT");
+  safeAddColumn("appointments", "phone", "TEXT");
+  safeAddColumn("appointments", "customerId", "TEXT");
+  safeAddColumn("appointments", "dogId", "TEXT");
+  safeAddColumn("appointments", "staffId", "TEXT");
+  safeAddColumn("appointments", "dogCount", "INTEGER DEFAULT 1");
+  safeAddColumn("appointments", "dogCountConfirmed", "INTEGER DEFAULT 1");
+  safeAddColumn("appointments", "depositAmount", "REAL DEFAULT 0");
+  safeAddColumn("appointments", "depositPaid", "INTEGER DEFAULT 0");
+  safeAddColumn("appointments", "cancelledAt", "TEXT");
+  safeAddColumn("appointments", "cancelledBy", "TEXT");
+  safeAddColumn("appointments", "cancellationReason", "TEXT");
+  safeAddColumn("appointments", "checkedInAt", "TEXT");
+  safeAddColumn("appointments", "checkedInNotes", "TEXT");
+  safeAddColumn("appointments", "groomNotes", "TEXT");
+  safeAddColumn("appointments", "productsUsed", "TEXT");
+  safeAddColumn("appointments", "behaviourDuringGroom", "TEXT");
+  safeAddColumn("appointments", "completedAt", "TEXT");
+  safeAddColumn("appointments", "aftercareNotes", "TEXT");
+  safeAddColumn("appointments", "readyForCollectionAt", "TEXT");
+  safeAddColumn("appointments", "surcharge", "REAL DEFAULT 0");
+  safeAddColumn("appointments", "surchargeReason", "TEXT");
+  safeAddColumn("appointments", "finalPrice", "REAL");
+  safeAddColumn("appointments", "beforePhotos", "TEXT");
+  safeAddColumn("appointments", "afterPhotos", "TEXT");
 
   // Services
-  safeAddColumn('services', 'isOnlineBookable', 'INTEGER DEFAULT 1');
-  safeAddColumn('services', 'isApprovalRequired', 'INTEGER DEFAULT 0');
-  safeAddColumn('services', 'depositRequired', 'INTEGER DEFAULT 0');
-  safeAddColumn('services', 'depositAmount', 'REAL DEFAULT 0');
-  safeAddColumn('services', 'consentFormRequired', 'INTEGER DEFAULT 0');
-  safeAddColumn('services', 'preBuffer', 'INTEGER DEFAULT 0');
-  safeAddColumn('services', 'postBuffer', 'INTEGER DEFAULT 0');
-  safeAddColumn('services', "priceType", "TEXT DEFAULT 'fixed'");
-  safeAddColumn('services', 'isActive', 'INTEGER DEFAULT 1');
+  safeAddColumn("services", "isOnlineBookable", "INTEGER DEFAULT 1");
+  safeAddColumn("services", "isApprovalRequired", "INTEGER DEFAULT 0");
+  safeAddColumn("services", "depositRequired", "INTEGER DEFAULT 0");
+  safeAddColumn("services", "depositAmount", "REAL DEFAULT 0");
+  safeAddColumn("services", "consentFormRequired", "INTEGER DEFAULT 0");
+  safeAddColumn("services", "preBuffer", "INTEGER DEFAULT 0");
+  safeAddColumn("services", "postBuffer", "INTEGER DEFAULT 0");
+  safeAddColumn("services", "priceType", "TEXT DEFAULT 'fixed'");
+  safeAddColumn("services", "isActive", "INTEGER DEFAULT 1");
 });
 
 // Migration 2: add recipient fields to messages table
 migrate(2, () => {
-  safeAddColumn('messages', 'recipientEmail', 'TEXT');
-  safeAddColumn('messages', 'recipientPhone', 'TEXT');
+  safeAddColumn("messages", "recipientEmail", "TEXT");
+  safeAddColumn("messages", "recipientPhone", "TEXT");
 });
 
 // Migration 3: add performance indexes
@@ -420,34 +418,38 @@ migrate(6, () => {
 
 // Migration 4: structured booking slots on schedule rows
 migrate(4, () => {
-  safeAddColumn('schedule', 'slotConfig', 'TEXT');
+  safeAddColumn("schedule", "slotConfig", "TEXT");
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE schedule
     SET openTime = ?, closeTime = ?, slotConfig = COALESCE(slotConfig, ?)
-  `).run(BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, createDefaultSlotConfig());
+  `,
+  ).run(BOOKING_OPEN_TIME, BOOKING_CLOSE_TIME, createDefaultSlotConfig());
 });
 
 // Migration 7: default Thursday-Sunday to closed on untouched legacy schedules
 migrate(7, () => {
-  const scheduleRows = db.prepare(
-    'SELECT day, openTime, closeTime, isClosed, slotConfig FROM schedule',
-  ).all() as RawScheduleRow[];
+  const scheduleRows = db
+    .prepare("SELECT day, openTime, closeTime, isClosed, slotConfig FROM schedule")
+    .all() as RawScheduleRow[];
 
-  const looksLikeLegacyAllOpenSchedule = scheduleRows.length === BOOKING_DAY_ORDER.length
-    && scheduleRows.every((row) => (
-      BOOKING_DAY_ORDER.includes(row.day as typeof BOOKING_DAY_ORDER[number])
-      && (row.openTime || BOOKING_OPEN_TIME) === BOOKING_OPEN_TIME
-      && (row.closeTime || BOOKING_CLOSE_TIME) === BOOKING_CLOSE_TIME
-      && !Boolean(row.isClosed)
-      && Object.values(parseSlotConfig(row.slotConfig)).every(Boolean)
-    ));
+  const looksLikeLegacyAllOpenSchedule =
+    scheduleRows.length === BOOKING_DAY_ORDER.length &&
+    scheduleRows.every(
+      (row) =>
+        BOOKING_DAY_ORDER.includes(row.day as (typeof BOOKING_DAY_ORDER)[number]) &&
+        (row.openTime || BOOKING_OPEN_TIME) === BOOKING_OPEN_TIME &&
+        (row.closeTime || BOOKING_CLOSE_TIME) === BOOKING_CLOSE_TIME &&
+        !row.isClosed &&
+        Object.values(parseSlotConfig(row.slotConfig)).every(Boolean),
+    );
 
   if (!looksLikeLegacyAllOpenSchedule) {
     return;
   }
 
-  const updateScheduleDay = db.prepare('UPDATE schedule SET isClosed = ? WHERE day = ?');
+  const updateScheduleDay = db.prepare("UPDATE schedule SET isClosed = ? WHERE day = ?");
   for (const day of BOOKING_DAY_ORDER) {
     updateScheduleDay.run(isBookingDayClosedByDefault(day) ? 1 : 0, day);
   }
@@ -455,27 +457,29 @@ migrate(7, () => {
 
 // Migration 8: store the number of dogs attached to each booking
 migrate(8, () => {
-  safeAddColumn('appointments', 'dogCount', 'INTEGER DEFAULT 1');
+  safeAddColumn("appointments", "dogCount", "INTEGER DEFAULT 1");
 });
 
 // Migration 9: require review of legacy future bookings for dog-count capacity
 migrate(9, () => {
-  safeAddColumn('appointments', 'dogCountConfirmed', 'INTEGER DEFAULT 1');
-  db.prepare(`
+  safeAddColumn("appointments", "dogCountConfirmed", "INTEGER DEFAULT 1");
+  db.prepare(
+    `
     UPDATE appointments
     SET dogCountConfirmed = 0
     WHERE date >= ?
-  `).run(new Date().toISOString());
+  `,
+  ).run(new Date().toISOString());
 });
 
 // Migration 10: store manual dog-count review metadata for legacy bookings
 migrate(10, () => {
-  safeAddColumn('appointments', 'dogCountReviewedAt', 'TEXT');
-  safeAddColumn('appointments', 'dogCountReviewedBy', 'TEXT');
+  safeAddColumn("appointments", "dogCountReviewedAt", "TEXT");
+  safeAddColumn("appointments", "dogCountReviewedBy", "TEXT");
 });
 
 const existingScheduleDays = new Set(
-  (db.prepare('SELECT day FROM schedule').all() as { day: string }[]).map((row) => row.day),
+  (db.prepare("SELECT day FROM schedule").all() as { day: string }[]).map((row) => row.day),
 );
 
 const insertScheduleDay = db.prepare(`
@@ -496,12 +500,12 @@ for (const day of BOOKING_DAY_ORDER) {
 }
 
 // Migrate existing cleartext passwords to bcrypt hashes
-const existingUsers = db.prepare('SELECT id, password FROM users').all() as { id: string, password: string }[];
+const existingUsers = db.prepare("SELECT id, password FROM users").all() as { id: string; password: string }[];
 if (existingUsers.length > 0) {
-  const updatePass = db.prepare('UPDATE users SET password = ? WHERE id = ?');
+  const updatePass = db.prepare("UPDATE users SET password = ? WHERE id = ?");
   db.transaction(() => {
     for (const u of existingUsers) {
-      if (!u.password.startsWith('$2a$') && !u.password.startsWith('$2b$')) {
+      if (!u.password.startsWith("$2a$") && !u.password.startsWith("$2b$")) {
         updatePass.run(bcrypt.hashSync(u.password, 10), u.id);
       }
     }
@@ -509,24 +513,27 @@ if (existingUsers.length > 0) {
 }
 
 // Seeding logic (only if empty)
-const customersCount = db.prepare('SELECT COUNT(*) as count FROM customers').get() as { count: number };
+const customersCount = db.prepare("SELECT COUNT(*) as count FROM customers").get() as { count: number };
 
 if (customersCount.count === 0) {
-  logger.info('Seeding database with mock data...');
+  logger.info("Seeding database with mock data...");
 
   // First-run admin user setup
   // Uses ADMIN_EMAIL / ADMIN_PASSWORD env vars if set, otherwise generates secure defaults.
-  const existingUserCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+  const existingUserCount = db.prepare("SELECT COUNT(*) as count FROM users").get() as { count: number };
   if (existingUserCount.count === 0) {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@smarterdoggrooming.com';
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@smarterdoggrooming.com";
     const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomUUID().slice(0, 16);
     const hashedPassword = bcrypt.hashSync(adminPassword, 10);
-    db.prepare('INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)').run(
-      crypto.randomUUID(), adminEmail, hashedPassword, 'owner'
+    db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
+      crypto.randomUUID(),
+      adminEmail,
+      hashedPassword,
+      "owner",
     );
-    logger.info('Initial admin account created', {
+    logger.info("Initial admin account created", {
       email: adminEmail,
-      hint: 'Change this password after first login. Set ADMIN_EMAIL / ADMIN_PASSWORD env vars to customize.',
+      hint: "Change this password after first login. Set ADMIN_EMAIL / ADMIN_PASSWORD env vars to customize.",
     });
   }
 
@@ -534,22 +541,31 @@ if (customersCount.count === 0) {
     INSERT INTO customers (id, name, email, phone, address, emergencyContactName, emergencyContactPhone, notes, lastVisit, totalSpent)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const insertWarning = db.prepare('INSERT INTO customer_warnings (customerId, warning) VALUES (?, ?)');
+  const insertWarning = db.prepare("INSERT INTO customer_warnings (customerId, warning) VALUES (?, ?)");
 
   const insertPet = db.prepare(`
     INSERT INTO pets (id, customerId, name, breed, weight, dob, coatType)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
-  const insertBehavior = db.prepare('INSERT INTO pet_behavioral_notes (petId, note) VALUES (?, ?)');
-  const insertVax = db.prepare('INSERT INTO vaccinations (petId, name, expiryDate, status) VALUES (?, ?, ?, ?)');
-  const insertDoc = db.prepare('INSERT INTO documents (id, customerId, name, type, uploadDate, url) VALUES (?, ?, ?, ?, ?, ?)');
+  const insertBehavior = db.prepare("INSERT INTO pet_behavioral_notes (petId, note) VALUES (?, ?)");
+  const insertVax = db.prepare("INSERT INTO vaccinations (petId, name, expiryDate, status) VALUES (?, ?, ?, ?)");
+  const insertDoc = db.prepare(
+    "INSERT INTO documents (id, customerId, name, type, uploadDate, url) VALUES (?, ?, ?, ?, ?, ?)",
+  );
 
   db.transaction(() => {
     mockCustomers.forEach((c) => {
       insertCustomer.run(
-        c.id, c.name, c.email || null, c.phone || null, c.address || null,
-        c.emergencyContact?.name || null, c.emergencyContact?.phone || null,
-        c.notes || null, c.lastVisit || null, c.totalSpent || 0
+        c.id,
+        c.name,
+        c.email || null,
+        c.phone || null,
+        c.address || null,
+        c.emergencyContact?.name || null,
+        c.emergencyContact?.phone || null,
+        c.notes || null,
+        c.lastVisit || null,
+        c.totalSpent || 0,
       );
 
       (c.warnings || []).forEach((w: string) => {
@@ -583,25 +599,37 @@ if (customersCount.count === 0) {
     mockAppointments.forEach((a) => {
       // JSON cannot store Date objects directly, we stringify to ISO format
       insertAppointment.run(
-        a.id, a.petName, a.breed, a.ownerName, a.service, a.date.toISOString(),
-        a.duration, a.status, a.price, a.avatar || null
+        a.id,
+        a.petName,
+        a.breed,
+        a.ownerName,
+        a.service,
+        a.date.toISOString(),
+        a.duration,
+        a.status,
+        a.price,
+        a.avatar || null,
       );
     });
   })();
 
-  const insertService = db.prepare('INSERT INTO services (id, name, description, duration, price, category) VALUES (?, ?, ?, ?, ?, ?)');
+  const insertService = db.prepare(
+    "INSERT INTO services (id, name, description, duration, price, category) VALUES (?, ?, ?, ?, ?, ?)",
+  );
   db.transaction(() => {
     mockServices.forEach((s) => {
       insertService.run(s.id, s.name, s.description || null, s.duration || 0, s.price || 0, s.category || null);
     });
   })();
 
-  const insertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
-  insertSetting.run('shopName', 'Smarter Dog Grooming Salon');
-  insertSetting.run('shopPhone', '(555) 123-4567');
-  insertSetting.run('shopAddress', '123 Grooming Lane, Pet City, PC 12345');
+  const insertSetting = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
+  insertSetting.run("shopName", "Smarter Dog Grooming Salon");
+  insertSetting.run("shopPhone", "(555) 123-4567");
+  insertSetting.run("shopAddress", "123 Grooming Lane, Pet City, PC 12345");
 
-  const insertSchedule = db.prepare('INSERT OR IGNORE INTO schedule (day, openTime, closeTime, isClosed, slotConfig) VALUES (?, ?, ?, ?, ?)');
+  const insertSchedule = db.prepare(
+    "INSERT OR IGNORE INTO schedule (day, openTime, closeTime, isClosed, slotConfig) VALUES (?, ?, ?, ?, ?)",
+  );
   BOOKING_DAY_ORDER.forEach((day) => {
     insertSchedule.run(
       day,
@@ -612,10 +640,12 @@ if (customersCount.count === 0) {
     );
   });
 
-  const insertNotification = db.prepare('INSERT INTO notifications (id, message, isRead, createdAt) VALUES (?, ?, ?, ?)');
-  insertNotification.run('1', 'System initialized successfully', 0, new Date().toISOString());
+  const insertNotification = db.prepare(
+    "INSERT INTO notifications (id, message, isRead, createdAt) VALUES (?, ?, ?, ?)",
+  );
+  insertNotification.run("1", "System initialized successfully", 0, new Date().toISOString());
 
-  logger.info('Seeding complete.');
+  logger.info("Seeding complete.");
 }
 
 export default db;

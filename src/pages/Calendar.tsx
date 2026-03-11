@@ -128,21 +128,21 @@ function normalizeAppointment(item: any): Appointment {
 }
 
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  'pending-approval': Clock3,
-  'confirmed': CheckCircle,
-  'scheduled': Clock3,
-  'deposit-pending': Clock3,
-  'deposit-paid': CheckCircle,
-  'checked-in': UserCheck,
-  'in-progress': Play,
-  'ready-for-collection': Truck,
-  'completed': CheckCircle,
-  'cancelled-by-customer': XCircle,
-  'cancelled-by-salon': XCircle,
-  'no-show': AlertTriangle,
-  'rescheduled': Clock3,
-  'incomplete': Pause,
-  'incident-review': AlertTriangle,
+  "pending-approval": Clock3,
+  confirmed: CheckCircle,
+  scheduled: Clock3,
+  "deposit-pending": Clock3,
+  "deposit-paid": CheckCircle,
+  "checked-in": UserCheck,
+  "in-progress": Play,
+  "ready-for-collection": Truck,
+  completed: CheckCircle,
+  "cancelled-by-customer": XCircle,
+  "cancelled-by-salon": XCircle,
+  "no-show": AlertTriangle,
+  rescheduled: Clock3,
+  incomplete: Pause,
+  "incident-review": AlertTriangle,
 };
 
 function formatHourLabel(hour: number) {
@@ -174,10 +174,7 @@ export function Calendar() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [appointmentData, settingsData] = await Promise.all([
-          api.getAppointments(),
-          api.getSettings(),
-        ]);
+        const [appointmentData, settingsData] = await Promise.all([api.getAppointments(), api.getSettings()]);
 
         setAppointments(appointmentData.map((item: any) => normalizeAppointment(item)));
         setSchedule(normalizeScheduleDays(settingsData.schedule));
@@ -209,9 +206,10 @@ export function Calendar() {
   const weekDays = useMemo(() => Array.from({ length: 7 }).map((_, index) => addDays(startDate, index)), [startDate]);
   const hours = useMemo(() => Array.from({ length: 10 }).map((_, index) => index + 8), []);
   const allWeekAppointments = useMemo(
-    () => appointments
-      .filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive)
-      .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    () =>
+      appointments
+        .filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive)
+        .sort((a, b) => a.date.getTime() - b.date.getTime()),
     [appointments, startDate, weekEndExclusive],
   );
   const weekAppointments = useMemo(
@@ -232,9 +230,8 @@ export function Calendar() {
     [scheduleByDay, selectedDayName],
   );
   const editingDaySchedule = useMemo(
-    () => editingScheduleDay
-      ? scheduleDraft.find((daySchedule) => daySchedule.day === editingScheduleDay) || null
-      : null,
+    () =>
+      editingScheduleDay ? scheduleDraft.find((daySchedule) => daySchedule.day === editingScheduleDay) || null : null,
     [editingScheduleDay, scheduleDraft],
   );
 
@@ -249,39 +246,41 @@ export function Calendar() {
     setIsModalOpen(true);
   }, []);
 
-  const handleSaveAppointment = useCallback(async (
-    updatedAppointment: Appointment,
-    options?: { successMessage?: string },
-  ) => {
-    try {
-      const exists = appointments.some((appointment) => appointment.id === updatedAppointment.id);
-      const savedAppointment = normalizeAppointment(
-        exists
-          ? await api.updateAppointment(updatedAppointment.id, updatedAppointment)
-          : await api.createAppointment(updatedAppointment),
-      );
-      if (exists) {
-        setAppointments((prev) =>
-          prev.map((appointment) => (appointment.id === updatedAppointment.id ? savedAppointment : appointment)),
+  const handleSaveAppointment = useCallback(
+    async (updatedAppointment: Appointment, options?: { successMessage?: string }) => {
+      try {
+        const exists = appointments.some((appointment) => appointment.id === updatedAppointment.id);
+        const savedAppointment = normalizeAppointment(
+          exists
+            ? await api.updateAppointment(updatedAppointment.id, updatedAppointment)
+            : await api.createAppointment(updatedAppointment),
         );
-      } else {
-        setAppointments((prev) => [...prev, savedAppointment]);
-      }
+        if (exists) {
+          setAppointments((prev) =>
+            prev.map((appointment) => (appointment.id === updatedAppointment.id ? savedAppointment : appointment)),
+          );
+        } else {
+          setAppointments((prev) => [...prev, savedAppointment]);
+        }
 
-      if (options?.successMessage) {
-        toast.success(options.successMessage);
-      }
+        if (options?.successMessage) {
+          toast.success(options.successMessage);
+        }
 
-      return true;
-    } catch (err) {
-      handleError(err, "Failed to save appointment");
-      return false;
-    }
-  }, [appointments]);
+        return true;
+      } catch (err) {
+        handleError(err, "Failed to save appointment");
+        return false;
+      }
+    },
+    [appointments],
+  );
 
   const handleStatusUpdate = useCallback((updatedAppointment: Appointment) => {
     setAppointments((prev) =>
-      prev.map((appointment) => (appointment.id === updatedAppointment.id ? normalizeAppointment(updatedAppointment) : appointment)),
+      prev.map((appointment) =>
+        appointment.id === updatedAppointment.id ? normalizeAppointment(updatedAppointment) : appointment,
+      ),
     );
   }, []);
 
@@ -295,32 +294,35 @@ export function Calendar() {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
-  const handleDrop = useCallback(async (event: React.DragEvent, targetDay: Date) => {
-    event.preventDefault();
-    const appointmentId = event.dataTransfer.getData("appointmentId");
-    if (!appointmentId) return;
+  const handleDrop = useCallback(
+    async (event: React.DragEvent, targetDay: Date) => {
+      event.preventDefault();
+      const appointmentId = event.dataTransfer.getData("appointmentId");
+      if (!appointmentId) return;
 
-    const rect = event.currentTarget.getBoundingClientRect();
-    const y = event.clientY - rect.top;
-    const droppedHour = Math.floor(y / 96) + 8;
-    const droppedMinute = Math.round(((y % 96) / 96) * 60);
-    const snappedMinute = Math.round(droppedMinute / 30) * 30;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const y = event.clientY - rect.top;
+      const droppedHour = Math.floor(y / 96) + 8;
+      const droppedMinute = Math.round(((y % 96) / 96) * 60);
+      const snappedMinute = Math.round(droppedMinute / 30) * 30;
 
-    const appointmentToUpdate = appointments.find((appointment) => appointment.id === appointmentId);
-    if (appointmentToUpdate) {
-      const newDate = new Date(targetDay);
-      newDate.setHours(droppedHour, snappedMinute, 0, 0);
+      const appointmentToUpdate = appointments.find((appointment) => appointment.id === appointmentId);
+      if (appointmentToUpdate) {
+        const newDate = new Date(targetDay);
+        newDate.setHours(droppedHour, snappedMinute, 0, 0);
 
-      const updatedAppointment = { ...appointmentToUpdate, date: newDate };
-      const saved = await handleSaveAppointment(updatedAppointment, {
-        successMessage: `${appointmentToUpdate.petName} moved to ${format(newDate, "EEE h:mm a")}`,
-      });
+        const updatedAppointment = { ...appointmentToUpdate, date: newDate };
+        const saved = await handleSaveAppointment(updatedAppointment, {
+          successMessage: `${appointmentToUpdate.petName} moved to ${format(newDate, "EEE h:mm a")}`,
+        });
 
-      if (saved) {
-        setSelectedDay(targetDay);
+        if (saved) {
+          setSelectedDay(targetDay);
+        }
       }
-    }
-  }, [appointments, handleSaveAppointment]);
+    },
+    [appointments, handleSaveAppointment],
+  );
 
   const shiftWeek = useCallback((days: number) => {
     setCurrentDate((prev) => addDays(prev, days));
@@ -333,32 +335,44 @@ export function Calendar() {
     setSelectedDay(now);
   }, []);
 
-  const openClientProfile = useCallback((customerId?: string) => {
-    if (!customerId) return;
-    navigate("/clients", { state: { customerId } });
-  }, [navigate]);
+  const openClientProfile = useCallback(
+    (customerId?: string) => {
+      if (!customerId) return;
+      navigate("/clients", { state: { customerId } });
+    },
+    [navigate],
+  );
 
-  const openDogProfile = useCallback((dogId?: string) => {
-    if (!dogId) return;
-    navigate("/dogs", { state: { dogId } });
-  }, [navigate]);
+  const openDogProfile = useCallback(
+    (dogId?: string) => {
+      if (!dogId) return;
+      navigate("/dogs", { state: { dogId } });
+    },
+    [navigate],
+  );
 
-  const openMessaging = useCallback((appointment: Appointment) => {
-    if (!appointment.customerId) return;
-    navigate("/messaging", {
-      state: {
-        customerId: appointment.customerId,
-        dogId: appointment.dogId,
-        appointmentId: appointment.id,
-      },
-    });
-  }, [navigate]);
+  const openMessaging = useCallback(
+    (appointment: Appointment) => {
+      if (!appointment.customerId) return;
+      navigate("/messaging", {
+        state: {
+          customerId: appointment.customerId,
+          dogId: appointment.dogId,
+          appointmentId: appointment.id,
+        },
+      });
+    },
+    [navigate],
+  );
 
-  const openScheduleSettings = useCallback((day: Date) => {
-    setSelectedDay(day);
-    setScheduleDraft(schedule);
-    setEditingScheduleDay(format(day, "EEEE"));
-  }, [schedule]);
+  const openScheduleSettings = useCallback(
+    (day: Date) => {
+      setSelectedDay(day);
+      setScheduleDraft(schedule);
+      setEditingScheduleDay(format(day, "EEEE"));
+    },
+    [schedule],
+  );
 
   const openCapacityReview = useCallback((appointment: Appointment) => {
     setCurrentDate(appointment.date);
@@ -389,34 +403,46 @@ export function Calendar() {
     }
   }, [closeScheduleSettings, editingScheduleDay, scheduleDraft]);
 
-  const weeklyInSalon = useMemo(() => weekAppointments.filter((a) => LIVE_STATUSES.has(a.status)).length, [weekAppointments]);
-  const weeklyNeedsAction = useMemo(() => weekAppointments.filter((a) => NEEDS_ACTION_STATUSES.has(a.status)).length, [weekAppointments]);
-  const weeklyCapacityReview = useMemo(() => allWeekAppointments.filter((a) => a.dogCountConfirmed === false).length, [allWeekAppointments]);
-  const weeklyDone = useMemo(() => weekAppointments.filter((a) => DONE_STATUSES.has(a.status)).length, [weekAppointments]);
+  const weeklyInSalon = useMemo(
+    () => weekAppointments.filter((a) => LIVE_STATUSES.has(a.status)).length,
+    [weekAppointments],
+  );
+  const weeklyNeedsAction = useMemo(
+    () => weekAppointments.filter((a) => NEEDS_ACTION_STATUSES.has(a.status)).length,
+    [weekAppointments],
+  );
+  const weeklyCapacityReview = useMemo(
+    () => allWeekAppointments.filter((a) => a.dogCountConfirmed === false).length,
+    [allWeekAppointments],
+  );
+  const weeklyDone = useMemo(
+    () => weekAppointments.filter((a) => DONE_STATUSES.has(a.status)).length,
+    [weekAppointments],
+  );
   const upcomingCapacityReview = useMemo(
-    () => appointments
-      .filter((appointment) => appointment.dogCountConfirmed === false)
-      .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    () =>
+      appointments
+        .filter((appointment) => appointment.dogCountConfirmed === false)
+        .sort((a, b) => a.date.getTime() - b.date.getTime()),
     [appointments],
   );
   const selectedDayRevenue = useMemo(
-    () => selectedDayAppointments
-      .filter((a) => !a.status.includes("cancelled") && a.status !== "no-show")
-      .reduce((sum, a) => sum + (a.price || 0), 0),
+    () =>
+      selectedDayAppointments
+        .filter((a) => !a.status.includes("cancelled") && a.status !== "no-show")
+        .reduce((sum, a) => sum + (a.price || 0), 0),
     [selectedDayAppointments],
   );
 
   useEffect(() => {
     setReviewDogCounts((prev) => {
-      const nextEntries = upcomingCapacityReview.map((appointment) => [
-        appointment.id,
-        prev[appointment.id] ?? appointment.dogCount ?? 1,
-      ] as const);
+      const nextEntries = upcomingCapacityReview.map(
+        (appointment) => [appointment.id, prev[appointment.id] ?? appointment.dogCount ?? 1] as const,
+      );
       const next = Object.fromEntries(nextEntries);
       const prevKeys = Object.keys(prev);
       const nextKeys = Object.keys(next);
-      const unchanged = prevKeys.length === nextKeys.length
-        && nextKeys.every((key) => prev[key] === next[key]);
+      const unchanged = prevKeys.length === nextKeys.length && nextKeys.every((key) => prev[key] === next[key]);
       return unchanged ? prev : next;
     });
   }, [upcomingCapacityReview]);
@@ -437,21 +463,24 @@ export function Calendar() {
     setReviewDogCounts((prev) => ({ ...prev, [appointmentId]: dogCount }));
   }, []);
 
-  const handleConfirmReviewItem = useCallback(async (appointment: Appointment) => {
-    if (isConfirmingReviewItem(appointment.id)) return;
+  const handleConfirmReviewItem = useCallback(
+    async (appointment: Appointment) => {
+      if (isConfirmingReviewItem(appointment.id)) return;
 
-    setConfirmingAppointmentIds((prev) => [...prev, appointment.id]);
-    try {
-      const confirmedDogCount = getReviewDogCount(appointment);
-      const saved = await handleSaveAppointment(
-        { ...appointment, dogCount: confirmedDogCount },
-        { successMessage: `${appointment.petName} is now confirmed for ${formatDogCountLabel(confirmedDogCount)}` },
-      );
-      return Boolean(saved);
-    } finally {
-      setConfirmingAppointmentIds((prev) => prev.filter((id) => id !== appointment.id));
-    }
-  }, [getReviewDogCount, handleSaveAppointment, isConfirmingReviewItem]);
+      setConfirmingAppointmentIds((prev) => [...prev, appointment.id]);
+      try {
+        const confirmedDogCount = getReviewDogCount(appointment);
+        const saved = await handleSaveAppointment(
+          { ...appointment, dogCount: confirmedDogCount },
+          { successMessage: `${appointment.petName} is now confirmed for ${formatDogCountLabel(confirmedDogCount)}` },
+        );
+        return Boolean(saved);
+      } finally {
+        setConfirmingAppointmentIds((prev) => prev.filter((id) => id !== appointment.id));
+      }
+    },
+    [getReviewDogCount, handleSaveAppointment, isConfirmingReviewItem],
+  );
 
   const handleConfirmAllReviewItems = useCallback(async () => {
     if (isConfirmingAllReviewItems || upcomingCapacityReview.length === 0) return;
@@ -462,9 +491,7 @@ export function Calendar() {
 
     try {
       for (const appointment of upcomingCapacityReview) {
-        setConfirmingAppointmentIds((prev) => (
-          prev.includes(appointment.id) ? prev : [...prev, appointment.id]
-        ));
+        setConfirmingAppointmentIds((prev) => (prev.includes(appointment.id) ? prev : [...prev, appointment.id]));
         try {
           const confirmedDogCount = getReviewDogCount(appointment);
           const saved = await handleSaveAppointment({ ...appointment, dogCount: confirmedDogCount });
@@ -479,27 +506,34 @@ export function Calendar() {
       }
 
       if (confirmedCount > 0) {
-        toast.success(
-          `Confirmed ${confirmedCount} booking${confirmedCount === 1 ? "" : "s"} in the review queue.`,
-        );
+        toast.success(`Confirmed ${confirmedCount} booking${confirmedCount === 1 ? "" : "s"} in the review queue.`);
       }
       if (failedCount > 0) {
-        toast.error(
-          `${failedCount} booking${failedCount === 1 ? "" : "s"} still need the full booking screen.`,
-        );
+        toast.error(`${failedCount} booking${failedCount === 1 ? "" : "s"} still need the full booking screen.`);
       }
     } finally {
       setIsConfirmingAllReviewItems(false);
     }
   }, [getReviewDogCount, handleSaveAppointment, isConfirmingAllReviewItems, upcomingCapacityReview]);
 
-  const filterOptions = useMemo<Array<{ value: CalendarFilter; label: string; count: number }>>(() => [
-    { value: "all", label: "All", count: allWeekAppointments.length },
-    { value: "needs-action", label: "Needs Action", count: allWeekAppointments.filter((a) => matchesFilter(a, "needs-action")).length },
-    { value: "capacity-review", label: "Capacity Review", count: weeklyCapacityReview },
-    { value: "in-salon", label: "In Salon", count: allWeekAppointments.filter((a) => matchesFilter(a, "in-salon")).length },
-    { value: "done", label: "Done", count: allWeekAppointments.filter((a) => matchesFilter(a, "done")).length },
-  ], [allWeekAppointments, weeklyCapacityReview]);
+  const filterOptions = useMemo<Array<{ value: CalendarFilter; label: string; count: number }>>(
+    () => [
+      { value: "all", label: "All", count: allWeekAppointments.length },
+      {
+        value: "needs-action",
+        label: "Needs Action",
+        count: allWeekAppointments.filter((a) => matchesFilter(a, "needs-action")).length,
+      },
+      { value: "capacity-review", label: "Capacity Review", count: weeklyCapacityReview },
+      {
+        value: "in-salon",
+        label: "In Salon",
+        count: allWeekAppointments.filter((a) => matchesFilter(a, "in-salon")).length,
+      },
+      { value: "done", label: "Done", count: allWeekAppointments.filter((a) => matchesFilter(a, "done")).length },
+    ],
+    [allWeekAppointments, weeklyCapacityReview],
+  );
 
   if (loading) return <CalendarSkeleton />;
 
@@ -509,18 +543,29 @@ export function Calendar() {
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight text-purple">Bookings</h1>
           <p className="text-sm text-slate-500">
-            Run the salon from one calendar-first workspace, then jump straight into the linked client, dog, or message thread.
+            Run the salon from one calendar-first workspace, then jump straight into the linked client, dog, or message
+            thread.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded-full border border-slate-200 bg-white shadow-sm">
-            <Button variant="ghost" size="icon" onClick={() => shiftWeek(-7)} className="h-9 w-9 rounded-full border-r border-slate-200">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => shiftWeek(-7)}
+              className="h-9 w-9 rounded-full border-r border-slate-200"
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button variant="ghost" onClick={goToToday} className="h-9 rounded-none px-4 text-sm font-medium">
               Today
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => shiftWeek(7)} className="h-9 w-9 rounded-full border-l border-slate-200">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => shiftWeek(7)}
+              className="h-9 w-9 rounded-full border-l border-slate-200"
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -539,7 +584,9 @@ export function Calendar() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{weekAppointments.length}</div>
-            <p className="text-xs text-slate-500">{format(startDate, "d MMM")} to {format(addDays(startDate, 6), "d MMM")}</p>
+            <p className="text-xs text-slate-500">
+              {format(startDate, "d MMM")} to {format(addDays(startDate, 6), "d MMM")}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -622,7 +669,8 @@ export function Calendar() {
             <div>
               <p className="text-sm font-semibold text-amber-900">Capacity review queue</p>
               <p className="text-sm text-amber-800">
-                {upcomingCapacityReview.length} future booking{upcomingCapacityReview.length === 1 ? "" : "s"} still need a confirmed dog count before online capacity reopens.
+                {upcomingCapacityReview.length} future booking{upcomingCapacityReview.length === 1 ? "" : "s"} still
+                need a confirmed dog count before online capacity reopens.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -655,11 +703,7 @@ export function Calendar() {
                       isSelected ? "bg-brand-50" : "hover:bg-slate-100",
                     )}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDay(day)}
-                      className="w-full"
-                    >
+                    <button type="button" onClick={() => setSelectedDay(day)} className="w-full">
                       <div className={cn("text-sm font-medium", isSelected ? "text-brand-700" : "text-slate-900")}>
                         {format(day, "EEE")}
                       </div>
@@ -697,7 +741,10 @@ export function Calendar() {
               <div className="grid grid-cols-8">
                 <div className="border-r border-slate-200 bg-slate-50">
                   {hours.map((hour) => (
-                    <div key={hour} className="h-24 border-b border-slate-200 p-2 text-right text-xs font-medium text-slate-500">
+                    <div
+                      key={hour}
+                      className="h-24 border-b border-slate-200 p-2 text-right text-xs font-medium text-slate-500"
+                    >
                       {formatHourLabel(hour)}
                     </div>
                   ))}
@@ -721,7 +768,7 @@ export function Calendar() {
                         .map((appointment) => {
                           const startHour = appointment.date.getHours();
                           const startMinute = appointment.date.getMinutes();
-                          const top = ((startHour - 8) * 96) + (startMinute / 60) * 96;
+                          const top = (startHour - 8) * 96 + (startMinute / 60) * 96;
                           const height = (appointment.duration / 60) * 96;
 
                           return (
@@ -734,24 +781,26 @@ export function Calendar() {
                                 "absolute left-1 right-1 rounded-lg border p-2 text-xs shadow-sm transition-all hover:z-10 hover:shadow-md cursor-grab active:cursor-grabbing",
                                 getAppointmentTone(appointment.status),
                               )}
-                              // eslint-disable-next-line react/forbid-dom-props
                               style={{
                                 top: `${top}px`,
                                 height: `${height}px`,
                               }}
                             >
                               <div className="font-semibold truncate flex items-center gap-1">
-                                {(() => { const Icon = STATUS_ICONS[appointment.status]; return Icon ? <Icon className="h-3 w-3 shrink-0" /> : null; })()}
+                                {(() => {
+                                  const Icon = STATUS_ICONS[appointment.status];
+                                  return Icon ? <Icon className="h-3 w-3 shrink-0" /> : null;
+                                })()}
                                 {appointment.petName}
-                                <span className="ml-auto text-[9px] font-medium opacity-70 uppercase tracking-wide shrink-0">{formatStatusLabel(appointment.status)}</span>
+                                <span className="ml-auto text-[9px] font-medium opacity-70 uppercase tracking-wide shrink-0">
+                                  {formatStatusLabel(appointment.status)}
+                                </span>
                               </div>
                               <div className="truncate opacity-80">{appointment.service}</div>
                               {height > 58 && (
                                 <div className="truncate opacity-75">{formatDogCountLabel(appointment.dogCount)}</div>
                               )}
-                              {height > 74 && (
-                                <div className="truncate opacity-70">{appointment.ownerName}</div>
-                              )}
+                              {height > 74 && <div className="truncate opacity-70">{appointment.ownerName}</div>}
                               {height > 90 && appointment.dogCountConfirmed === false && (
                                 <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-amber-800">
                                   <AlertTriangle className="h-3 w-3" />
@@ -760,12 +809,20 @@ export function Calendar() {
                               )}
                               {height > 90 && (
                                 <div className="mt-1 opacity-70 text-[10px]">
-                                  {format(appointment.date, "h:mm a")} – {format(new Date(appointment.date.getTime() + appointment.duration * 60000), "h:mm a")}
+                                  {format(appointment.date, "h:mm a")} –{" "}
+                                  {format(
+                                    new Date(appointment.date.getTime() + appointment.duration * 60000),
+                                    "h:mm a",
+                                  )}
                                 </div>
                               )}
                               {height > 112 && (
                                 <div className="mt-1" onClick={(event) => event.stopPropagation()}>
-                                  <AppointmentStatusBar appointment={appointment} onUpdated={handleStatusUpdate} compact />
+                                  <AppointmentStatusBar
+                                    appointment={appointment}
+                                    onUpdated={handleStatusUpdate}
+                                    compact
+                                  />
                                 </div>
                               )}
                             </div>
@@ -786,7 +843,9 @@ export function Calendar() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-amber-900">Capacity review queue</p>
-                    <p className="text-xs text-amber-800">Set the dog count here, then confirm without opening every booking.</p>
+                    <p className="text-xs text-amber-800">
+                      Set the dog count here, then confirm without opening every booking.
+                    </p>
                   </div>
                   <Badge variant="outline" className="border-amber-200 bg-white text-amber-800">
                     {upcomingCapacityReview.length} waiting
@@ -815,10 +874,7 @@ export function Calendar() {
                   {upcomingCapacityReview.map((appointment) => {
                     const isSaving = isConfirmingReviewItem(appointment.id);
                     return (
-                      <div
-                        key={appointment.id}
-                        className="rounded-lg border border-amber-200 bg-white px-3 py-3"
-                      >
+                      <div key={appointment.id} className="rounded-lg border border-amber-200 bg-white px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="font-medium text-slate-900">{appointment.petName}</p>
@@ -905,10 +961,30 @@ export function Calendar() {
             ) : (
               (() => {
                 const STATUS_GROUPS: { label: string; statuses: Set<string>; tone: string }[] = [
-                  { label: "Action Needed", statuses: new Set(["ready-for-collection", "pending-approval"]), tone: "text-gold" },
+                  {
+                    label: "Action Needed",
+                    statuses: new Set(["ready-for-collection", "pending-approval"]),
+                    tone: "text-gold",
+                  },
                   { label: "In Salon", statuses: new Set(["checked-in", "in-progress"]), tone: "text-sky-600" },
-                  { label: "Upcoming", statuses: new Set(["confirmed", "scheduled", "deposit-paid", "deposit-pending"]), tone: "text-brand-600" },
-                  { label: "Done", statuses: new Set(["completed", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled", "incomplete", "incident-review"]), tone: "text-slate-500" },
+                  {
+                    label: "Upcoming",
+                    statuses: new Set(["confirmed", "scheduled", "deposit-paid", "deposit-pending"]),
+                    tone: "text-brand-600",
+                  },
+                  {
+                    label: "Done",
+                    statuses: new Set([
+                      "completed",
+                      "cancelled-by-customer",
+                      "cancelled-by-salon",
+                      "no-show",
+                      "rescheduled",
+                      "incomplete",
+                      "incident-review",
+                    ]),
+                    tone: "text-slate-500",
+                  },
                 ];
 
                 const grouped = STATUS_GROUPS.map((group) => ({
@@ -920,7 +996,12 @@ export function Calendar() {
                 const groupedIds = new Set(grouped.flatMap((g) => g.appointments.map((a) => a.id)));
                 const ungrouped = selectedDayAppointments.filter((a) => !groupedIds.has(a.id));
                 if (ungrouped.length > 0) {
-                  grouped.push({ label: "Other", appointments: ungrouped, statuses: new Set(), tone: "text-slate-500" });
+                  grouped.push({
+                    label: "Other",
+                    appointments: ungrouped,
+                    statuses: new Set(),
+                    tone: "text-slate-500",
+                  });
                 }
 
                 return grouped.map((group) => (
@@ -936,7 +1017,9 @@ export function Calendar() {
                               <p className="font-semibold text-slate-900">
                                 {format(appointment.date, "h:mm a")} • {appointment.petName}
                               </p>
-                              <p className="text-sm text-slate-600">{appointment.service} for {appointment.ownerName}</p>
+                              <p className="text-sm text-slate-600">
+                                {appointment.service} for {appointment.ownerName}
+                              </p>
                             </div>
                             <Badge variant="outline" className="shrink-0">
                               {formatStatusLabel(appointment.status)}
@@ -957,30 +1040,47 @@ export function Calendar() {
                               </Badge>
                             ) : null}
                           </div>
-                          {appointment.dogCountConfirmed !== false && (
+                          {appointment.dogCountConfirmed !== false &&
                             (() => {
-                              const reviewNote = formatDogCountReviewNote(appointment.dogCountReviewedAt, appointment.dogCountReviewedBy);
+                              const reviewNote = formatDogCountReviewNote(
+                                appointment.dogCountReviewedAt,
+                                appointment.dogCountReviewedBy,
+                              );
                               return reviewNote ? (
                                 <p className="mt-2 text-xs font-medium text-brand-700">{reviewNote}</p>
                               ) : null;
-                            })()
-                          )}
+                            })()}
                           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                             <div className="flex flex-wrap gap-2">
                               {appointment.customerId ? (
-                                <Button type="button" size="sm" variant="outline" onClick={() => openClientProfile(appointment.customerId)}>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openClientProfile(appointment.customerId)}
+                                >
                                   <UserRound className="mr-1.5 h-3.5 w-3.5" />
                                   Client
                                 </Button>
                               ) : null}
                               {appointment.dogId ? (
-                                <Button type="button" size="sm" variant="outline" onClick={() => openDogProfile(appointment.dogId)}>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openDogProfile(appointment.dogId)}
+                                >
                                   <DogIcon className="mr-1.5 h-3.5 w-3.5" />
                                   Dog
                                 </Button>
                               ) : null}
                               {appointment.customerId ? (
-                                <Button type="button" size="sm" variant="outline" onClick={() => openMessaging(appointment)}>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openMessaging(appointment)}
+                                >
                                   <Mail className="mr-1.5 h-3.5 w-3.5" />
                                   Message
                                 </Button>
@@ -988,7 +1088,12 @@ export function Calendar() {
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               <AppointmentStatusBar appointment={appointment} onUpdated={handleStatusUpdate} />
-                              <Button type="button" size="sm" variant="outline" onClick={() => handleAppointmentClick(appointment)}>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleAppointmentClick(appointment)}
+                              >
                                 Open
                               </Button>
                             </div>
@@ -1022,7 +1127,8 @@ export function Calendar() {
           <DialogHeader>
             <DialogTitle>{editingScheduleDay} booking settings</DialogTitle>
             <DialogDescription>
-              These controls only update online booking for {editingScheduleDay}. Monday to Wednesday default to open, while Thursday to Sunday default to closed.
+              These controls only update online booking for {editingScheduleDay}. Monday to Wednesday default to open,
+              while Thursday to Sunday default to closed.
             </DialogDescription>
           </DialogHeader>
           {editingDaySchedule && (

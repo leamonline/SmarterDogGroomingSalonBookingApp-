@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface Props {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[ErrorBoundary] Uncaught error:', error, errorInfo);
+    console.error("[ErrorBoundary] Uncaught error:", error, errorInfo);
   }
 
   render() {
@@ -31,9 +31,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-lg border border-error bg-error-light p-8 text-center">
           <div className="text-3xl">⚠️</div>
           <h2 className="text-lg font-semibold text-error">Something went wrong</h2>
-          <p className="max-w-md text-sm text-error">
-            {this.state.error?.message || 'An unexpected error occurred.'}
-          </p>
+          <p className="max-w-md text-sm text-error">{this.state.error?.message || "An unexpected error occurred."}</p>
           <button
             type="button"
             onClick={() => this.setState({ hasError: false, error: null })}
