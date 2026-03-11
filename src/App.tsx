@@ -65,7 +65,7 @@ export default function App() {
               <Route path="calendar" element={<Calendar />} />
               <Route path="clients" element={<Customers />} />
               <Route path="dogs" element={<Dogs />} />
-              <Route path="customers" element={<Customers />} />
+              <Route path="customers" element={<Navigate to="/clients" replace />} />
               <Route path="services" element={<Services />} />
               <Route path="messaging" element={<MessagingPage />} />
               <Route path="settings" element={<Settings />} />

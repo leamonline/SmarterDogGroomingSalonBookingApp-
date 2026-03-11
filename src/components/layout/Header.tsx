@@ -1,6 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Search, Loader2, Menu, Settings2 } from "lucide-react";
-import { Input } from "@/src/components/ui/input";
 import { Button } from "@/src/components/ui/button";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/AuthContext";
@@ -49,14 +48,14 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
   }, []);
 
   // Flatten results for keyboard navigation
-  const flatResults = (() => {
+  const flatResults = useMemo(() => {
     if (!results) return [];
     const items: { type: string; id: string; label: string; sub?: string; navigateTo: string; navState: any }[] = [];
     results.customers?.forEach((c: any) => items.push({ type: "customer", id: c.id, label: c.name, sub: c.email, navigateTo: "/clients", navState: { customerId: c.id } }));
     results.pets?.forEach((p: any) => items.push({ type: "pet", id: p.id, label: p.name, sub: p.breed, navigateTo: "/dogs", navState: { dogId: p.id } }));
     results.appointments?.forEach((a: any) => items.push({ type: "appointment", id: a.id, label: `${a.petName} - ${a.service}`, navigateTo: "/calendar", navState: { appointmentId: a.id } }));
     return items;
-  })();
+  }, [results]);
 
   // Reset active index when results change
   useEffect(() => {
