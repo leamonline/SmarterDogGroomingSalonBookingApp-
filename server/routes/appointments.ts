@@ -56,7 +56,7 @@ router.get("/", (req, res) => {
   const offset = (page - 1) * limit;
 
   const total = (db.prepare("SELECT COUNT(*) as count FROM appointments").get() as CountRow).count;
-  const appointments = db.prepare("SELECT * FROM appointments ORDER BY date DESC LIMIT ? OFFSET ?").all(limit, offset);
+  const appointments = db.prepare("SELECT * FROM appointments ORDER BY date ASC LIMIT ? OFFSET ?").all(limit, offset);
 
   res.json({
     data: appointments,

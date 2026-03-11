@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/src/lib/api";
 import type { Appointment } from "@/src/components/AppointmentModal";
+import { ConfirmDialog } from "@/src/components/ConfirmDialog";
 import { UserCheck, Play, Truck, CheckCircle, XCircle, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
 
 // ─── Status machine ─────────────────────────────────────────────────────────
@@ -67,11 +68,37 @@ interface AppointmentStatusBarProps {
   compact?: boolean;
 }
 
+const DESTRUCTIVE_STYLES = new Set(["danger", "warning"]);
+
+const CONFIRM_MESSAGES: Record<string, { title: string; description: string }> = {
+  "cancelled-by-salon": {
+    title: "Cancel Appointment",
+    description: "Are you sure you want to cancel this appointment? This cannot be undone.",
+  },
+  "no-show": {
+    title: "Mark as No Show",
+    description: "Are you sure you want to mark this appointment as a no-show? This cannot be undone.",
+  },
+  incomplete: {
+    title: "Mark as Incomplete",
+    description: "Are you sure you want to mark this groom as incomplete? This cannot be undone.",
+  },
+};
+
 export function AppointmentStatusBar({ appointment, onUpdated, compact = false }: AppointmentStatusBarProps) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<ActionDef | null>(null);
 
   const actions = TRANSITIONS[appointment.status] ?? [];
   if (actions.length === 0) return null;
+
+  const handleClick = (action: ActionDef) => {
+    if (DESTRUCTIVE_STYLES.has(action.style)) {
+      setPendingAction(action);
+    } else {
+      advance(action);
+    }
+  };
 
   const advance = async (action: ActionDef) => {
     setLoading(action.status);
@@ -111,7 +138,7 @@ export function AppointmentStatusBar({ appointment, onUpdated, compact = false }
         return (
           <button
             key={action.status}
-            onClick={() => advance(action)}
+            onClick={() => handleClick(action)}
             disabled={!!loading}
             title={action.label}
             className={`
@@ -126,6 +153,24 @@ export function AppointmentStatusBar({ appointment, onUpdated, compact = false }
           </button>
         );
       })}
+      {pendingAction && (
+        <ConfirmDialog
+          isOpen
+          title={CONFIRM_MESSAGES[pendingAction.status]?.title ?? pendingAction.label}
+          description={
+            CONFIRM_MESSAGES[pendingAction.status]?.description ??
+            `Are you sure you want to mark ${appointment.petName}'s appointment as "${pendingAction.label}"? This cannot be undone.`
+          }
+          confirmText={pendingAction.label}
+          variant="destructive"
+          onConfirm={() => {
+            const action = pendingAction;
+            setPendingAction(null);
+            advance(action);
+          }}
+          onCancel={() => setPendingAction(null)}
+        />
+      )}
     </div>
   );
 }

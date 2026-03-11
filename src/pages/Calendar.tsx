@@ -207,9 +207,7 @@ export function Calendar() {
   const hours = useMemo(() => Array.from({ length: 10 }).map((_, index) => index + 8), []);
   const allWeekAppointments = useMemo(
     () =>
-      appointments
-        .filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive)
-        .sort((a, b) => a.date.getTime() - b.date.getTime()),
+      appointments.filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive),
     [appointments, startDate, weekEndExclusive],
   );
   const weekAppointments = useMemo(
@@ -421,9 +419,7 @@ export function Calendar() {
   );
   const upcomingCapacityReview = useMemo(
     () =>
-      appointments
-        .filter((appointment) => appointment.dogCountConfirmed === false)
-        .sort((a, b) => a.date.getTime() - b.date.getTime()),
+      appointments.filter((appointment) => appointment.dogCountConfirmed === false),
     [appointments],
   );
   const selectedDayRevenue = useMemo(
@@ -539,7 +535,7 @@ export function Calendar() {
 
   return (
     <div className="flex h-full flex-col space-y-4">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight text-purple">Bookings</h1>
           <p className="text-sm text-slate-500">
@@ -685,8 +681,8 @@ export function Calendar() {
         </div>
       )}
 
-      <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
           <div className="min-w-[880px] flex flex-col h-full">
             <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-50">
               <div className="p-4 text-center text-sm font-medium text-slate-500">Time</div>

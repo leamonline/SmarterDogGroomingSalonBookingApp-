@@ -81,8 +81,7 @@ export function Dashboard() {
   }, []);
 
   const now = new Date();
-  const sortedAppointments = [...appointments].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const todayAppointments = sortedAppointments.filter((appointment) => isToday(appointment.date));
+  const todayAppointments = appointments.filter((appointment) => isToday(appointment.date));
   const activeAppointments = todayAppointments.filter((appointment) => ACTIVE_STATUSES.has(appointment.status));
   const readyForCollection = todayAppointments.filter((appointment) => appointment.status === "ready-for-collection");
   const completedToday = todayAppointments.filter((appointment) => COMPLETED_STATUSES.has(appointment.status));
@@ -93,7 +92,7 @@ export function Dashboard() {
     todayAppointments.find(
       (appointment) => appointment.date.getTime() >= now.getTime() && !DONE_STATUSES.has(appointment.status),
     ) ?? null;
-  const attentionAppointments = sortedAppointments
+  const attentionAppointments = appointments
     .filter((appointment) => {
       if (ATTENTION_STATUSES.has(appointment.status)) {
         return true;
@@ -186,7 +185,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight text-purple">Dashboard</h1>
           <p className="text-sm text-slate-500">
@@ -305,7 +304,7 @@ export function Dashboard() {
                           onClick={() => handleAppointmentClick(appointment)}
                           className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-brand-200 hover:shadow-md"
                         >
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <div className="flex items-start gap-4">
                               <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-500">
                                 {appointment.avatar ? (

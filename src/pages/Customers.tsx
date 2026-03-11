@@ -459,7 +459,7 @@ export function Customers() {
                 </div>
               )}
 
-              <div className="grid gap-6 py-4 md:grid-cols-3">
+              <div className="grid gap-6 py-4 lg:grid-cols-3">
                 <div className="space-y-6 col-span-1">
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <div className="space-y-3">
