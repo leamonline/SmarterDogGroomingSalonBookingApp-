@@ -139,7 +139,11 @@ export const appointmentSchema = z
     breed: z.string().max(MAX_SHORT).optional().nullable(),
     ownerName: z.string().min(1, "Owner name is required").max(MAX_SHORT),
     service: z.string().min(1, "Service is required").max(MAX_SHORT),
-    date: z.string().min(1, "Date is required").max(MAX_SHORT),
+    date: z
+      .string()
+      .min(1, "Date is required")
+      .max(MAX_SHORT)
+      .refine((val) => !Number.isNaN(Date.parse(val)), { message: "Date must be a valid ISO date string" }),
     duration: z.number().min(1, "Duration is required"),
     dogCount: z
       .number()

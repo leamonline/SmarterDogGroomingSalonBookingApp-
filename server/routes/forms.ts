@@ -71,7 +71,7 @@ formSubmissionsRouter.get("/", requireStaff, (req, res) => {
   res.json(submissions);
 });
 
-formSubmissionsRouter.post("/", validateBody(formSubmissionSchema), (req: Request, res: Response) => {
+formSubmissionsRouter.post("/", requireStaff, validateBody(formSubmissionSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { formId, customerId, dogId, appointmentId, data, signature } = req.body;
   const id = crypto.randomUUID(); // Always generate server-side

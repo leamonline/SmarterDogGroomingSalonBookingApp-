@@ -75,7 +75,6 @@ export function BookingPage() {
   const defaultDate = format(addDays(new Date(), 1), "yyyy-MM-dd");
   const [step, setStep] = useState<Step>("service");
   const [authed, setAuthed] = useState(false);
-  const [customerId, setCustomerId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
 
   // Auth
@@ -114,11 +113,9 @@ export function BookingPage() {
   useEffect(() => {
     const token = localStorage.getItem("petspa_booking_token");
     const savedEmail = localStorage.getItem("petspa_booking_email");
-    const savedCustId = localStorage.getItem("petspa_booking_customer_id");
     if (token && savedEmail) {
       setAuthed(true);
       setUserEmail(savedEmail);
-      setCustomerId(savedCustId);
     }
   }, []);
 
@@ -191,10 +188,6 @@ export function BookingPage() {
 
       localStorage.setItem("petspa_booking_token", data.token);
       localStorage.setItem("petspa_booking_email", data.user.email);
-      if (data.user.customerId) {
-        localStorage.setItem("petspa_booking_customer_id", data.user.customerId);
-        setCustomerId(data.user.customerId);
-      }
       setAuthed(true);
       setUserEmail(data.user.email);
       setStep("datetime");
@@ -216,7 +209,6 @@ export function BookingPage() {
           petName,
           breed,
           notes: petNotes,
-          customerId,
         }),
       });
       setBookingResult(result);
@@ -255,7 +247,6 @@ export function BookingPage() {
     localStorage.removeItem("petspa_booking_email");
     localStorage.removeItem("petspa_booking_customer_id");
     setAuthed(false);
-    setCustomerId(null);
     setUserEmail("");
     setEmail("");
     setPassword("");
