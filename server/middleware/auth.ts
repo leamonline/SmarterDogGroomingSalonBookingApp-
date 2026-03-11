@@ -30,12 +30,16 @@ export const authenticateToken = (req: express.Request, res: express.Response, n
 
   if (token == null) return res.status(401).json({ error: "Authentication required" });
 
-  jwt.verify(token, JWT_SECRET!, (err: jwt.VerifyErrors | null, decoded: string | jwt.JwtPayload | undefined) => {
-    if (err || !decoded || typeof decoded === "string")
-      return res.status(403).json({ error: "Invalid or expired token" });
-    (req as AuthenticatedRequest).user = decoded as JwtUser;
-    next();
-  });
+  return jwt.verify(
+    token,
+    JWT_SECRET!,
+    (err: jwt.VerifyErrors | null, decoded: string | jwt.JwtPayload | undefined) => {
+      if (err || !decoded || typeof decoded === "string")
+        return res.status(403).json({ error: "Invalid or expired token" });
+      (req as AuthenticatedRequest).user = decoded as JwtUser;
+      return next();
+    },
+  );
 };
 
 // --- Role-Based Access Control ---
@@ -60,7 +64,7 @@ export const requireRole = (...allowedRoles: Role[]) => {
     if (userLevel < minLevel) {
       return res.status(403).json({ error: `Access denied: requires ${allowedRoles.join(" or ")} role or higher` });
     }
-    next();
+    return next();
   };
 };
 

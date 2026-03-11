@@ -647,7 +647,7 @@ export function Calendar() {
               <Button type="button" size="sm" variant="outline" onClick={() => setActiveFilter("capacity-review")}>
                 Show review items
               </Button>
-              <Button type="button" size="sm" onClick={() => openCapacityReview(upcomingCapacityReview[0])}>
+              <Button type="button" size="sm" onClick={() => openCapacityReview(upcomingCapacityReview[0]!)}>
                 Review next booking
               </Button>
             </div>
@@ -826,7 +826,7 @@ export function Calendar() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => openCapacityReview(upcomingCapacityReview[0])}
+                    onClick={() => openCapacityReview(upcomingCapacityReview[0]!)}
                     disabled={isConfirmingAllReviewItems}
                   >
                     Open next

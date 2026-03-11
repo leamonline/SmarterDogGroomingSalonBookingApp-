@@ -90,7 +90,7 @@ export function normalizeScheduleDays(days?: any[]): BookingScheduleDay[] {
 }
 
 export function formatScheduleTime(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
+  const [hours, minutes] = time.split(":").map(Number) as [number, number];
   const suffix = hours >= 12 ? "pm" : "am";
   const hour12 = hours % 12 || 12;
   return `${hour12}:${String(minutes).padStart(2, "0")}${suffix}`;

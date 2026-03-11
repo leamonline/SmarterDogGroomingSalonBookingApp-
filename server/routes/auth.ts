@@ -43,13 +43,13 @@ router.post("/auth/login", loginLimiter, (req, res) => {
       path: "/",
     });
 
-    res.json({
+    return res.json({
       token,
       user: { id: user.id, email: user.email, role },
       ...(isWeak ? { passwordChangeRequired: true } : {}),
     });
   } else {
-    res.status(401).json({ error: "Invalid credentials" });
+    return res.status(401).json({ error: "Invalid credentials" });
   }
 });
 
@@ -73,7 +73,7 @@ router.post("/auth/password", authenticateToken, (req: Request, res: Response) =
   const hash = bcrypt.hashSync(newPassword, 10);
   db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hash, currentUser.id);
   logAudit(currentUser.id, "update", "user_password", currentUser.id, null, null);
-  res.json({ success: true });
+  return res.json({ success: true });
 });
 
 // --- Password Reset Flow ---
@@ -143,7 +143,7 @@ router.post("/auth/password-reset/request", resetLimiter, (req, res) => {
     logAudit(null, "password_reset_request", "user", user.id, null, null);
   }
 
-  res.json({ success: true, message: "If an account with that email exists, a reset link has been sent." });
+  return res.json({ success: true, message: "If an account with that email exists, a reset link has been sent." });
 });
 
 router.post("/auth/password-reset/confirm", (req, res) => {
@@ -176,7 +176,7 @@ router.post("/auth/password-reset/confirm", (req, res) => {
   db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hash, entry.userId);
   db.prepare("DELETE FROM password_reset_tokens WHERE userId = ?").run(entry.userId);
   logAudit(null, "password_reset_complete", "user", entry.userId, null, null);
-  res.json({ success: true });
+  return res.json({ success: true });
 });
 
 router.post("/auth/logout", (_req, res) => {
@@ -190,7 +190,7 @@ router.get("/auth/me", authenticateToken, (req: Request, res: Response) => {
     | Pick<UserRow, "id" | "email" | "role">
     | undefined;
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json({ id: user.id, email: user.email, role: user.role || "owner" });
+  return res.json({ id: user.id, email: user.email, role: user.role || "owner" });
 });
 
 // --- Staff Management (admin only) ---
@@ -218,12 +218,12 @@ router.post("/staff", authenticateToken, requireAdmin, (req: Request, res: Respo
     const hash = bcrypt.hashSync(password, 10);
     db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(id, email, hash, assignedRole);
     logAudit(user.id, "create", "user", id, null, { email, role: assignedRole });
-    res.json({ success: true, id, email, role: assignedRole });
+    return res.json({ success: true, id, email, role: assignedRole });
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       return res.status(400).json({ error: "Email already exists" });
     }
-    res.status(500).json({ error: "Failed to create staff" });
+    return res.status(500).json({ error: "Failed to create staff" });
   }
 });
 
@@ -233,14 +233,14 @@ router.put("/staff/:id/role", authenticateToken, requireOwner, (req: Request, re
   const validRoles: Role[] = ["customer", "groomer", "receptionist", "owner"];
   if (!validRoles.includes(role)) return res.status(400).json({ error: "Invalid role" });
 
-  const target = db.prepare("SELECT id, email, role FROM users WHERE id = ?").get(req.params.id) as
+  const target = db.prepare("SELECT id, email, role FROM users WHERE id = ?").get(req.params.id!) as
     | Pick<UserRow, "id" | "email" | "role">
     | undefined;
   if (!target) return res.status(404).json({ error: "User not found" });
 
-  db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, req.params.id);
-  logAudit(user.id, "update_role", "user", req.params.id, { role: target.role }, { role });
-  res.json({ success: true, id: req.params.id, role });
+  db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, req.params.id!);
+  logAudit(user.id, "update_role", "user", req.params.id!, { role: target.role }, { role });
+  return res.json({ success: true, id: req.params.id!, role });
 });
 
 export default router;

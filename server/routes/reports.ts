@@ -28,7 +28,7 @@ router.get("/search", requireStaff, (req, res) => {
     )
     .all(queryLike, queryLike, queryLike);
 
-  res.json({ customers, pets, appointments });
+  return res.json({ customers, pets, appointments });
 });
 
 // --- Audit Log ---

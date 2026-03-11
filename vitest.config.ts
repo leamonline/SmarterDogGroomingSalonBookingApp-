@@ -22,5 +22,18 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 30_000,
     teardownTimeout: 10_000,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "text-summary", "lcov", "json-summary"],
+      reportsDirectory: "./coverage/api",
+      include: ["server/**/*.ts"],
+      exclude: ["server/**/*.test.ts", "server/db.ts"],
+      thresholds: {
+        statements: 60,
+        branches: 50,
+        functions: 55,
+        lines: 60,
+      },
+    },
   },
 });

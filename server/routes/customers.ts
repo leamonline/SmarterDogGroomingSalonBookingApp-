@@ -181,7 +181,7 @@ router.get("/appointment-lookup", requireStaff, (req, res) => {
       : [];
   const notesByPet = groupBy(noteRows, (note) => note.petId);
 
-  res.json(
+  return res.json(
     rows.map((row) => ({
       ...row,
       petBehavioralNotes: (notesByPet[row.petId] || []).map((note) => note.note),
@@ -204,20 +204,20 @@ router.get("/", requireStaff, (req, res) => {
   }
   const customers = hydrateCustomers(customerRows);
 
-  res.json({
+  return res.json({
     data: customers,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   });
 });
 
 router.get("/:id", requireStaff, (req, res) => {
-  const customerRow = db.prepare("SELECT * FROM customers WHERE id = ?").get(req.params.id) as CustomerRow | undefined;
+  const customerRow = db.prepare("SELECT * FROM customers WHERE id = ?").get(req.params.id!) as CustomerRow | undefined;
   if (!customerRow) {
     return res.status(404).json({ error: "Customer not found" });
   }
 
-  const customer = hydrateCustomers([customerRow])[0];
-  res.json(customer);
+  const customer = hydrateCustomers([customerRow])[0]!;
+  return res.json(customer);
 });
 
 router.post("/", requireStaff, validateBody(customerSchema), (req: Request, res: Response) => {
@@ -286,7 +286,7 @@ router.post("/", requireStaff, validateBody(customerSchema), (req: Request, res:
 
 router.put("/:id", requireStaff, validateBody(customerSchema), (req: Request, res: Response) => {
   const user = getUser(req);
-  const customerId = req.params.id;
+  const customerId = req.params.id!;
   const { name, email, phone, address, emergencyContact, notes, lastVisit, totalSpent, warnings, pets, documents } =
     req.body;
 
@@ -367,24 +367,26 @@ router.put("/:id", requireStaff, validateBody(customerSchema), (req: Request, re
   })();
 
   logAudit(user.id, "update", "customer", customerId, old, req.body);
-  res.json(req.body);
+  return res.json(req.body);
 });
 
 router.delete("/:id", requireAdmin, (req: Request, res: Response) => {
   const user = getUser(req);
-  const existing = db.prepare("SELECT id FROM customers WHERE id = ?").get(req.params.id) as
+  const existing = db.prepare("SELECT id FROM customers WHERE id = ?").get(req.params.id!) as
     | Pick<CustomerRow, "id">
     | undefined;
   if (!existing) return res.status(404).json({ error: "Customer not found" });
 
-  db.prepare("DELETE FROM customers WHERE id=?").run(req.params.id);
-  logAudit(user.id, "delete", "customer", req.params.id, null, null);
-  res.json({ success: true });
+  db.prepare("DELETE FROM customers WHERE id=?").run(req.params.id!);
+  logAudit(user.id, "delete", "customer", req.params.id!, null, null);
+  return res.json({ success: true });
 });
 
 // --- Customer Tags ---
 router.get("/:id/tags", requireStaff, (req, res) => {
-  const tags = db.prepare("SELECT tag FROM customer_tags WHERE customerId = ?").all(req.params.id) as { tag: string }[];
+  const tags = db.prepare("SELECT tag FROM customer_tags WHERE customerId = ?").all(req.params.id!) as {
+    tag: string;
+  }[];
   res.json(tags.map((t) => t.tag));
 });
 
@@ -394,12 +396,12 @@ router.post("/:id/tags", requireStaff, validateBody(tagsSchema), (req: Request, 
   const del = db.prepare("DELETE FROM customer_tags WHERE customerId = ?");
   const ins = db.prepare("INSERT INTO customer_tags (customerId, tag) VALUES (?, ?)");
   db.transaction(() => {
-    del.run(req.params.id);
+    del.run(req.params.id!);
     for (const tag of tags) {
-      ins.run(req.params.id, tag);
+      ins.run(req.params.id!, tag);
     }
   })();
-  logAudit(user.id, "update", "customer_tags", req.params.id, null, { tags });
+  logAudit(user.id, "update", "customer_tags", req.params.id!, null, { tags });
   res.json({ success: true });
 });
 

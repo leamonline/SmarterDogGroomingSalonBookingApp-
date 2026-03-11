@@ -27,7 +27,7 @@ router.post("/", requireAdmin, validateBody(formSchema), (req: Request, res: Res
 router.put("/:id", requireAdmin, validateBody(formSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, description, version, fields, isActive } = req.body;
-  const old = db.prepare("SELECT * FROM forms WHERE id = ?").get(req.params.id);
+  const old = db.prepare("SELECT * FROM forms WHERE id = ?").get(req.params.id!);
   db.prepare(`UPDATE forms SET name=?, description=?, version=?, fields=?, isActive=?, updatedAt=? WHERE id=?`).run(
     name,
     description || null,
@@ -35,10 +35,10 @@ router.put("/:id", requireAdmin, validateBody(formSchema), (req: Request, res: R
     fields,
     isActive !== false ? 1 : 0,
     new Date().toISOString(),
-    req.params.id,
+    req.params.id!,
   );
-  logAudit(user.id, "update", "form", req.params.id, old, req.body);
-  res.json({ id: req.params.id, ...req.body });
+  logAudit(user.id, "update", "form", req.params.id!, old, req.body);
+  res.json({ id: req.params.id!, ...req.body });
 });
 
 // --- Form Submissions (separate router for backward-compatible /api/form-submissions path) ---

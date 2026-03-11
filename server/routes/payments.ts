@@ -20,7 +20,7 @@ router.get("/", requireStaff, (req, res) => {
   const offset = (page - 1) * limit;
   const total = (db.prepare("SELECT COUNT(*) as count FROM payments").get() as CountRow).count;
   const payments = db.prepare("SELECT * FROM payments ORDER BY createdAt DESC LIMIT ? OFFSET ?").all(limit, offset);
-  res.json({
+  return res.json({
     data: payments,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   });

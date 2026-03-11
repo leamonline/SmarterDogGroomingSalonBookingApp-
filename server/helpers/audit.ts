@@ -1,10 +1,10 @@
 import db from "../db.js";
 
 export function logAudit(
-  userId: string | null,
+  userId: string | null | undefined,
   action: string,
   entityType: string,
-  entityId: string | null,
+  entityId: string | null | undefined,
   oldValue?: any,
   newValue?: any,
 ) {

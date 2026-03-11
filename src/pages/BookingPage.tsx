@@ -223,7 +223,7 @@ export function BookingPage() {
   // Falls back to allowing all days if the schedule hasn't loaded yet.
   const isDayDisabled = (d: Date) => {
     if (Object.keys(schedule).length === 0) return false; // schedule not yet loaded
-    const dayName = DAY_NAMES[d.getDay()];
+    const dayName = DAY_NAMES[d.getDay()]!;
     const daySchedule = schedule[dayName];
     if (!daySchedule) return false;
     return daySchedule.isClosed === true || daySchedule.availableSlots === 0;

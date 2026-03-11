@@ -58,7 +58,7 @@ router.get("/available-slots", (req, res) => {
   }
 
   const slots = getAvailableSlotsForDate(dateStr, parsedDogCount);
-  res.json({ slots, date: dateStr, duration: dur, dogCount: parsedDogCount });
+  return res.json({ slots, date: dateStr, duration: dur, dogCount: parsedDogCount });
 });
 
 // Public: customer registration
@@ -89,12 +89,12 @@ router.post("/register", (req, res) => {
     );
 
     const token = jwt.sign({ id: userId, email, role: "customer" }, JWT_SECRET!, { expiresIn: "24h" });
-    res.json({ token, user: { id: userId, email, role: "customer", customerId } });
+    return res.json({ token, user: { id: userId, email, role: "customer", customerId } });
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       return res.status(400).json({ error: "Email already exists" });
     }
-    res.status(500).json({ error: "Registration failed" });
+    return res.status(500).json({ error: "Registration failed" });
   }
 });
 
@@ -197,7 +197,7 @@ router.post("/bookings", authenticateToken, (req: Request, res: Response) => {
     customerId,
   });
 
-  res.json({
+  return res.json({
     id: apptId,
     status,
     message:

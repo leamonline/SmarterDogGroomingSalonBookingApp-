@@ -374,7 +374,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
   };
 
   const currentStatus = formData.status || "scheduled";
-  const statusInfo = STATUS_CONFIG[currentStatus] || STATUS_CONFIG["scheduled"];
+  const statusInfo = (STATUS_CONFIG[currentStatus] || STATUS_CONFIG["scheduled"])!;
   const StatusIcon = statusInfo.icon;
   const nextStatuses = STATUS_TRANSITIONS[currentStatus] || [];
 

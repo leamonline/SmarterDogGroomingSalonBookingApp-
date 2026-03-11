@@ -117,7 +117,7 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
           setActiveResultIdx((prev) => (prev > 0 ? prev - 1 : flatResults.length - 1));
         } else if (event.key === "Enter" && activeResultIdx >= 0 && activeResultIdx < flatResults.length) {
           event.preventDefault();
-          const item = flatResults[activeResultIdx];
+          const item = flatResults[activeResultIdx]!;
           navigate(item.navigateTo, { state: item.navState });
           setShowResults(false);
           setQuery("");

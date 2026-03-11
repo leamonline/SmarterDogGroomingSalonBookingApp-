@@ -221,7 +221,7 @@ export function MessagingPage() {
     }
 
     if (customers.length > 0) {
-      setSelectedCustomerId(customers[0].id);
+      setSelectedCustomerId(customers[0]!.id);
     }
   }, [conversationByCustomer, customers, selectedCustomerId]);
 

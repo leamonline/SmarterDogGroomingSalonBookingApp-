@@ -74,7 +74,7 @@ router.get("/next-available", requireStaff, (req, res) => {
   }
   const from = (req.query.from as string) || new Date().toISOString();
   const slots = getNextAvailableSlots(from, dogCount, 5);
-  res.json({ data: slots, dogCount });
+  return res.json({ data: slots, dogCount });
 });
 
 router.post("/", requireStaff, validateBody(appointmentSchema), (req: Request, res: Response) => {
@@ -140,7 +140,7 @@ router.post("/", requireStaff, validateBody(appointmentSchema), (req: Request, r
 
   if (result.conflict) {
     return res.status(400).json({
-      error: getAvailabilityErrorMessage(result.reason),
+      error: getAvailabilityErrorMessage(result.reason!),
       suggestions: result.suggestions,
     });
   }
@@ -150,7 +150,7 @@ router.post("/", requireStaff, validateBody(appointmentSchema), (req: Request, r
     dogCount: normalizedDogCount,
     dogCountConfirmed: true,
   });
-  res.json({
+  return res.json({
     ...req.body,
     id,
     dogCount: normalizedDogCount,
@@ -195,7 +195,7 @@ router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request,
   const normalizedDogCount = dogCount ?? 1;
 
   const txResult: TxUpdateResult = db.transaction(() => {
-    const old = db.prepare("SELECT * FROM appointments WHERE id = ?").get(req.params.id) as AppointmentRow | undefined;
+    const old = db.prepare("SELECT * FROM appointments WHERE id = ?").get(req.params.id!) as AppointmentRow | undefined;
     if (!old) return { notFound: true, conflict: false, old: null };
 
     // Validate status transition
@@ -221,10 +221,10 @@ router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request,
 
     const reviewFields = getDogCountReviewFields(old, normalizedDogCount, user.email);
 
-    const availability = getAppointmentAvailability(date, normalizedDogCount, req.params.id);
+    const availability = getAppointmentAvailability(date, normalizedDogCount, req.params.id!);
     const conflictReason = getAvailabilityReason(availability);
     if (conflictReason) {
-      const suggestions = getNextAvailableSlots(date, normalizedDogCount, 3, { excludeId: req.params.id });
+      const suggestions = getNextAvailableSlots(date, normalizedDogCount, 3, { excludeId: req.params.id! });
       return { notFound: false, conflict: true, suggestions, reason: conflictReason, old: null };
     }
 
@@ -269,7 +269,7 @@ router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request,
       cancellationReason ?? null,
       customerId ?? null,
       dogId ?? null,
-      req.params.id,
+      req.params.id!,
     );
 
     return { notFound: false, conflict: false, old, reviewFields };
@@ -283,7 +283,7 @@ router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request,
   }
   if (txResult.conflict) {
     return res.status(400).json({
-      error: getAvailabilityErrorMessage(txResult.reason),
+      error: getAvailabilityErrorMessage(txResult.reason!),
       suggestions: txResult.suggestions,
     });
   }
@@ -293,7 +293,7 @@ router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request,
     dogCountReviewedAt: old?.dogCountReviewedAt ?? null,
     dogCountReviewedBy: old?.dogCountReviewedBy ?? null,
   };
-  logAudit(user.id, "update", "appointment", req.params.id, old, {
+  logAudit(user.id, "update", "appointment", req.params.id!, old ?? null, {
     ...req.body,
     dogCount: normalizedDogCount,
     dogCountConfirmed: true,
@@ -304,14 +304,14 @@ router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request,
   // Auto-notify on key status transitions
   if (old && old.status !== status) {
     if (status === "ready-for-collection") {
-      autoNotify("ready_for_collection", { ...req.body, id: req.params.id });
+      autoNotify("ready_for_collection", { ...req.body, id: req.params.id! });
     }
     if (status === "cancelled-by-salon" || status === "cancelled-by-customer") {
-      autoNotify("booking_cancelled", { ...req.body, id: req.params.id });
+      autoNotify("booking_cancelled", { ...req.body, id: req.params.id! });
     }
   }
 
-  res.json({
+  return res.json({
     ...req.body,
     dogCount: normalizedDogCount,
     dogCountConfirmed: true,
@@ -322,14 +322,14 @@ router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request,
 
 router.delete("/:id", requireAdmin, (req: Request, res: Response) => {
   const user = getUser(req);
-  const existing = db.prepare("SELECT id FROM appointments WHERE id = ?").get(req.params.id) as
+  const existing = db.prepare("SELECT id FROM appointments WHERE id = ?").get(req.params.id!) as
     | Pick<AppointmentRow, "id">
     | undefined;
   if (!existing) return res.status(404).json({ error: "Appointment not found" });
 
-  db.prepare("DELETE FROM appointments WHERE id=?").run(req.params.id);
-  logAudit(user.id, "delete", "appointment", req.params.id, null, null);
-  res.json({ success: true });
+  db.prepare("DELETE FROM appointments WHERE id=?").run(req.params.id!);
+  logAudit(user.id, "delete", "appointment", req.params.id!, null, null);
+  return res.json({ success: true });
 });
 
 export default router;

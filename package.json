@@ -18,8 +18,20 @@
     "lint": "npm run typecheck && eslint . && prettier --check .",
     "lint:fix": "eslint --fix . && prettier --write .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:components": "vitest run --config vitest.config.components.ts",
-    "test:smoke": "npm run build && playwright test"
+    "test:components:coverage": "vitest run --config vitest.config.components.ts --coverage",
+    "test:smoke": "npm run build && playwright test",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -68,13 +80,16 @@
     "@types/react-dom": "^19.2.3",
     "@types/supertest": "^7.2.0",
     "@vitejs/plugin-react": "^5.1.4",
+    "@vitest/coverage-v8": "^4.0.18",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.1",
     "esbuild": "^0.27.3",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^9.1.7",
     "jsdom": "^28.1.0",
+    "lint-staged": "^16.3.3",
     "prettier": "^3.8.1",
     "supertest": "^7.2.2",
     "tailwindcss": "^4.1.14",

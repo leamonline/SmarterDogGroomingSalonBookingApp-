@@ -15,6 +15,7 @@ import { logger } from "./lib/logger.js";
 
 // Middleware
 import { authenticateToken } from "./middleware/auth.js";
+import { requestId } from "./middleware/requestId.js";
 
 // Route modules
 import authRouter from "./routes/auth.js";
@@ -34,6 +35,7 @@ const isTestEnv = env.NODE_ENV === "test";
 const isProduction = env.NODE_ENV === "production";
 
 // --- Global middleware ---
+app.use(requestId);
 app.use(
   cors({
     origin: env.CORS_ORIGIN || (isProduction ? false : "http://localhost:3000"),
@@ -41,7 +43,7 @@ app.use(
   }),
 );
 if (!isTestEnv) {
-  app.use(morgan(isProduction ? "combined" : "dev"));
+  app.use(morgan(isProduction ? ":method :url :status :response-time ms - :req[x-request-id]" : "dev"));
 }
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
@@ -63,7 +65,25 @@ app.use((_req, res, next) => {
 // Health check (no auth required)
 // ══════════════════════════════════════════════
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
+  let dbStatus = "ok";
+  try {
+    db.prepare("SELECT 1").get();
+  } catch {
+    dbStatus = "error";
+  }
+
+  const mem = process.memoryUsage();
+  res.json({
+    status: dbStatus === "ok" ? "ok" : "degraded",
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+    database: dbStatus,
+    memory: {
+      rss: Math.round(mem.rss / 1024 / 1024),
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+    },
+    version: process.env.npm_package_version || "0.0.0",
+  });
 });
 
 // ══════════════════════════════════════════════
@@ -173,8 +193,43 @@ if (!isTestEnv) {
 }
 
 if (!isTestEnv) {
-  app.listen(env.PORT, () => {
+  const server = app.listen(env.PORT, () => {
     logger.info(`API server running on port ${env.PORT}`);
   });
+
+  // --- Graceful shutdown ---
+  const shutdown = (signal: string) => {
+    logger.info(`Received ${signal}, shutting down gracefully…`);
+    server.close(() => {
+      logger.info("HTTP server closed");
+      try {
+        db.close();
+        logger.info("Database connection closed");
+      } catch (err) {
+        logger.error("Error closing database", { error: (err as Error).message });
+      }
+      process.exit(0);
+    });
+
+    // Force exit after 10 seconds
+    setTimeout(() => {
+      logger.error("Graceful shutdown timed out, forcing exit");
+      process.exit(1);
+    }, 10_000).unref();
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
+
+// --- Global process error handlers ---
+process.on("unhandledRejection", (reason) => {
+  logger.error("Unhandled rejection", { reason: String(reason) });
+});
+
+process.on("uncaughtException", (err) => {
+  logger.error("Uncaught exception", { message: err.message, stack: err.stack });
+  process.exit(1);
+});
+
 export default app;

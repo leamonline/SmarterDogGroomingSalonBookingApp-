@@ -65,7 +65,7 @@ router.post("/send", requireStaff, validateBody(manualMessageSchema), (req: Requ
     body,
   });
   logAudit(user.id, "send", "message", result.id, null, { channel, recipientEmail, recipientPhone });
-  res.json({ id: result.id, status: result.status });
+  return res.json({ id: result.id, status: result.status });
 });
 
 export default router;

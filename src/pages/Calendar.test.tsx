@@ -162,7 +162,7 @@ describe("Calendar", () => {
       return svg?.classList.contains("lucide-chevron-right");
     });
     expect(navButtons.length).toBeGreaterThanOrEqual(1);
-    await user.click(navButtons[0]);
+    await user.click(navButtons[0]!);
 
     // The week should have advanced — we should see March 16-22 dates
     // Just verify it didn't crash and re-rendered
