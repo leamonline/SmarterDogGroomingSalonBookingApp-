@@ -120,7 +120,14 @@ router.post("/login", loginLimiter, (req, res) => {
 // Public: submit a booking (requires customer auth token)
 router.post("/bookings", authenticateToken, (req: Request, res: Response) => {
   const user = getUser(req);
-  const { serviceId, date, petName, breed, notes, customerId, dogCount } = req.body;
+  const { serviceId, date, petName, breed, notes, dogCount } = req.body;
+
+  // Resolve customerId from the authenticated user's linked customer record — ignore any client-supplied value
+  const customerRow = db.prepare("SELECT id FROM customers WHERE email = ?").get(user.email) as
+    | { id: string }
+    | undefined;
+  const customerId = customerRow?.id || null;
+
   if (!serviceId || !date || !petName) {
     return res.status(400).json({ error: "serviceId, date, and petName are required" });
   }
@@ -133,40 +140,49 @@ router.post("/bookings", authenticateToken, (req: Request, res: Response) => {
   const service = db.prepare("SELECT * FROM services WHERE id = ?").get(serviceId) as ServiceRow | undefined;
   if (!service) return res.status(404).json({ error: "Service not found" });
 
-  const availability = getAppointmentAvailability(date, normalizedDogCount);
-  const conflictReason = getAvailabilityReason(availability);
-  if (conflictReason) {
-    return res.status(400).json({
-      error: getAvailabilityErrorMessage(conflictReason),
-      suggestions: getNextAvailableSlots(date, normalizedDogCount, 3),
-    });
-  }
-
   const status = service.isApprovalRequired ? "pending-approval" : "confirmed";
   const apptId = crypto.randomUUID();
 
-  db.prepare(
-    `
-        INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, dogCount, dogCountConfirmed, status, price, avatar, customerId, notes, depositAmount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-  ).run(
-    apptId,
-    petName,
-    breed || "",
-    "",
-    service.name,
-    date,
-    service.duration,
-    normalizedDogCount,
-    1,
-    status,
-    service.price,
-    "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
-    customerId || null,
-    notes || "",
-    service.depositAmount || 0,
-  );
+  // Wrap availability check + INSERT in a transaction to prevent race conditions
+  const txResult = db.transaction(() => {
+    const availability = getAppointmentAvailability(date, normalizedDogCount);
+    const conflictReason = getAvailabilityReason(availability);
+    if (conflictReason) {
+      return { conflict: true as const, reason: conflictReason };
+    }
+
+    db.prepare(
+      `
+          INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, dogCount, dogCountConfirmed, status, price, avatar, customerId, notes, depositAmount)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+    ).run(
+      apptId,
+      petName,
+      breed || "",
+      "",
+      service.name,
+      date,
+      service.duration,
+      normalizedDogCount,
+      1,
+      status,
+      service.price,
+      "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
+      customerId || null,
+      notes || "",
+      service.depositAmount || 0,
+    );
+
+    return { conflict: false as const };
+  })();
+
+  if (txResult.conflict) {
+    return res.status(400).json({
+      error: getAvailabilityErrorMessage(txResult.reason),
+      suggestions: getNextAvailableSlots(date, normalizedDogCount, 3),
+    });
+  }
 
   logAudit(user.id, "book", "appointment", apptId, null, { serviceId, petName, dogCount: normalizedDogCount, status });
 

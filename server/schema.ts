@@ -135,10 +135,10 @@ export const customerSchema = z
 export const appointmentSchema = z
   .object({
     id: z.string().max(MAX_SHORT).optional(),
-    petName: z.string().max(MAX_SHORT).optional().nullable(),
+    petName: z.string().min(1, "Pet name is required").max(MAX_SHORT),
     breed: z.string().max(MAX_SHORT).optional().nullable(),
-    ownerName: z.string().max(MAX_SHORT).optional().nullable(),
-    service: z.string().max(MAX_SHORT).optional().nullable(),
+    ownerName: z.string().min(1, "Owner name is required").max(MAX_SHORT),
+    service: z.string().min(1, "Service is required").max(MAX_SHORT),
     date: z.string().min(1, "Date is required").max(MAX_SHORT),
     duration: z.number().min(1, "Duration is required"),
     dogCount: z

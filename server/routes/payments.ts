@@ -1,13 +1,13 @@
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
-import { getUser } from "../middleware/auth.js";
+import { requireStaff, getUser } from "../middleware/auth.js";
 import { logAudit } from "../helpers/audit.js";
 import { validateBody, paymentSchema, clampLimit } from "../schema.js";
 import type { CountRow } from "../types.js";
 
 const router = Router();
 
-router.get("/", (req, res) => {
+router.get("/", requireStaff, (req, res) => {
   const { appointmentId } = req.query;
   if (appointmentId) {
     const payments = db
@@ -26,7 +26,7 @@ router.get("/", (req, res) => {
   });
 });
 
-router.post("/", validateBody(paymentSchema), (req: Request, res: Response) => {
+router.post("/", requireStaff, validateBody(paymentSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { appointmentId, customerId, amount, method, type, status, notes } = req.body;
   const id = crypto.randomUUID();

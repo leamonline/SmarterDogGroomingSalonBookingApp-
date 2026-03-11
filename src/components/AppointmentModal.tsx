@@ -85,24 +85,8 @@ const STATUS_CONFIG: Record<string, { label: string; colour: string; icon: any }
   "incident-review": { label: "Incident Review", colour: "bg-coral-light text-coral", icon: AlertTriangle },
 };
 
-// Valid next-status transitions
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  "pending-approval": ["confirmed", "cancelled-by-salon"],
-  confirmed: ["checked-in", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled"],
-  scheduled: ["checked-in", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled"],
-  "deposit-pending": ["deposit-paid", "cancelled-by-customer", "cancelled-by-salon"],
-  "deposit-paid": ["confirmed", "checked-in"],
-  "checked-in": ["in-progress", "cancelled-by-salon"],
-  "in-progress": ["ready-for-collection", "completed", "incomplete", "incident-review"],
-  "ready-for-collection": ["completed"],
-  completed: [],
-  "cancelled-by-customer": [],
-  "cancelled-by-salon": [],
-  "no-show": [],
-  rescheduled: ["confirmed", "scheduled"],
-  incomplete: ["incident-review"],
-  "incident-review": ["completed"],
-};
+import { STATUS_TRANSITIONS } from "@/src/lib/statusTransitions";
+import { formatDogCountLabel, formatDogCountReviewNote } from "@/src/lib/appointmentUtils";
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -143,19 +127,6 @@ function snapToHalfHour(date: Date) {
   }
 
   return snapped;
-}
-
-function formatDogCountLabel(dogCount?: number) {
-  const count = dogCount || 1;
-  return `${count} ${count === 1 ? "dog" : "dogs"}`;
-}
-
-function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
-  if (!reviewedAt) return null;
-  const parsed = new Date(reviewedAt);
-  if (Number.isNaN(parsed.getTime())) return null;
-  const reviewer = reviewedBy || "staff";
-  return `Dog count confirmed by ${reviewer} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}.`;
 }
 
 export function AppointmentModal({ isOpen, onClose, appointment, initialData, onSave }: AppointmentModalProps) {
@@ -908,6 +879,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                     name="date"
                     type="datetime-local"
                     step={1800}
+                    min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                     value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""}
                     onChange={handleDateChange}
                     aria-invalid={!!errors.date}

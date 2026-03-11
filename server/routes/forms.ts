@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
-import { getUser } from "../middleware/auth.js";
+import { requireAdmin, requireStaff, getUser } from "../middleware/auth.js";
 import { logAudit } from "../helpers/audit.js";
 import { validateBody, formSchema, formSubmissionSchema } from "../schema.js";
 
@@ -12,7 +12,7 @@ router.get("/", (req, res) => {
   res.json(forms);
 });
 
-router.post("/", validateBody(formSchema), (req: Request, res: Response) => {
+router.post("/", requireAdmin, validateBody(formSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, description, version, fields, isActive } = req.body;
   const id = crypto.randomUUID(); // Always generate server-side
@@ -24,7 +24,7 @@ router.post("/", validateBody(formSchema), (req: Request, res: Response) => {
   res.json({ ...req.body, id, createdAt });
 });
 
-router.put("/:id", validateBody(formSchema), (req: Request, res: Response) => {
+router.put("/:id", requireAdmin, validateBody(formSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, description, version, fields, isActive } = req.body;
   const old = db.prepare("SELECT * FROM forms WHERE id = ?").get(req.params.id);
@@ -44,7 +44,7 @@ router.put("/:id", validateBody(formSchema), (req: Request, res: Response) => {
 // --- Form Submissions (separate router for backward-compatible /api/form-submissions path) ---
 export const formSubmissionsRouter = Router();
 
-formSubmissionsRouter.get("/", (req, res) => {
+formSubmissionsRouter.get("/", requireStaff, (req, res) => {
   const { formId, customerId, dogId, appointmentId } = req.query;
   let query = "SELECT * FROM form_submissions";
   const params: string[] = [];

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
-import { getUser } from "../middleware/auth.js";
+import { requireStaff, getUser } from "../middleware/auth.js";
 import { logAudit } from "../helpers/audit.js";
 import { validateBody, tagsSchema, clampLimit } from "../schema.js";
 import type { BehavioralNoteRow, CountRow, CustomerRow, PetRow, VaccinationRow, WarningRow } from "../types.js";
@@ -67,7 +67,7 @@ function hydrateDogs(dogs: DogListRow[]) {
 
 const router = Router();
 
-router.get("/", (req, res) => {
+router.get("/", requireStaff, (req, res) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = clampLimit(req.query.limit as string);
   const offset = (page - 1) * limit;
@@ -136,7 +136,7 @@ router.get("/", (req, res) => {
   });
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", requireStaff, (req, res) => {
   const dogRow = db
     .prepare(
       `
@@ -202,12 +202,12 @@ router.get("/:id", (req, res) => {
   });
 });
 
-router.get("/:id/tags", (req, res) => {
+router.get("/:id/tags", requireStaff, (req, res) => {
   const tags = db.prepare("SELECT tag FROM dog_tags WHERE dogId = ?").all(req.params.id) as { tag: string }[];
   res.json(tags.map((tag) => tag.tag));
 });
 
-router.post("/:id/tags", validateBody(tagsSchema), (req: Request, res: Response) => {
+router.post("/:id/tags", requireStaff, validateBody(tagsSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { tags } = req.body;
   const del = db.prepare("DELETE FROM dog_tags WHERE dogId = ?");

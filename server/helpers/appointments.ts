@@ -13,6 +13,7 @@ type ExistingAppointment = {
 
 export type AvailabilityReason =
   | "invalid-date"
+  | "past-date"
   | "invalid-dog-count"
   | "closed-day"
   | "manual-review"
@@ -207,6 +208,10 @@ function checkAvailabilityAgainstData(
     return { ok: false, reason: "invalid-date" };
   }
 
+  if (startDate.getTime() < Date.now()) {
+    return { ok: false, reason: "past-date" };
+  }
+
   const normalizedDogCount = normalizeDogCount(dogCount);
   if (!normalizedDogCount) {
     return { ok: false, reason: "invalid-dog-count" };
@@ -260,6 +265,8 @@ function checkAvailabilityAgainstData(
 
 export function getAvailabilityErrorMessage(reason: AvailabilityReason) {
   switch (reason) {
+    case "past-date":
+      return "Appointments cannot be scheduled in the past.";
     case "invalid-dog-count":
       return "Online booking currently supports up to 4 dogs per request. Please contact the salon for larger groups.";
     case "closed-day":

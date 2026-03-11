@@ -41,6 +41,7 @@ import { cn, formatCurrency } from "@/src/lib/utils";
 import { handleError } from "@/src/lib/handleError";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { AppointmentStatusBar } from "@/src/components/AppointmentStatusBar";
+import { formatDogCountLabel, formatDogCountReviewNote, normalizeAppointment } from "@/src/lib/appointmentUtils";
 import { CalendarSkeleton } from "@/src/components/ui/skeleton";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -100,31 +101,6 @@ function getAppointmentTone(status: string) {
   }
 
   return "border-brand-200 bg-brand-50 text-brand-700";
-}
-
-function formatDogCountLabel(dogCount?: number) {
-  const count = dogCount || 1;
-  return `${count} ${count === 1 ? "dog" : "dogs"}`;
-}
-
-function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
-  if (!reviewedAt) return null;
-  const parsed = new Date(reviewedAt);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return `Confirmed by ${reviewedBy || "staff"} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}`;
-}
-
-function isDogCountConfirmed(value: unknown) {
-  return value === true || value === 1;
-}
-
-function normalizeAppointment(item: any): Appointment {
-  return {
-    ...item,
-    date: item.date instanceof Date ? item.date : new Date(item.date),
-    dogCount: item.dogCount ?? 1,
-    dogCountConfirmed: isDogCountConfirmed(item.dogCountConfirmed),
-  };
 }
 
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -206,8 +182,7 @@ export function Calendar() {
   const weekDays = useMemo(() => Array.from({ length: 7 }).map((_, index) => addDays(startDate, index)), [startDate]);
   const hours = useMemo(() => Array.from({ length: 10 }).map((_, index) => index + 8), []);
   const allWeekAppointments = useMemo(
-    () =>
-      appointments.filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive),
+    () => appointments.filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive),
     [appointments, startDate, weekEndExclusive],
   );
   const weekAppointments = useMemo(
@@ -418,8 +393,7 @@ export function Calendar() {
     [weekAppointments],
   );
   const upcomingCapacityReview = useMemo(
-    () =>
-      appointments.filter((appointment) => appointment.dogCountConfirmed === false),
+    () => appointments.filter((appointment) => appointment.dogCountConfirmed === false),
     [appointments],
   );
   const selectedDayRevenue = useMemo(

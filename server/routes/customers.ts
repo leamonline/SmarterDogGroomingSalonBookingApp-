@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
-import { requireAdmin, getUser } from "../middleware/auth.js";
+import { requireAdmin, requireStaff, getUser } from "../middleware/auth.js";
 import { logAudit } from "../helpers/audit.js";
 import { validateBody, customerSchema, tagsSchema, clampLimit } from "../schema.js";
 import type {
@@ -112,7 +112,7 @@ function hydrateCustomers(customerRows: CustomerRow[]) {
 
 const router = Router();
 
-router.get("/appointment-lookup", (req, res) => {
+router.get("/appointment-lookup", requireStaff, (req, res) => {
   const ownerName = String(req.query.ownerName || "").trim();
   const phone = String(req.query.phone || "").trim();
   const petName = String(req.query.petName || "").trim();
@@ -189,7 +189,7 @@ router.get("/appointment-lookup", (req, res) => {
   );
 });
 
-router.get("/", (req, res) => {
+router.get("/", requireStaff, (req, res) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = clampLimit(req.query.limit as string);
   const offset = (page - 1) * limit;
@@ -210,7 +210,7 @@ router.get("/", (req, res) => {
   });
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", requireStaff, (req, res) => {
   const customerRow = db.prepare("SELECT * FROM customers WHERE id = ?").get(req.params.id) as CustomerRow | undefined;
   if (!customerRow) {
     return res.status(404).json({ error: "Customer not found" });
@@ -220,7 +220,7 @@ router.get("/:id", (req, res) => {
   res.json(customer);
 });
 
-router.post("/", validateBody(customerSchema), (req: Request, res: Response) => {
+router.post("/", requireStaff, validateBody(customerSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, email, phone, address, emergencyContact, notes, lastVisit, totalSpent, warnings, pets, documents } =
     req.body;
@@ -284,7 +284,7 @@ router.post("/", validateBody(customerSchema), (req: Request, res: Response) => 
   res.json({ ...req.body, id, pets: savedPets });
 });
 
-router.put("/:id", validateBody(customerSchema), (req: Request, res: Response) => {
+router.put("/:id", requireStaff, validateBody(customerSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const customerId = req.params.id;
   const { name, email, phone, address, emergencyContact, notes, lastVisit, totalSpent, warnings, pets, documents } =
@@ -383,12 +383,12 @@ router.delete("/:id", requireAdmin, (req: Request, res: Response) => {
 });
 
 // --- Customer Tags ---
-router.get("/:id/tags", (req, res) => {
+router.get("/:id/tags", requireStaff, (req, res) => {
   const tags = db.prepare("SELECT tag FROM customer_tags WHERE customerId = ?").all(req.params.id) as { tag: string }[];
   res.json(tags.map((t) => t.tag));
 });
 
-router.post("/:id/tags", validateBody(tagsSchema), (req: Request, res: Response) => {
+router.post("/:id/tags", requireStaff, validateBody(tagsSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { tags } = req.body;
   const del = db.prepare("DELETE FROM customer_tags WHERE customerId = ?");

@@ -36,19 +36,15 @@ const getInitialUser = () => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(getInitialUser);
-  // Token kept in state for backward compat but httpOnly cookie is the primary auth mechanism
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem("petspa_token"));
+  const [token, setToken] = useState<string | null>(null);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
 
   const login = (newToken: string, newUser: User, needsPasswordChange?: boolean) => {
     setToken(newToken);
     setUser(newUser);
     setPasswordChangeRequired(!!needsPasswordChange);
-    // Store user info (non-sensitive) for display; token is now in httpOnly cookie
+    // Store user info (non-sensitive) for display; token is in httpOnly cookie
     localStorage.setItem("petspa_user", JSON.stringify(newUser));
-    // Keep token in localStorage for backward compat during migration period
-    // TODO: Remove localStorage token storage once fully migrated to cookies
-    localStorage.setItem("petspa_token", newToken);
   };
 
   const logout = async () => {
@@ -60,7 +56,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setPasswordChangeRequired(false);
-    localStorage.removeItem("petspa_token");
     localStorage.removeItem("petspa_user");
   };
 

@@ -25,7 +25,7 @@ router.get("/", (req, res) => {
   });
 });
 
-router.post("/", validateBody(serviceSchema), (req: Request, res: Response) => {
+router.post("/", requireAdmin, validateBody(serviceSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const {
     name,
@@ -67,7 +67,7 @@ router.post("/", validateBody(serviceSchema), (req: Request, res: Response) => {
   res.json({ ...req.body, id });
 });
 
-router.put("/:id", validateBody(serviceSchema), (req: Request, res: Response) => {
+router.put("/:id", requireAdmin, validateBody(serviceSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const {
     name,
@@ -138,7 +138,7 @@ router.get("/:id/add-ons", (req, res) => {
   res.json(addOns);
 });
 
-router.post("/:id/add-ons", validateBody(serviceAddOnLinkSchema), (req: Request, res: Response) => {
+router.post("/:id/add-ons", requireAdmin, validateBody(serviceAddOnLinkSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { addOnIds } = req.body;
   const del = db.prepare("DELETE FROM service_add_ons WHERE serviceId = ?");
@@ -161,7 +161,7 @@ addOnRouter.get("/", (req, res) => {
   res.json(addOns);
 });
 
-addOnRouter.post("/", validateBody(addOnSchema), (req: Request, res: Response) => {
+addOnRouter.post("/", requireAdmin, validateBody(addOnSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, description, price, duration, isOptional, isActive } = req.body;
   const id = crypto.randomUUID();
@@ -180,7 +180,7 @@ addOnRouter.post("/", validateBody(addOnSchema), (req: Request, res: Response) =
   res.json({ ...req.body, id });
 });
 
-addOnRouter.put("/:id", validateBody(addOnSchema), (req: Request, res: Response) => {
+addOnRouter.put("/:id", requireAdmin, validateBody(addOnSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, description, price, duration, isOptional, isActive } = req.body;
   const old = db.prepare("SELECT * FROM add_ons WHERE id = ?").get(req.params.id) as AddOnRow | undefined;
@@ -199,7 +199,7 @@ addOnRouter.put("/:id", validateBody(addOnSchema), (req: Request, res: Response)
   res.json({ id: req.params.id, ...req.body });
 });
 
-addOnRouter.delete("/:id", (req: Request, res: Response) => {
+addOnRouter.delete("/:id", requireAdmin, (req: Request, res: Response) => {
   const user = getUser(req);
   const old = db.prepare("SELECT * FROM add_ons WHERE id = ?").get(req.params.id) as AddOnRow | undefined;
   if (!old) return res.status(404).json({ error: "Add-on not found" });
