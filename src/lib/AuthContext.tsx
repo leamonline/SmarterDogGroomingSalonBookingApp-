@@ -8,12 +8,6 @@ interface User {
   role: UserRole;
 }
 
-interface LoginResponse {
-  token: string;
-  user: User;
-  passwordChangeRequired?: boolean;
-}
-
 interface AuthContextType {
   user: User | null;
   token: string | null;

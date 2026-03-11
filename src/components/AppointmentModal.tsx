@@ -5,7 +5,6 @@ import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { FieldError } from "@/src/components/ui/field-error";
 import { useFormValidation, required, positiveNumber } from "@/src/lib/useFormValidation";
-import { Badge } from "@/src/components/ui/badge";
 import { PaymentPanel } from "@/src/components/PaymentPanel";
 import { format } from "date-fns";
 import {
@@ -290,7 +289,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
         if (!isCancelled) {
           setLookupResults(results);
         }
-      } catch (err) {
+      } catch {
         if (!isCancelled) {
           setLookupResults([]);
         }

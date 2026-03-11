@@ -7,8 +7,6 @@ import {
   isValidSlotTime,
   toRfc3339,
   slotEndTime,
-  OPEN_TIME,
-  CLOSE_TIME,
   SLOT_DURATION_MINUTES,
 } from "../src/config.js";
 

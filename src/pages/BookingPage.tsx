@@ -174,6 +174,7 @@ export function BookingPage() {
     if (firstAvailableDate) {
       setSelectedDate(format(firstAvailableDate, "yyyy-MM-dd"));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only recalculate when schedule loads or date is cleared
   }, [schedule, selectedDate]);
 
   // ────── Auth Handlers ──────

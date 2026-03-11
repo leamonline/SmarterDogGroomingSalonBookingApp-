@@ -22,25 +22,13 @@ import {
   updateEvent,
   deleteEvent,
 } from "../src/helpers/calendar.js";
-import type { BookingEvent, SlotInfo } from "../src/helpers/calendar.js";
-
 // We'll test tool logic by importing the register functions and
 // capturing the handler they register.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 type ToolHandler = (args: any) => Promise<{ content: Array<{ type: string; text: string }> }>;
 
-function captureTools(): Map<string, ToolHandler> {
-  const handlers = new Map<string, ToolHandler>();
-  const fakeServer = {
-    registerTool: (name: string, _meta: any, handler: ToolHandler) => {
-      handlers.set(name, handler);
-    },
-  } as unknown as McpServer;
-  return handlers;
-}
-
-function registerAll(handlers: ReturnType<typeof captureTools>) {
+function registerAll(handlers: Map<string, ToolHandler>) {
   const fakeServer = {
     registerTool: (name: string, _meta: any, handler: ToolHandler) => {
       handlers.set(name, handler);
@@ -48,21 +36,26 @@ function registerAll(handlers: ReturnType<typeof captureTools>) {
   } as unknown as McpServer;
 
   // Dynamically import and register each tool
-  return import("../src/tools/get_bookings.js").then((m) => {
-    m.register(fakeServer);
-    return import("../src/tools/create_booking.js");
-  }).then((m) => {
-    m.register(fakeServer);
-    return import("../src/tools/modify_booking.js");
-  }).then((m) => {
-    m.register(fakeServer);
-    return import("../src/tools/answer_customer_query.js");
-  }).then((m) => {
-    m.register(fakeServer);
-    return import("../src/tools/run_daily_cashup.js");
-  }).then((m) => {
-    m.register(fakeServer);
-  });
+  return import("../src/tools/get_bookings.js")
+    .then((m) => {
+      m.register(fakeServer);
+      return import("../src/tools/create_booking.js");
+    })
+    .then((m) => {
+      m.register(fakeServer);
+      return import("../src/tools/modify_booking.js");
+    })
+    .then((m) => {
+      m.register(fakeServer);
+      return import("../src/tools/answer_customer_query.js");
+    })
+    .then((m) => {
+      m.register(fakeServer);
+      return import("../src/tools/run_daily_cashup.js");
+    })
+    .then((m) => {
+      m.register(fakeServer);
+    });
 }
 
 function parseResult(result: { content: Array<{ type: string; text: string }> }) {
@@ -137,9 +130,7 @@ describe("MCP Tools", () => {
   describe("create_booking", () => {
     it("rejects invalid date format", async () => {
       const handler = handlers.get("create_booking")!;
-      const result = parseResult(
-        await handler({ date: "bad", time: "09:00", dogName: "Rex", ownerName: "Bob" }),
-      );
+      const result = parseResult(await handler({ date: "bad", time: "09:00", dogName: "Rex", ownerName: "Bob" }));
       expect(result.error).toContain("Invalid date format");
     });
 

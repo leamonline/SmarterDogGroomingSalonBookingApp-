@@ -15,16 +15,7 @@
  */
 
 import { google, calendar_v3 } from "googleapis";
-import {
-  CALENDAR_ID,
-  TIMEZONE,
-  SLOT_DURATION_MINUTES,
-  MAX_DOGS_PER_SLOT,
-  allSlotStartTimes,
-  timeToMinutes,
-  toRfc3339,
-  slotEndTime,
-} from "../config.js";
+import { CALENDAR_ID, TIMEZONE, MAX_DOGS_PER_SLOT, allSlotStartTimes, toRfc3339, slotEndTime } from "../config.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -310,7 +301,18 @@ export async function updateEvent(
     },
   });
 
-  return { id: eventId, date, time, endTime: slotEndTime(time), dogName, ownerName, phone, serviceType, notes, summary };
+  return {
+    id: eventId,
+    date,
+    time,
+    endTime: slotEndTime(time),
+    dogName,
+    ownerName,
+    phone,
+    serviceType,
+    notes,
+    summary,
+  };
 }
 
 /**

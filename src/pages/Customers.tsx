@@ -38,7 +38,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { CustomerModal } from "@/src/components/CustomerModal";
 import { ConfirmDialog } from "@/src/components/ConfirmDialog";
-import { Customer, Pet } from "@/src/types";
+import { Customer } from "@/src/types";
 import { formatCurrency } from "@/src/lib/utils";
 import { CustomersSkeleton } from "@/src/components/ui/skeleton";
 import { ClientMessagingPanel } from "@/src/components/ClientMessagingPanel";
