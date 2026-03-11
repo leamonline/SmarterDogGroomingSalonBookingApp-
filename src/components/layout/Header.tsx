@@ -1,6 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Search, Loader2, Menu, Settings2 } from "lucide-react";
-import { Input } from "@/src/components/ui/input";
 import { Button } from "@/src/components/ui/button";
 import { api } from "@/src/lib/api";
 import { useAuth } from "@/src/lib/AuthContext";
@@ -49,14 +48,14 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
   }, []);
 
   // Flatten results for keyboard navigation
-  const flatResults = (() => {
+  const flatResults = useMemo(() => {
     if (!results) return [];
     const items: { type: string; id: string; label: string; sub?: string; navigateTo: string; navState: any }[] = [];
     results.customers?.forEach((c: any) => items.push({ type: "customer", id: c.id, label: c.name, sub: c.email, navigateTo: "/clients", navState: { customerId: c.id } }));
     results.pets?.forEach((p: any) => items.push({ type: "pet", id: p.id, label: p.name, sub: p.breed, navigateTo: "/dogs", navState: { dogId: p.id } }));
     results.appointments?.forEach((a: any) => items.push({ type: "appointment", id: a.id, label: `${a.petName} - ${a.service}`, navigateTo: "/calendar", navState: { appointmentId: a.id } }));
     return items;
-  })();
+  }, [results]);
 
   // Reset active index when results change
   useEffect(() => {
@@ -136,21 +135,9 @@ export function Header({ setSidebarOpen }: { setSidebarOpen?: (val: boolean) => 
             }}
             onFocus={() => setShowResults(true)}
           />
-          {!query && (
-            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-xs text-brand-500 font-medium">
-              /
-            </kbd>
-          )}
           {isSearching && (
             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
               <Loader2 className="h-4 w-4 animate-spin text-brand-400" />
-            </div>
-          )}
-
-          {showResults && query.length === 0 && (
-            <div className="absolute top-full mt-2 w-full z-50 rounded-2xl border border-brand-100 bg-white shadow-lg overflow-hidden py-4 px-4">
-              <p className="text-sm font-medium text-purple">Search across bookings, clients, and dogs</p>
-              <p className="mt-1 text-xs text-slate-500">Tip: press <span className="font-semibold text-brand-600">/</span> from anywhere to jump to search.</p>
             </div>
           )}
 

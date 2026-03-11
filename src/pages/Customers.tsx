@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { handleError } from "@/src/lib/handleError";
-import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, AlertTriangle, ShieldAlert, FileText, ChevronDown, Users, Dog as DogIcon, MessageSquare } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, ShieldAlert, ChevronDown, Users, Dog as DogIcon, MessageSquare } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import {
@@ -297,36 +297,14 @@ export function Customers() {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="Search clients, emails, or dogs..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline">Filter</Button>
-          <Button variant="outline">Export</Button>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between text-sm text-slate-600">
-        <p>
-          Showing <span className="font-semibold text-slate-900">{filteredCustomers.length}</span>
-          {searchTerm
-            ? ` match${filteredCustomers.length !== 1 ? 'es' : ''} in loaded data`
-            : ` of ${totalCustomers} clients`
-          }
-        </p>
-        {searchTerm && (
-          <Button variant="ghost" size="sm" onClick={() => setSearchTerm("")}
-          >
-            Clear search
-          </Button>
-        )}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Input
+          placeholder="Search clients, emails, or dogs..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="pl-9"
+        />
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -477,7 +455,6 @@ export function Customers() {
               <div className="grid gap-6 py-4 md:grid-cols-3">
                 <div className="space-y-6 col-span-1">
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <h4 className="text-sm font-semibold text-slate-900 mb-3">Contact Information</h4>
                     <div className="space-y-3">
                       <div className="flex items-center text-sm text-slate-700">
                         <Mail className="mr-3 h-4 w-4 text-slate-400" />
@@ -493,41 +470,22 @@ export function Customers() {
                           <span className="leading-tight">{selectedCustomer.address}</span>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  {selectedCustomer.emergencyContact?.name && (
-                    <div className="bg-warning-light p-4 rounded-xl border border-warning">
-                      <h4 className="text-sm font-semibold text-warning mb-2 flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4" /> Emergency Contact
-                      </h4>
-                      <div className="text-sm text-slate-800 font-medium">{selectedCustomer.emergencyContact.name}</div>
-                      <div className="text-sm text-slate-700">{selectedCustomer.emergencyContact.phone}</div>
-                    </div>
-                  )}
-
-                  {selectedCustomer.notes && (
-                    <div className="bg-brand-50 p-4 rounded-xl border border-brand-100">
-                      <h4 className="text-sm font-semibold text-brand-800 mb-2 flex items-center gap-2">
-                        <FileText className="h-4 w-4" /> General Notes
-                      </h4>
-                      <p className="text-sm text-brand-700 whitespace-pre-wrap">{selectedCustomer.notes}</p>
-                    </div>
-                  )}
-
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <h4 className="text-sm font-semibold text-slate-900 mb-3">Account Summary</h4>
-                    <div className="space-y-3">
                       <div className="flex items-center text-sm text-slate-700">
                         <Calendar className="mr-3 h-4 w-4 text-slate-400" />
-                        Last Visit: {selectedCustomer.lastVisit}
+                        Last: {selectedCustomer.lastVisit}
                       </div>
                       <div className="flex items-center text-sm text-slate-700">
                         <DollarSign className="mr-3 h-4 w-4 text-slate-400" />
-                        Total Spent: {formatCurrency(selectedCustomer.totalSpent)}
+                        {formatCurrency(selectedCustomer.totalSpent)} total
                       </div>
                     </div>
                   </div>
+
+                  {selectedCustomer.notes && (
+                    <div className="bg-brand-50 p-4 rounded-xl border border-brand-100">
+                      <p className="text-sm text-brand-700 whitespace-pre-wrap">{selectedCustomer.notes}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="col-span-2 space-y-6">

@@ -11,9 +11,6 @@ import { AuthProvider } from "./lib/AuthContext";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-const Dashboard = lazy(async () => ({
-  default: (await import("./pages/Dashboard")).Dashboard,
-}));
 const Calendar = lazy(async () => ({
   default: (await import("./pages/Calendar")).Calendar,
 }));
@@ -29,9 +26,6 @@ const Dogs = lazy(async () => ({
 const Settings = lazy(async () => ({
   default: (await import("./pages/Settings")).Settings,
 }));
-const FormsManager = lazy(async () => ({
-  default: (await import("./components/FormsManager")).FormsManager,
-}));
 const Login = lazy(async () => ({
   default: (await import("./pages/Login")).Login,
 }));
@@ -43,9 +37,6 @@ const BookingPage = lazy(async () => ({
 }));
 const MessagingPage = lazy(async () => ({
   default: (await import("./pages/MessagingPage")).MessagingPage,
-}));
-const ReportsPage = lazy(async () => ({
-  default: (await import("./pages/ReportsPage")).ReportsPage,
 }));
 
 function RouteLoadingFallback() {
@@ -70,15 +61,13 @@ export default function App() {
             <Route path="/book" element={<BookingPage />} />
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route index element={<Navigate to="/calendar" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="dashboard" element={<Navigate to="/calendar" replace />} />
               <Route path="calendar" element={<Calendar />} />
               <Route path="clients" element={<Customers />} />
               <Route path="dogs" element={<Dogs />} />
-              <Route path="customers" element={<Customers />} />
+              <Route path="customers" element={<Navigate to="/clients" replace />} />
               <Route path="services" element={<Services />} />
-              <Route path="forms" element={<FormsManager />} />
               <Route path="messaging" element={<MessagingPage />} />
-              <Route path="reports" element={<ReportsPage />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
