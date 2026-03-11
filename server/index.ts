@@ -48,6 +48,10 @@ if (!isTestEnv) {
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 
+// Require CSRF protection header on mutating requests
+import { requireCsrfHeader } from './middleware/csrf.js';
+app.use(requireCsrfHeader);
+
 // --- Security headers ---
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");

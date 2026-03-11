@@ -268,8 +268,15 @@ const migrate = (version: number, fn: () => void) => {
   appliedVersions.add(version);
 };
 
-/** Add a column to a table only if it doesn't already exist. */
+/**
+ * Add a column to a table only if it doesn't already exist.
+ * @internal Only use with hardcoded identifiers — never user input.
+ */
+const SAFE_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const safeAddColumn = (table: string, column: string, type: string) => {
+  if (!SAFE_IDENTIFIER.test(table) || !SAFE_IDENTIFIER.test(column)) {
+    throw new Error(`safeAddColumn: invalid identifier — table="${table}", column="${column}"`);
+  }
   const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
   if (!cols.some((c) => c.name === column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
