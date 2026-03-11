@@ -2,6 +2,12 @@
 
 PetSpa is a Vite + React frontend with an Express backend and a SQLite data store for salon operations.
 
+## Documentation
+
+- [Contributing Guide](docs/CONTRIBUTING.md) — branch naming, commit conventions, PR process
+- [Architecture](docs/ARCHITECTURE.md) — system design, directory structure, key decisions
+- [API Reference](docs/API.md) — all endpoints with auth requirements
+
 ## Requirements
 
 - Node.js 18+
@@ -69,6 +75,21 @@ To restore from a backup:
 1. Stop the running app.
 2. Copy the chosen backup over `petspa.db`.
 3. Remove any stale `petspa.db-shm` and `petspa.db-wal` files before restarting.
+
+## Docker
+
+Build and run with Docker Compose:
+
+```bash
+JWT_SECRET=your-secret-here docker compose up --build -d
+```
+
+The app will be available at `http://localhost:3001`. SQLite data is persisted in a named volume.
+
+```bash
+docker compose down       # stop
+docker compose down -v    # stop and remove data volume
+```
 
 ## Browser smoke tests
 

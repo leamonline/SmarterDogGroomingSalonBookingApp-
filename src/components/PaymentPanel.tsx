@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
-import { Badge } from "@/src/components/ui/badge";
 import { api } from "@/src/lib/api";
 import { toast } from "sonner";
 import { CreditCard, Banknote, Building2, Plus, Receipt, Printer } from "lucide-react";
@@ -48,6 +47,7 @@ export function PaymentPanel({ appointmentId, totalDue, depositRequired, onPayme
 
   useEffect(() => {
     loadPayments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount and when appointment changes
   }, [appointmentId]);
 
   const loadPayments = async () => {

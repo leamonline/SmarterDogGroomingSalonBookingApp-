@@ -41,6 +41,7 @@ import { cn, formatCurrency } from "@/src/lib/utils";
 import { handleError } from "@/src/lib/handleError";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { AppointmentStatusBar } from "@/src/components/AppointmentStatusBar";
+import { formatDogCountLabel, formatDogCountReviewNote, normalizeAppointment } from "@/src/lib/appointmentUtils";
 import { CalendarSkeleton } from "@/src/components/ui/skeleton";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -100,31 +101,6 @@ function getAppointmentTone(status: string) {
   }
 
   return "border-brand-200 bg-brand-50 text-brand-700";
-}
-
-function formatDogCountLabel(dogCount?: number) {
-  const count = dogCount || 1;
-  return `${count} ${count === 1 ? "dog" : "dogs"}`;
-}
-
-function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
-  if (!reviewedAt) return null;
-  const parsed = new Date(reviewedAt);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return `Confirmed by ${reviewedBy || "staff"} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}`;
-}
-
-function isDogCountConfirmed(value: unknown) {
-  return value === true || value === 1;
-}
-
-function normalizeAppointment(item: any): Appointment {
-  return {
-    ...item,
-    date: item.date instanceof Date ? item.date : new Date(item.date),
-    dogCount: item.dogCount ?? 1,
-    dogCountConfirmed: isDogCountConfirmed(item.dogCountConfirmed),
-  };
 }
 
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -206,10 +182,7 @@ export function Calendar() {
   const weekDays = useMemo(() => Array.from({ length: 7 }).map((_, index) => addDays(startDate, index)), [startDate]);
   const hours = useMemo(() => Array.from({ length: 10 }).map((_, index) => index + 8), []);
   const allWeekAppointments = useMemo(
-    () =>
-      appointments
-        .filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive)
-        .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    () => appointments.filter((appointment) => appointment.date >= startDate && appointment.date < weekEndExclusive),
     [appointments, startDate, weekEndExclusive],
   );
   const weekAppointments = useMemo(
@@ -420,10 +393,7 @@ export function Calendar() {
     [weekAppointments],
   );
   const upcomingCapacityReview = useMemo(
-    () =>
-      appointments
-        .filter((appointment) => appointment.dogCountConfirmed === false)
-        .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    () => appointments.filter((appointment) => appointment.dogCountConfirmed === false),
     [appointments],
   );
   const selectedDayRevenue = useMemo(
@@ -539,7 +509,7 @@ export function Calendar() {
 
   return (
     <div className="flex h-full flex-col space-y-4">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight text-purple">Bookings</h1>
           <p className="text-sm text-slate-500">
@@ -677,7 +647,7 @@ export function Calendar() {
               <Button type="button" size="sm" variant="outline" onClick={() => setActiveFilter("capacity-review")}>
                 Show review items
               </Button>
-              <Button type="button" size="sm" onClick={() => openCapacityReview(upcomingCapacityReview[0])}>
+              <Button type="button" size="sm" onClick={() => openCapacityReview(upcomingCapacityReview[0]!)}>
                 Review next booking
               </Button>
             </div>
@@ -685,8 +655,8 @@ export function Calendar() {
         </div>
       )}
 
-      <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
           <div className="min-w-[880px] flex flex-col h-full">
             <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-50">
               <div className="p-4 text-center text-sm font-medium text-slate-500">Time</div>
@@ -856,7 +826,7 @@ export function Calendar() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => openCapacityReview(upcomingCapacityReview[0])}
+                    onClick={() => openCapacityReview(upcomingCapacityReview[0]!)}
                     disabled={isConfirmingAllReviewItems}
                   >
                     Open next

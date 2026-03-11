@@ -1,13 +1,13 @@
 import { Router } from "express";
 import db from "../db.js";
-import { requireOwner } from "../middleware/auth.js";
+import { requireOwner, requireAdmin, requireStaff } from "../middleware/auth.js";
 import { clampLimit } from "../schema.js";
 import type { CountRow } from "../types.js";
 
 const router = Router();
 
 // --- Search ---
-router.get("/search", (req, res) => {
+router.get("/search", requireStaff, (req, res) => {
   const q = req.query.q as string;
   if (!q) return res.json({ customers: [], pets: [], appointments: [] });
 
@@ -28,7 +28,7 @@ router.get("/search", (req, res) => {
     )
     .all(queryLike, queryLike, queryLike);
 
-  res.json({ customers, pets, appointments });
+  return res.json({ customers, pets, appointments });
 });
 
 // --- Audit Log ---
@@ -67,7 +67,7 @@ router.get("/audit-log", requireOwner, (req, res) => {
 });
 
 // --- Analytics ---
-router.get("/analytics", (req, res) => {
+router.get("/analytics", requireAdmin, (req, res) => {
   const stats = {
     totalRevenue: 0,
     appointments: 0,
@@ -93,7 +93,7 @@ router.get("/analytics", (req, res) => {
 });
 
 // --- Reports (server-side aggregated) ---
-router.get("/reports", (req, res) => {
+router.get("/reports", requireAdmin, (req, res) => {
   const { start, end } = req.query as { start?: string; end?: string };
   const startDate = start || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const endDate = end || new Date().toISOString();

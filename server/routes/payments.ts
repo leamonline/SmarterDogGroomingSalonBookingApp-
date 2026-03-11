@@ -1,13 +1,14 @@
+import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
-import { getUser } from "../middleware/auth.js";
+import { requireStaff, getUser } from "../middleware/auth.js";
 import { logAudit } from "../helpers/audit.js";
 import { validateBody, paymentSchema, clampLimit } from "../schema.js";
 import type { CountRow } from "../types.js";
 
 const router = Router();
 
-router.get("/", (req, res) => {
+router.get("/", requireStaff, (req, res) => {
   const { appointmentId } = req.query;
   if (appointmentId) {
     const payments = db
@@ -20,13 +21,13 @@ router.get("/", (req, res) => {
   const offset = (page - 1) * limit;
   const total = (db.prepare("SELECT COUNT(*) as count FROM payments").get() as CountRow).count;
   const payments = db.prepare("SELECT * FROM payments ORDER BY createdAt DESC LIMIT ? OFFSET ?").all(limit, offset);
-  res.json({
+  return res.json({
     data: payments,
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   });
 });
 
-router.post("/", validateBody(paymentSchema), (req: Request, res: Response) => {
+router.post("/", requireStaff, validateBody(paymentSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { appointmentId, customerId, amount, method, type, status, notes } = req.body;
   const id = crypto.randomUUID();

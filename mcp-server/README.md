@@ -4,13 +4,13 @@ Model Context Protocol server that connects the PetSpa dog grooming salon bookin
 
 ## Tools
 
-| Tool | Description |
-|------|-------------|
-| `get_bookings` | Retrieve bookings and slot availability for a date |
-| `create_booking` | Book a grooming appointment (validates day, time, capacity) |
-| `modify_booking` | Reschedule, update, or cancel an existing booking |
+| Tool                    | Description                                                           |
+| ----------------------- | --------------------------------------------------------------------- |
+| `get_bookings`          | Retrieve bookings and slot availability for a date                    |
+| `create_booking`        | Book a grooming appointment (validates day, time, capacity)           |
+| `modify_booking`        | Reschedule, update, or cancel an existing booking                     |
 | `answer_customer_query` | Answer questions about hours, services, pricing, or look up a booking |
-| `run_daily_cashup` | Generate end-of-day summary with revenue estimates and utilisation |
+| `run_daily_cashup`      | Generate end-of-day summary with revenue estimates and utilisation    |
 
 ## Salon Business Rules
 

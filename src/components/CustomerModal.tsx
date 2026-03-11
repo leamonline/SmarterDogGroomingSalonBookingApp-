@@ -4,8 +4,8 @@ import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { FieldError } from "@/src/components/ui/field-error";
 import { useFormValidation, required, email as emailRule, phone as phoneRule } from "@/src/lib/useFormValidation";
-import { Plus, X, Trash2, ShieldAlert, FileIcon, Upload } from "lucide-react";
-import { Customer, Pet, Vaccination, Document } from "@/src/types";
+import { Plus, X, Trash2, ShieldAlert } from "lucide-react";
+import { Customer, Pet, Vaccination } from "@/src/types";
 
 interface CustomerModalProps {
   isOpen: boolean;
@@ -65,6 +65,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSave }: CustomerMod
     setActiveTab("info");
     setIsAddingPet(false);
     clearAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clearAll is stable but not memoized; only re-run on open/customer change
   }, [customer, isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

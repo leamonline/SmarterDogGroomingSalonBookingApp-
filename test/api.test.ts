@@ -10,6 +10,11 @@ import crypto from "crypto";
 
 const ownerToken = jwt.sign({ id: "test-owner", email: "owner@example.com", role: "owner" }, JWT_SECRET);
 const staffToken = jwt.sign({ id: "test-staff", email: "staff@example.com", role: "groomer" }, JWT_SECRET);
+const customerToken = jwt.sign({ id: "test-customer", email: "customer@example.com", role: "customer" }, JWT_SECRET);
+const receptionistToken = jwt.sign(
+  { id: "test-receptionist", email: "receptionist@example.com", role: "receptionist" },
+  JWT_SECRET,
+);
 // Alias for existing tests
 const testToken = ownerToken;
 
@@ -1003,5 +1008,127 @@ describe("API Endpoints Integration Tests", () => {
     expect(getRes.status).toBe(200);
     const exists = (getRes.body.data as any[]).some((c) => c.id === serverId);
     expect(exists).toBe(false);
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+describe("Authorization", () => {
+  it("denies customer-role access to GET /api/customers", async () => {
+    const res = await request(app).get("/api/customers").set("Authorization", `Bearer ${customerToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("denies customer-role access to GET /api/appointments", async () => {
+    const res = await request(app).get("/api/appointments").set("Authorization", `Bearer ${customerToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("denies customer-role access to GET /api/analytics", async () => {
+    const res = await request(app).get("/api/analytics").set("Authorization", `Bearer ${customerToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("denies customer-role access to POST /api/payments", async () => {
+    const res = await request(app)
+      .post("/api/payments")
+      .set("Authorization", `Bearer ${customerToken}`)
+      .send({ appointmentId: "x", amount: 10, method: "cash", type: "full" });
+    expect(res.status).toBe(403);
+  });
+
+  it("allows groomer-role access to GET /api/appointments", async () => {
+    const res = await request(app).get("/api/appointments").set("Authorization", `Bearer ${staffToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it("allows groomer-role access to GET /api/customers", async () => {
+    const res = await request(app).get("/api/customers").set("Authorization", `Bearer ${staffToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it("denies groomer-role access to DELETE /api/appointments/:id", async () => {
+    const res = await request(app).delete("/api/appointments/nonexistent").set("Authorization", `Bearer ${staffToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("denies groomer-role access to POST /api/services (admin-only)", async () => {
+    const res = await request(app)
+      .post("/api/services")
+      .set("Authorization", `Bearer ${staffToken}`)
+      .send({ name: "Test Service" });
+    expect(res.status).toBe(403);
+  });
+
+  it("allows receptionist-role access to POST /api/services", async () => {
+    const res = await request(app)
+      .post("/api/services")
+      .set("Authorization", `Bearer ${receptionistToken}`)
+      .send({ name: "Test Service" });
+    expect(res.status).toBe(200);
+  });
+
+  it("denies customer-role access to GET /api/reports", async () => {
+    const res = await request(app).get("/api/reports").set("Authorization", `Bearer ${customerToken}`);
+    expect(res.status).toBe(403);
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+describe("Status transitions", () => {
+  // Helper: create an appointment via the API to ensure it passes availability checks
+  const createViaApi = async (statusOverride?: string) => {
+    const slotsRes = await request(app).get("/api/appointments/next-available?duration=60").set(auth());
+    const openSlot = slotsRes.body.data[0];
+    const appt = makeAppt({ date: openSlot, status: statusOverride || "confirmed" });
+    const createRes = await request(app).post("/api/appointments").set(auth()).send(appt);
+    expect(createRes.status).toBe(200);
+    const id = createRes.body.id;
+    // If we need a different initial status, update directly in DB
+    if (statusOverride && statusOverride !== "confirmed" && statusOverride !== "scheduled") {
+      db.prepare("UPDATE appointments SET status = ? WHERE id = ?").run(statusOverride, id);
+    }
+    return { id, date: openSlot, appt: { ...appt, id } };
+  };
+
+  it("allows valid transition (confirmed → checked-in)", async () => {
+    const { id, appt } = await createViaApi("confirmed");
+    const res = await request(app)
+      .put(`/api/appointments/${id}`)
+      .set(auth())
+      .send({ ...appt, id, status: "checked-in" });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("checked-in");
+  });
+
+  it("rejects invalid transition (completed → in-progress)", async () => {
+    const { id, appt } = await createViaApi("completed");
+    const res = await request(app)
+      .put(`/api/appointments/${id}`)
+      .set(auth())
+      .send({ ...appt, id, status: "in-progress" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Cannot transition");
+  });
+
+  it("rejects transition from terminal status (cancelled-by-salon → confirmed)", async () => {
+    const { id, appt } = await createViaApi("cancelled-by-salon");
+    const res = await request(app)
+      .put(`/api/appointments/${id}`)
+      .set(auth())
+      .send({ ...appt, id, status: "confirmed" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Cannot transition");
+  });
+
+  it("sets server-side checkedInAt timestamp on check-in", async () => {
+    const { id, appt } = await createViaApi("confirmed");
+    const res = await request(app)
+      .put(`/api/appointments/${id}`)
+      .set(auth())
+      .send({ ...appt, id, status: "checked-in" });
+    expect(res.status).toBe(200);
+
+    const row = db.prepare("SELECT checkedInAt FROM appointments WHERE id = ?").get(id) as any;
+    expect(row.checkedInAt).toBeTruthy();
   });
 });

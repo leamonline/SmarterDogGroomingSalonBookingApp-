@@ -38,35 +38,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AppointmentModal, Appointment } from "@/src/components/AppointmentModal";
 import { CustomerModal } from "@/src/components/CustomerModal";
 import { ConfirmDialog } from "@/src/components/ConfirmDialog";
-import { Customer, Pet } from "@/src/types";
+import { Customer } from "@/src/types";
 import { formatCurrency } from "@/src/lib/utils";
 import { CustomersSkeleton } from "@/src/components/ui/skeleton";
 import { ClientMessagingPanel } from "@/src/components/ClientMessagingPanel";
-
-function formatDogCountLabel(dogCount?: number) {
-  const count = dogCount || 1;
-  return `${count} ${count === 1 ? "dog" : "dogs"}`;
-}
-
-function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
-  if (!reviewedAt) return null;
-  const parsed = new Date(reviewedAt);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return `Confirmed by ${reviewedBy || "staff"} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}`;
-}
-
-function isDogCountConfirmed(value: unknown) {
-  return value === true || value === 1;
-}
-
-function normalizeAppointment(item: any): Appointment {
-  return {
-    ...item,
-    date: item.date instanceof Date ? item.date : new Date(item.date),
-    dogCount: item.dogCount ?? 1,
-    dogCountConfirmed: isDogCountConfirmed(item.dogCountConfirmed),
-  };
-}
+import { formatDogCountLabel, formatDogCountReviewNote, normalizeAppointment } from "@/src/lib/appointmentUtils";
 
 export function Customers() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -459,7 +435,7 @@ export function Customers() {
                 </div>
               )}
 
-              <div className="grid gap-6 py-4 md:grid-cols-3">
+              <div className="grid gap-6 py-4 lg:grid-cols-3">
                 <div className="space-y-6 col-span-1">
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <div className="space-y-3">

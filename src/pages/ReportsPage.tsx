@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/src/components/ui/card";
 import { api } from "@/src/lib/api";
 import { type AuditLogEntry } from "@/src/types";
 import { toast } from "sonner";
-import { BarChart3, TrendingUp, DollarSign, Calendar as CalendarIcon, Users, Download, Filter } from "lucide-react";
+import { TrendingUp, DollarSign, Calendar as CalendarIcon, Users, Download, Filter } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { formatCurrency } from "@/src/lib/utils";
 
@@ -86,6 +86,7 @@ export function ReportsPage() {
   // Reload when date range changes (but not on every keystroke for custom)
   useEffect(() => {
     if (dateRange !== "custom") loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when range preset changes, not when loadReports ref changes
   }, [dateRange]);
 
   // ────── Metrics (computed from server data) ──────

@@ -1,12 +1,6 @@
-// API fetch wrapper that automatically includes auth (httpOnly cookie + fallback header)
+// API fetch wrapper that automatically includes auth via httpOnly cookie
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
-
-  // Fallback: if a token is still in localStorage (pre-migration), send it as a header
-  const legacyToken = localStorage.getItem("petspa_token");
-  if (legacyToken) {
-    headers.set("Authorization", `Bearer ${legacyToken}`);
-  }
 
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -19,8 +13,6 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   });
 
   if (response.status === 401 || response.status === 403) {
-    // Auto-logout on missing token (401) or expired/invalid token (403)
-    localStorage.removeItem("petspa_token");
     localStorage.removeItem("petspa_user");
     window.location.href = "/login";
     // Throw so calling code doesn't try to parse a non-JSON body

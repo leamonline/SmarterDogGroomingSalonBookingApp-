@@ -1,6 +1,7 @@
+import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
-import { requireAdmin, getUser } from "../middleware/auth.js";
+import { requireAdmin, requireStaff, getUser } from "../middleware/auth.js";
 import { logAudit } from "../helpers/audit.js";
 import { autoNotify } from "../helpers/messaging.js";
 import {
@@ -12,6 +13,7 @@ import {
 import { validateBody, appointmentSchema, clampLimit } from "../schema.js";
 import type { AppointmentRow, CountRow } from "../types.js";
 import type { AvailabilityReason } from "../helpers/appointments.js";
+import { isValidTransition } from "../helpers/statusMachine.js";
 
 interface TxCreateResult {
   conflict: boolean;
@@ -21,6 +23,8 @@ interface TxCreateResult {
 interface TxUpdateResult {
   notFound: boolean;
   conflict: boolean;
+  invalidTransition?: boolean;
+  transitionError?: string;
   suggestions?: string[];
   reason?: AvailabilityReason;
   old: AppointmentRow | null;
@@ -50,13 +54,13 @@ function getDogCountReviewFields(old: AppointmentRow | null, normalizedDogCount:
 
 const router = Router();
 
-router.get("/", (req, res) => {
+router.get("/", requireStaff, (req, res) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = clampLimit(req.query.limit as string);
   const offset = (page - 1) * limit;
 
   const total = (db.prepare("SELECT COUNT(*) as count FROM appointments").get() as CountRow).count;
-  const appointments = db.prepare("SELECT * FROM appointments ORDER BY date DESC LIMIT ? OFFSET ?").all(limit, offset);
+  const appointments = db.prepare("SELECT * FROM appointments ORDER BY date ASC LIMIT ? OFFSET ?").all(limit, offset);
 
   res.json({
     data: appointments,
@@ -64,17 +68,17 @@ router.get("/", (req, res) => {
   });
 });
 
-router.get("/next-available", (req, res) => {
+router.get("/next-available", requireStaff, (req, res) => {
   const dogCount = req.query.dogCount == null ? 1 : parseInt(req.query.dogCount as string);
   if (!Number.isInteger(dogCount) || dogCount < 1 || dogCount > 4) {
     return res.status(400).json({ error: "dogCount must be between 1 and 4" });
   }
   const from = (req.query.from as string) || new Date().toISOString();
   const slots = getNextAvailableSlots(from, dogCount, 5);
-  res.json({ data: slots, dogCount });
+  return res.json({ data: slots, dogCount });
 });
 
-router.post("/", validateBody(appointmentSchema), (req: Request, res: Response) => {
+router.post("/", requireStaff, validateBody(appointmentSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const {
     petName,
@@ -137,7 +141,7 @@ router.post("/", validateBody(appointmentSchema), (req: Request, res: Response) 
 
   if (result.conflict) {
     return res.status(400).json({
-      error: getAvailabilityErrorMessage(result.reason),
+      error: getAvailabilityErrorMessage(result.reason!),
       suggestions: result.suggestions,
     });
   }
@@ -147,7 +151,7 @@ router.post("/", validateBody(appointmentSchema), (req: Request, res: Response) 
     dogCount: normalizedDogCount,
     dogCountConfirmed: true,
   });
-  res.json({
+  return res.json({
     ...req.body,
     id,
     dogCount: normalizedDogCount,
@@ -157,7 +161,7 @@ router.post("/", validateBody(appointmentSchema), (req: Request, res: Response) 
   });
 });
 
-router.put("/:id", validateBody(appointmentSchema), (req: Request, res: Response) => {
+router.put("/:id", requireStaff, validateBody(appointmentSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const {
     petName,
@@ -192,14 +196,36 @@ router.put("/:id", validateBody(appointmentSchema), (req: Request, res: Response
   const normalizedDogCount = dogCount ?? 1;
 
   const txResult: TxUpdateResult = db.transaction(() => {
-    const old = db.prepare("SELECT * FROM appointments WHERE id = ?").get(req.params.id) as AppointmentRow | undefined;
+    const old = db.prepare("SELECT * FROM appointments WHERE id = ?").get(req.params.id!) as AppointmentRow | undefined;
     if (!old) return { notFound: true, conflict: false, old: null };
+
+    // Validate status transition
+    if (status && old.status !== status && !isValidTransition(old.status, status)) {
+      return {
+        notFound: false,
+        conflict: false,
+        invalidTransition: true,
+        transitionError: `Cannot transition from "${old.status}" to "${status}"`,
+        old: null,
+      };
+    }
+
+    // Set server-side timestamps based on status transitions
+    const now = new Date().toISOString();
+    const serverTimestamps: Record<string, string | null> = {};
+    if (status && old.status !== status) {
+      if (status === "checked-in") serverTimestamps.checkedInAt = now;
+      if (status === "completed") serverTimestamps.completedAt = now;
+      if (status === "ready-for-collection") serverTimestamps.readyForCollectionAt = now;
+      if (status === "cancelled-by-customer" || status === "cancelled-by-salon") serverTimestamps.cancelledAt = now;
+    }
+
     const reviewFields = getDogCountReviewFields(old, normalizedDogCount, user.email);
 
-    const availability = getAppointmentAvailability(date, normalizedDogCount, req.params.id);
+    const availability = getAppointmentAvailability(date, normalizedDogCount, req.params.id!);
     const conflictReason = getAvailabilityReason(availability);
     if (conflictReason) {
-      const suggestions = getNextAvailableSlots(date, normalizedDogCount, 3, { excludeId: req.params.id });
+      const suggestions = getNextAvailableSlots(date, normalizedDogCount, 3, { excludeId: req.params.id! });
       return { notFound: false, conflict: true, suggestions, reason: conflictReason, old: null };
     }
 
@@ -229,22 +255,22 @@ router.put("/:id", validateBody(appointmentSchema), (req: Request, res: Response
       status,
       price,
       avatar,
-      checkedInAt ?? null,
+      serverTimestamps.checkedInAt ?? checkedInAt ?? null,
       checkedInNotes ?? null,
       groomNotes ?? null,
       productsUsed ?? null,
       behaviourDuringGroom ?? null,
-      completedAt ?? null,
+      serverTimestamps.completedAt ?? completedAt ?? null,
       aftercareNotes ?? null,
-      readyForCollectionAt ?? null,
+      serverTimestamps.readyForCollectionAt ?? readyForCollectionAt ?? null,
       surcharge ?? null,
       surchargeReason ?? null,
       finalPrice ?? null,
-      cancelledAt ?? null,
+      serverTimestamps.cancelledAt ?? cancelledAt ?? null,
       cancellationReason ?? null,
       customerId ?? null,
       dogId ?? null,
-      req.params.id,
+      req.params.id!,
     );
 
     return { notFound: false, conflict: false, old, reviewFields };
@@ -253,9 +279,12 @@ router.put("/:id", validateBody(appointmentSchema), (req: Request, res: Response
   if (txResult.notFound) {
     return res.status(404).json({ error: "Appointment not found" });
   }
+  if (txResult.invalidTransition) {
+    return res.status(400).json({ error: txResult.transitionError });
+  }
   if (txResult.conflict) {
     return res.status(400).json({
-      error: getAvailabilityErrorMessage(txResult.reason),
+      error: getAvailabilityErrorMessage(txResult.reason!),
       suggestions: txResult.suggestions,
     });
   }
@@ -265,7 +294,7 @@ router.put("/:id", validateBody(appointmentSchema), (req: Request, res: Response
     dogCountReviewedAt: old?.dogCountReviewedAt ?? null,
     dogCountReviewedBy: old?.dogCountReviewedBy ?? null,
   };
-  logAudit(user.id, "update", "appointment", req.params.id, old, {
+  logAudit(user.id, "update", "appointment", req.params.id!, old ?? null, {
     ...req.body,
     dogCount: normalizedDogCount,
     dogCountConfirmed: true,
@@ -276,14 +305,14 @@ router.put("/:id", validateBody(appointmentSchema), (req: Request, res: Response
   // Auto-notify on key status transitions
   if (old && old.status !== status) {
     if (status === "ready-for-collection") {
-      autoNotify("ready_for_collection", { ...req.body, id: req.params.id });
+      autoNotify("ready_for_collection", { ...req.body, id: req.params.id! });
     }
     if (status === "cancelled-by-salon" || status === "cancelled-by-customer") {
-      autoNotify("booking_cancelled", { ...req.body, id: req.params.id });
+      autoNotify("booking_cancelled", { ...req.body, id: req.params.id! });
     }
   }
 
-  res.json({
+  return res.json({
     ...req.body,
     dogCount: normalizedDogCount,
     dogCountConfirmed: true,
@@ -294,14 +323,14 @@ router.put("/:id", validateBody(appointmentSchema), (req: Request, res: Response
 
 router.delete("/:id", requireAdmin, (req: Request, res: Response) => {
   const user = getUser(req);
-  const existing = db.prepare("SELECT id FROM appointments WHERE id = ?").get(req.params.id) as
+  const existing = db.prepare("SELECT id FROM appointments WHERE id = ?").get(req.params.id!) as
     | Pick<AppointmentRow, "id">
     | undefined;
   if (!existing) return res.status(404).json({ error: "Appointment not found" });
 
-  db.prepare("DELETE FROM appointments WHERE id=?").run(req.params.id);
-  logAudit(user.id, "delete", "appointment", req.params.id, null, null);
-  res.json({ success: true });
+  db.prepare("DELETE FROM appointments WHERE id=?").run(req.params.id!);
+  logAudit(user.id, "delete", "appointment", req.params.id!, null, null);
+  return res.json({ success: true });
 });
 
 export default router;

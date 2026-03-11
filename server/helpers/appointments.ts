@@ -13,6 +13,7 @@ type ExistingAppointment = {
 
 export type AvailabilityReason =
   | "invalid-date"
+  | "past-date"
   | "invalid-dog-count"
   | "closed-day"
   | "manual-review"
@@ -99,7 +100,7 @@ function loadDayState(
   existingAppointments: ExistingAppointment[],
   scheduleByDay: ReturnType<typeof loadScheduleByDay>,
 ): DayState {
-  const dayName = DAY_NAMES_BY_INDEX[targetDate.getDay()];
+  const dayName = DAY_NAMES_BY_INDEX[targetDate.getDay()]!;
   const scheduleDay = scheduleByDay.get(dayName) || null;
   if (!scheduleDay) {
     return {
@@ -171,13 +172,13 @@ function loadDayState(
           totalDogs: 0,
         };
       }
-      slotCounts[slotIndex + offset] += placement[offset];
+      slotCounts[slotIndex + offset]! += placement[offset]!;
     }
   }
 
   const totalDogs = slotCounts.reduce((sum, count) => sum + count, 0);
   const caps = calculateSlotCaps(slotCounts);
-  const exceedsCap = slotCounts.some((count, index) => count > caps[index]);
+  const exceedsCap = slotCounts.some((count, index) => count > caps[index]!);
 
   if (totalDogs > MAX_DOGS_PER_DAY || exceedsCap) {
     return {
@@ -205,6 +206,10 @@ function checkAvailabilityAgainstData(
   const startDate = new Date(dateString);
   if (Number.isNaN(startDate.getTime())) {
     return { ok: false, reason: "invalid-date" };
+  }
+
+  if (startDate.getTime() < Date.now()) {
+    return { ok: false, reason: "past-date" };
   }
 
   const normalizedDogCount = normalizeDogCount(dogCount);
@@ -241,7 +246,7 @@ function checkAvailabilityAgainstData(
 
   const tentativeCounts = [...dayState.slotCounts];
   for (let offset = 0; offset < placement.length; offset += 1) {
-    tentativeCounts[startSlotIndex + offset] += placement[offset];
+    tentativeCounts[startSlotIndex + offset]! += placement[offset]!;
   }
 
   const totalDogs = tentativeCounts.reduce((sum, count) => sum + count, 0);
@@ -250,7 +255,7 @@ function checkAvailabilityAgainstData(
   }
 
   const caps = calculateSlotCaps(tentativeCounts);
-  const exceedsCap = tentativeCounts.some((count, index) => count > caps[index]);
+  const exceedsCap = tentativeCounts.some((count, index) => count > caps[index]!);
   if (exceedsCap) {
     return { ok: false, reason: placement.length > 1 ? "slot-pair-unavailable" : "slot-capacity" };
   }
@@ -260,6 +265,8 @@ function checkAvailabilityAgainstData(
 
 export function getAvailabilityErrorMessage(reason: AvailabilityReason) {
   switch (reason) {
+    case "past-date":
+      return "Appointments cannot be scheduled in the past.";
     case "invalid-dog-count":
       return "Online booking currently supports up to 4 dogs per request. Please contact the salon for larger groups.";
     case "closed-day":
@@ -286,7 +293,7 @@ export function getAvailabilityReason(availability: AvailabilityCheck) {
 }
 
 export function getAvailableSlotsForDate(dateStr: string, dogCount: number, excludeId?: string) {
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [year, month, day] = dateStr.split("-").map(Number) as [number, number, number];
   const localDate = new Date(year, month - 1, day);
   if (Number.isNaN(localDate.getTime())) {
     return [];

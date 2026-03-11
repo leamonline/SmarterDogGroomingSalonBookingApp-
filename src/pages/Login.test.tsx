@@ -66,7 +66,7 @@ describe("Login", () => {
     const user = userEvent.setup();
     renderLogin();
     const forgotLinks = screen.getAllByText("Forgot password?");
-    await user.click(forgotLinks[0]);
+    await user.click(forgotLinks[0]!);
     expect(screen.getByText(/send you a password reset link/i)).toBeInTheDocument();
   });
 

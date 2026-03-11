@@ -64,6 +64,7 @@ export function ServiceModal({ isOpen, onClose, service, onSave }: ServiceModalP
         });
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clearAll is stable but not memoized
   }, [isOpen, service]);
 
   const handleChange = (field: keyof Service, value: string | number) => {

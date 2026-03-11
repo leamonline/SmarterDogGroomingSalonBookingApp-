@@ -35,9 +35,7 @@ export function register(server: McpServer) {
     async ({ date }) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return {
-          content: [
-            { type: "text" as const, text: JSON.stringify({ error: "Invalid date format. Use YYYY-MM-DD." }) },
-          ],
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Invalid date format. Use YYYY-MM-DD." }) }],
         };
       }
 

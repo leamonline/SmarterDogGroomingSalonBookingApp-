@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getEventsForDate, getSlotsForDate, findBooking } from "../helpers/calendar.js";
+import { findBooking } from "../helpers/calendar.js";
 import {
   OPEN_TIME,
   CLOSE_TIME,
@@ -22,16 +22,10 @@ export function register(server: McpServer) {
         topic: z
           .enum(["hours", "services", "pricing", "booking_lookup", "general"])
           .describe("Category of the customer's question"),
-        date: z
-          .string()
-          .optional()
-          .describe("Relevant date in YYYY-MM-DD format (for booking lookup or availability)"),
+        date: z.string().optional().describe("Relevant date in YYYY-MM-DD format (for booking lookup or availability)"),
         dogName: z.string().optional().describe("Dog name (for booking lookup)"),
         time: z.string().optional().describe("Slot time (for booking lookup)"),
-        freeformQuestion: z
-          .string()
-          .optional()
-          .describe("The customer's question in their own words, for context"),
+        freeformQuestion: z.string().optional().describe("The customer's question in their own words, for context"),
       },
     },
     async ({ topic, date, dogName, time, freeformQuestion }) => {
@@ -68,13 +62,7 @@ export function register(server: McpServer) {
                     "Nail Trim, Puppy Introduction, and Deshedding treatments. " +
                     "Each appointment is a 30-minute slot. Larger dogs or complex grooms " +
                     "may need a double slot — please mention this when booking.",
-                  services: [
-                    "Full Groom",
-                    "Bath & Dry",
-                    "Nail Trim",
-                    "Puppy Introduction",
-                    "Deshedding Treatment",
-                  ],
+                  services: ["Full Groom", "Bath & Dry", "Nail Trim", "Puppy Introduction", "Deshedding Treatment"],
                 }),
               },
             ],
@@ -112,8 +100,7 @@ export function register(server: McpServer) {
                 {
                   type: "text" as const,
                   text: JSON.stringify({
-                    error:
-                      "To look up a booking, please provide the date, time, and dog name.",
+                    error: "To look up a booking, please provide the date, time, and dog name.",
                   }),
                 },
               ],
@@ -127,7 +114,8 @@ export function register(server: McpServer) {
                 {
                   type: "text" as const,
                   text: JSON.stringify({
-                    answer: `No booking found for "${dogName}" at ${time} on ${date}. ` +
+                    answer:
+                      `No booking found for "${dogName}" at ${time} on ${date}. ` +
                       "Please double-check the details or contact the salon.",
                   }),
                 },
@@ -170,7 +158,8 @@ export function register(server: McpServer) {
                     "We offer Full Groom, Bath & Dry, Nail Trim, Puppy Introduction, and Deshedding. " +
                     "You can book, reschedule, or cancel appointments through this assistant.",
                   availableSlots: allSlotStartTimes(),
-                  hint: "Use get_bookings to check availability for a specific date, " +
+                  hint:
+                    "Use get_bookings to check availability for a specific date, " +
                     "or create_booking to make a new appointment.",
                   customerQuestion: freeformQuestion ?? null,
                 }),

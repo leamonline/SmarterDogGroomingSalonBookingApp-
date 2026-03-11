@@ -74,7 +74,7 @@ export function Settings() {
     try {
       await api.updateSettings({ shopName, shopPhone, shopAddress });
       toast.success("Profile saved successfully");
-    } catch (err) {
+    } catch {
       toast.error("Failed to save profile");
     }
   };
@@ -83,7 +83,7 @@ export function Settings() {
     try {
       await api.updateSettings({ schedule });
       toast.success("Booking schedule saved successfully");
-    } catch (err) {
+    } catch {
       toast.error("Failed to save booking schedule");
     }
   };

@@ -26,14 +26,25 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      - name: Security audit
+        run: npm audit --audit-level=high
+
       - name: Lint (typecheck + ESLint + Prettier)
         run: npm run lint
 
-      - name: API tests
-        run: npm test
+      - name: API tests with coverage
+        run: npm run test:coverage
 
-      - name: Component tests
-        run: npm run test:components
+      - name: Component tests with coverage
+        run: npm run test:components:coverage
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: coverage/
+          retention-days: 14
 
       - name: Build production bundle
         run: npm run build

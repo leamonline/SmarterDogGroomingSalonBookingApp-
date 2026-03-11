@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import db from "../db.js";
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger.js";
@@ -15,7 +16,7 @@ let transporter: nodemailer.Transporter | null = null;
 
 const getTransporter = () => {
   if (transporter) return transporter;
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
 
   transporter = nodemailer.createTransport({
@@ -78,9 +79,19 @@ export const dispatchMessage = (opts: {
         subject: opts.subject || "(no subject)",
         text: opts.body,
       })
-      .catch((err: any) => {
+      .then(() => {
+        db.prepare("UPDATE messages SET status = ? WHERE id = ?").run("sent", id);
+      })
+      .catch((err: Error) => {
         logger.error("Failed to send email", { messageId: id, error: err.message });
-        db.prepare("UPDATE messages SET status = ? WHERE id = ?").run("failed", id);
+        try {
+          db.prepare("UPDATE messages SET status = ? WHERE id = ?").run("failed", id);
+        } catch (dbErr) {
+          logger.error("Failed to update message status after email error", {
+            messageId: id,
+            error: (dbErr as Error).message,
+          });
+        }
       });
   }
 

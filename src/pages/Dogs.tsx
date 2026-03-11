@@ -34,33 +34,14 @@ import {
 } from "@/src/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/src/components/ui/table";
 import { CustomersSkeleton } from "@/src/components/ui/skeleton";
+import {
+  formatDogCountLabel,
+  formatDogCountReviewNote,
+  isDogCountConfirmed,
+  normalizeAppointment,
+} from "@/src/lib/appointmentUtils";
 
 const PAGE_SIZE = 50;
-
-function formatDogCountLabel(dogCount?: number) {
-  const count = dogCount || 1;
-  return `${count} ${count === 1 ? "dog" : "dogs"}`;
-}
-
-function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
-  if (!reviewedAt) return null;
-  const parsed = new Date(reviewedAt);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return `Confirmed by ${reviewedBy || "staff"} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}`;
-}
-
-function isDogCountConfirmed(value: unknown) {
-  return value === true || value === 1;
-}
-
-function normalizeAppointment(item: any): Appointment {
-  return {
-    ...item,
-    date: item.date instanceof Date ? item.date : new Date(item.date),
-    dogCount: item.dogCount ?? 1,
-    dogCountConfirmed: isDogCountConfirmed(item.dogCountConfirmed),
-  };
-}
 
 function isMatchingDog(dog: DogSummary, searchTerm: string) {
   const normalized = searchTerm.toLowerCase();

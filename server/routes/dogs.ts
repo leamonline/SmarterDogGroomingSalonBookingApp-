@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
-import { getUser } from "../middleware/auth.js";
+import { requireStaff, getUser } from "../middleware/auth.js";
 import { logAudit } from "../helpers/audit.js";
 import { validateBody, tagsSchema, clampLimit } from "../schema.js";
 import type { BehavioralNoteRow, CountRow, CustomerRow, PetRow, VaccinationRow, WarningRow } from "../types.js";
@@ -67,7 +67,7 @@ function hydrateDogs(dogs: DogListRow[]) {
 
 const router = Router();
 
-router.get("/", (req, res) => {
+router.get("/", requireStaff, (req, res) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = clampLimit(req.query.limit as string);
   const offset = (page - 1) * limit;
@@ -136,7 +136,7 @@ router.get("/", (req, res) => {
   });
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", requireStaff, (req, res) => {
   const dogRow = db
     .prepare(
       `
@@ -162,13 +162,13 @@ router.get("/:id", (req, res) => {
         GROUP BY p.id
     `,
     )
-    .get(req.params.id) as DogListRow | undefined;
+    .get(req.params.id!) as DogListRow | undefined;
 
   if (!dogRow) {
     return res.status(404).json({ error: "Dog not found" });
   }
 
-  const dog = hydrateDogs([dogRow])[0];
+  const dog = hydrateDogs([dogRow])[0]!;
   const customerWarnings = db
     .prepare("SELECT customerId, warning FROM customer_warnings WHERE customerId = ?")
     .all(dog.customerId) as WarningRow[];
@@ -186,7 +186,7 @@ router.get("/:id", (req, res) => {
     )
     .all(dog.id, dog.customerId, dog.name);
 
-  res.json({
+  return res.json({
     ...dog,
     customer: customerRow
       ? {
@@ -202,23 +202,23 @@ router.get("/:id", (req, res) => {
   });
 });
 
-router.get("/:id/tags", (req, res) => {
-  const tags = db.prepare("SELECT tag FROM dog_tags WHERE dogId = ?").all(req.params.id) as { tag: string }[];
+router.get("/:id/tags", requireStaff, (req, res) => {
+  const tags = db.prepare("SELECT tag FROM dog_tags WHERE dogId = ?").all(req.params.id!) as { tag: string }[];
   res.json(tags.map((tag) => tag.tag));
 });
 
-router.post("/:id/tags", validateBody(tagsSchema), (req: Request, res: Response) => {
+router.post("/:id/tags", requireStaff, validateBody(tagsSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { tags } = req.body;
   const del = db.prepare("DELETE FROM dog_tags WHERE dogId = ?");
   const ins = db.prepare("INSERT INTO dog_tags (dogId, tag) VALUES (?, ?)");
   db.transaction(() => {
-    del.run(req.params.id);
+    del.run(req.params.id!);
     for (const tag of tags) {
-      ins.run(req.params.id, tag);
+      ins.run(req.params.id!, tag);
     }
   })();
-  logAudit(user.id, "update", "dog_tags", req.params.id, null, { tags });
+  logAudit(user.id, "update", "dog_tags", req.params.id!, null, { tags });
   res.json({ success: true });
 });
 

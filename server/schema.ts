@@ -23,7 +23,7 @@ export const validateBody = (schema: z.ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       req.body = schema.parse(req.body);
-      next();
+      return next();
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Validation failed", details: error.issues });
@@ -135,11 +135,15 @@ export const customerSchema = z
 export const appointmentSchema = z
   .object({
     id: z.string().max(MAX_SHORT).optional(),
-    petName: z.string().max(MAX_SHORT).optional().nullable(),
+    petName: z.string().min(1, "Pet name is required").max(MAX_SHORT),
     breed: z.string().max(MAX_SHORT).optional().nullable(),
-    ownerName: z.string().max(MAX_SHORT).optional().nullable(),
-    service: z.string().max(MAX_SHORT).optional().nullable(),
-    date: z.string().min(1, "Date is required").max(MAX_SHORT),
+    ownerName: z.string().min(1, "Owner name is required").max(MAX_SHORT),
+    service: z.string().min(1, "Service is required").max(MAX_SHORT),
+    date: z
+      .string()
+      .min(1, "Date is required")
+      .max(MAX_SHORT)
+      .refine((val) => !Number.isNaN(Date.parse(val)), { message: "Date must be a valid ISO date string" }),
     duration: z.number().min(1, "Duration is required"),
     dogCount: z
       .number()

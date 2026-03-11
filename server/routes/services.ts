@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
 import { requireAdmin, getUser } from "../middleware/auth.js";
@@ -25,7 +26,7 @@ router.get("/", (req, res) => {
   });
 });
 
-router.post("/", validateBody(serviceSchema), (req: Request, res: Response) => {
+router.post("/", requireAdmin, validateBody(serviceSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const {
     name,
@@ -67,7 +68,7 @@ router.post("/", validateBody(serviceSchema), (req: Request, res: Response) => {
   res.json({ ...req.body, id });
 });
 
-router.put("/:id", validateBody(serviceSchema), (req: Request, res: Response) => {
+router.put("/:id", requireAdmin, validateBody(serviceSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const {
     name,
@@ -86,7 +87,7 @@ router.put("/:id", validateBody(serviceSchema), (req: Request, res: Response) =>
     isActive,
   } = req.body;
 
-  const old = db.prepare("SELECT * FROM services WHERE id = ?").get(req.params.id) as ServiceRow | undefined;
+  const old = db.prepare("SELECT * FROM services WHERE id = ?").get(req.params.id!) as ServiceRow | undefined;
   if (!old) return res.status(404).json({ error: "Service not found" });
 
   db.prepare(
@@ -106,22 +107,22 @@ router.put("/:id", validateBody(serviceSchema), (req: Request, res: Response) =>
     boolToInt(isApprovalRequired),
     boolToInt(consentFormRequired),
     boolToInt(isActive, true),
-    req.params.id,
+    req.params.id!,
   );
-  logAudit(user.id, "update", "service", req.params.id, old, req.body);
-  res.json(req.body);
+  logAudit(user.id, "update", "service", req.params.id!, old, req.body);
+  return res.json(req.body);
 });
 
 router.delete("/:id", requireAdmin, (req: Request, res: Response) => {
   const user = getUser(req);
-  const existing = db.prepare("SELECT id FROM services WHERE id = ?").get(req.params.id) as
+  const existing = db.prepare("SELECT id FROM services WHERE id = ?").get(req.params.id!) as
     | Pick<ServiceRow, "id">
     | undefined;
   if (!existing) return res.status(404).json({ error: "Service not found" });
 
-  db.prepare("DELETE FROM services WHERE id=?").run(req.params.id);
-  logAudit(user.id, "delete", "service", req.params.id, null, null);
-  res.json({ success: true });
+  db.prepare("DELETE FROM services WHERE id=?").run(req.params.id!);
+  logAudit(user.id, "delete", "service", req.params.id!, null, null);
+  return res.json({ success: true });
 });
 
 // --- Service Add-on Links ---
@@ -134,22 +135,22 @@ router.get("/:id/add-ons", (req, res) => {
         WHERE sa.serviceId = ? AND a.isActive = 1
     `,
     )
-    .all(req.params.id);
+    .all(req.params.id!);
   res.json(addOns);
 });
 
-router.post("/:id/add-ons", validateBody(serviceAddOnLinkSchema), (req: Request, res: Response) => {
+router.post("/:id/add-ons", requireAdmin, validateBody(serviceAddOnLinkSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { addOnIds } = req.body;
   const del = db.prepare("DELETE FROM service_add_ons WHERE serviceId = ?");
   const ins = db.prepare("INSERT INTO service_add_ons (serviceId, addOnId) VALUES (?, ?)");
   db.transaction(() => {
-    del.run(req.params.id);
+    del.run(req.params.id!);
     for (const addOnId of addOnIds) {
-      ins.run(req.params.id, addOnId);
+      ins.run(req.params.id!, addOnId);
     }
   })();
-  logAudit(user.id, "update", "service_add_ons", req.params.id, null, { addOnIds });
+  logAudit(user.id, "update", "service_add_ons", req.params.id!, null, { addOnIds });
   res.json({ success: true });
 });
 
@@ -161,7 +162,7 @@ addOnRouter.get("/", (req, res) => {
   res.json(addOns);
 });
 
-addOnRouter.post("/", validateBody(addOnSchema), (req: Request, res: Response) => {
+addOnRouter.post("/", requireAdmin, validateBody(addOnSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, description, price, duration, isOptional, isActive } = req.body;
   const id = crypto.randomUUID();
@@ -180,10 +181,10 @@ addOnRouter.post("/", validateBody(addOnSchema), (req: Request, res: Response) =
   res.json({ ...req.body, id });
 });
 
-addOnRouter.put("/:id", validateBody(addOnSchema), (req: Request, res: Response) => {
+addOnRouter.put("/:id", requireAdmin, validateBody(addOnSchema), (req: Request, res: Response) => {
   const user = getUser(req);
   const { name, description, price, duration, isOptional, isActive } = req.body;
-  const old = db.prepare("SELECT * FROM add_ons WHERE id = ?").get(req.params.id) as AddOnRow | undefined;
+  const old = db.prepare("SELECT * FROM add_ons WHERE id = ?").get(req.params.id!) as AddOnRow | undefined;
   if (!old) return res.status(404).json({ error: "Add-on not found" });
 
   db.prepare(`UPDATE add_ons SET name=?, description=?, price=?, duration=?, isOptional=?, isActive=? WHERE id=?`).run(
@@ -193,20 +194,20 @@ addOnRouter.put("/:id", validateBody(addOnSchema), (req: Request, res: Response)
     duration || 0,
     boolToInt(isOptional, true),
     boolToInt(isActive, true),
-    req.params.id,
+    req.params.id!,
   );
-  logAudit(user.id, "update", "add_on", req.params.id, old, req.body);
-  res.json({ id: req.params.id, ...req.body });
+  logAudit(user.id, "update", "add_on", req.params.id!, old, req.body);
+  return res.json({ id: req.params.id!, ...req.body });
 });
 
-addOnRouter.delete("/:id", (req: Request, res: Response) => {
+addOnRouter.delete("/:id", requireAdmin, (req: Request, res: Response) => {
   const user = getUser(req);
-  const old = db.prepare("SELECT * FROM add_ons WHERE id = ?").get(req.params.id) as AddOnRow | undefined;
+  const old = db.prepare("SELECT * FROM add_ons WHERE id = ?").get(req.params.id!) as AddOnRow | undefined;
   if (!old) return res.status(404).json({ error: "Add-on not found" });
 
-  db.prepare("UPDATE add_ons SET isActive = 0 WHERE id = ?").run(req.params.id);
-  logAudit(user.id, "archive", "add_on", req.params.id, old, null);
-  res.json({ success: true });
+  db.prepare("UPDATE add_ons SET isActive = 0 WHERE id = ?").run(req.params.id!);
+  logAudit(user.id, "archive", "add_on", req.params.id!, old, null);
+  return res.json({ success: true });
 });
 
 export default router;

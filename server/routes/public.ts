@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -22,7 +23,7 @@ const router = Router();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 10,
   message: { error: "Too many login attempts from this IP, please try again after 15 minutes" },
   standardHeaders: true,
   legacyHeaders: false,
@@ -58,7 +59,7 @@ router.get("/available-slots", (req, res) => {
   }
 
   const slots = getAvailableSlotsForDate(dateStr, parsedDogCount);
-  res.json({ slots, date: dateStr, duration: dur, dogCount: parsedDogCount });
+  return res.json({ slots, date: dateStr, duration: dur, dogCount: parsedDogCount });
 });
 
 // Public: customer registration
@@ -72,29 +73,40 @@ router.post("/register", (req, res) => {
 
   try {
     const userId = crypto.randomUUID();
-    const hash = bcrypt.hashSync(password, 10);
-    db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
-      userId,
-      email,
-      hash,
-      "customer",
-    );
-
     const customerId = crypto.randomUUID();
-    db.prepare("INSERT INTO customers (id, name, email, phone) VALUES (?, ?, ?, ?)").run(
-      customerId,
-      `${firstName} ${lastName || ""}`.trim(),
-      email,
-      phone || "",
-    );
+    const hash = bcrypt.hashSync(password, 10);
+
+    db.transaction(() => {
+      db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
+        userId,
+        email,
+        hash,
+        "customer",
+      );
+      db.prepare("INSERT INTO customers (id, name, email, phone) VALUES (?, ?, ?, ?)").run(
+        customerId,
+        `${firstName} ${lastName || ""}`.trim(),
+        email,
+        phone || "",
+      );
+    })();
 
     const token = jwt.sign({ id: userId, email, role: "customer" }, JWT_SECRET!, { expiresIn: "24h" });
-    res.json({ token, user: { id: userId, email, role: "customer", customerId } });
+
+    res.cookie("petspa_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+
+    return res.json({ user: { id: userId, email, role: "customer", customerId } });
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       return res.status(400).json({ error: "Email already exists" });
     }
-    res.status(500).json({ error: "Registration failed" });
+    return res.status(500).json({ error: "Registration failed" });
   }
 });
 
@@ -107,9 +119,16 @@ router.post("/login", loginLimiter, (req, res) => {
     const role = user.role || "customer";
     const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET!, { expiresIn: "24h" });
 
+    res.cookie("petspa_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+
     const customer = db.prepare("SELECT id FROM customers WHERE email = ?").get(email) as { id: string } | undefined;
     res.json({
-      token,
       user: { id: user.id, email: user.email, role, customerId: customer?.id || null },
     });
   } else {
@@ -120,7 +139,14 @@ router.post("/login", loginLimiter, (req, res) => {
 // Public: submit a booking (requires customer auth token)
 router.post("/bookings", authenticateToken, (req: Request, res: Response) => {
   const user = getUser(req);
-  const { serviceId, date, petName, breed, notes, customerId, dogCount } = req.body;
+  const { serviceId, date, petName, breed, notes, dogCount } = req.body;
+
+  // Resolve customerId from the authenticated user's linked customer record — ignore any client-supplied value
+  const customerRow = db.prepare("SELECT id FROM customers WHERE email = ?").get(user.email) as
+    | { id: string }
+    | undefined;
+  const customerId = customerRow?.id || null;
+
   if (!serviceId || !date || !petName) {
     return res.status(400).json({ error: "serviceId, date, and petName are required" });
   }
@@ -133,40 +159,49 @@ router.post("/bookings", authenticateToken, (req: Request, res: Response) => {
   const service = db.prepare("SELECT * FROM services WHERE id = ?").get(serviceId) as ServiceRow | undefined;
   if (!service) return res.status(404).json({ error: "Service not found" });
 
-  const availability = getAppointmentAvailability(date, normalizedDogCount);
-  const conflictReason = getAvailabilityReason(availability);
-  if (conflictReason) {
-    return res.status(400).json({
-      error: getAvailabilityErrorMessage(conflictReason),
-      suggestions: getNextAvailableSlots(date, normalizedDogCount, 3),
-    });
-  }
-
   const status = service.isApprovalRequired ? "pending-approval" : "confirmed";
   const apptId = crypto.randomUUID();
 
-  db.prepare(
-    `
-        INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, dogCount, dogCountConfirmed, status, price, avatar, customerId, notes, depositAmount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-  ).run(
-    apptId,
-    petName,
-    breed || "",
-    "",
-    service.name,
-    date,
-    service.duration,
-    normalizedDogCount,
-    1,
-    status,
-    service.price,
-    "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
-    customerId || null,
-    notes || "",
-    service.depositAmount || 0,
-  );
+  // Wrap availability check + INSERT in a transaction to prevent race conditions
+  const txResult = db.transaction(() => {
+    const availability = getAppointmentAvailability(date, normalizedDogCount);
+    const conflictReason = getAvailabilityReason(availability);
+    if (conflictReason) {
+      return { conflict: true as const, reason: conflictReason };
+    }
+
+    db.prepare(
+      `
+          INSERT INTO appointments (id, petName, breed, ownerName, service, date, duration, dogCount, dogCountConfirmed, status, price, avatar, customerId, notes, depositAmount)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+    ).run(
+      apptId,
+      petName,
+      breed || "",
+      "",
+      service.name,
+      date,
+      service.duration,
+      normalizedDogCount,
+      1,
+      status,
+      service.price,
+      "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150&h=150&fit=crop&q=80",
+      customerId || null,
+      notes || "",
+      service.depositAmount || 0,
+    );
+
+    return { conflict: false as const };
+  })();
+
+  if (txResult.conflict) {
+    return res.status(400).json({
+      error: getAvailabilityErrorMessage(txResult.reason),
+      suggestions: getNextAvailableSlots(date, normalizedDogCount, 3),
+    });
+  }
 
   logAudit(user.id, "book", "appointment", apptId, null, { serviceId, petName, dogCount: normalizedDogCount, status });
 
@@ -181,7 +216,7 @@ router.post("/bookings", authenticateToken, (req: Request, res: Response) => {
     customerId,
   });
 
-  res.json({
+  return res.json({
     id: apptId,
     status,
     message:

@@ -1,13 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getEventsForDate, getSlotsForDate } from "../helpers/calendar.js";
-import {
-  OPEN_TIME,
-  CLOSE_TIME,
-  OPERATING_DAY_NAMES,
-  OPERATING_DAYS,
-  allSlotStartTimes,
-} from "../config.js";
+import { getSlotsForDate } from "../helpers/calendar.js";
+import { OPEN_TIME, CLOSE_TIME, OPERATING_DAY_NAMES, OPERATING_DAYS, allSlotStartTimes } from "../config.js";
 
 export function register(server: McpServer) {
   server.registerTool(
@@ -18,9 +12,7 @@ export function register(server: McpServer) {
         "Returns each slot with its bookings and remaining capacity. " +
         "Use this to check the schedule, find open slots, or look up a specific dog's appointment.",
       inputSchema: {
-        date: z
-          .string()
-          .describe("Date to query in YYYY-MM-DD format (e.g. 2026-03-11)"),
+        date: z.string().describe("Date to query in YYYY-MM-DD format (e.g. 2026-03-11)"),
       },
     },
     async ({ date }) => {
@@ -46,7 +38,8 @@ export function register(server: McpServer) {
             {
               type: "text" as const,
               text: JSON.stringify({
-                error: `The salon is closed on ${d.toLocaleDateString("en-GB", { weekday: "long" })}. ` +
+                error:
+                  `The salon is closed on ${d.toLocaleDateString("en-GB", { weekday: "long" })}. ` +
                   `Operating days are: ${dayNames}.`,
               }),
             },

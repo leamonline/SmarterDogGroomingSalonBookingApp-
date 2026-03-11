@@ -5,8 +5,6 @@ import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { FieldError } from "@/src/components/ui/field-error";
 import { useFormValidation, required, positiveNumber } from "@/src/lib/useFormValidation";
-import { Badge } from "@/src/components/ui/badge";
-import { PaymentPanel } from "@/src/components/PaymentPanel";
 import { format } from "date-fns";
 import {
   CheckCircle,
@@ -25,7 +23,7 @@ import { APPOINTMENT_STATUSES } from "@/src/types";
 import { CustomerModal } from "@/src/components/CustomerModal";
 import { api } from "@/src/lib/api";
 import { handleError } from "@/src/lib/handleError";
-import { formatCurrency } from "@/src/lib/utils";
+
 import { BOOKING_CLOSE_TIME, BOOKING_OPEN_TIME, formatScheduleTime } from "@/src/lib/bookingSchedule";
 import type { AppointmentClientLookupResult, Customer } from "@/src/types";
 
@@ -86,24 +84,12 @@ const STATUS_CONFIG: Record<string, { label: string; colour: string; icon: any }
   "incident-review": { label: "Incident Review", colour: "bg-coral-light text-coral", icon: AlertTriangle },
 };
 
-// Valid next-status transitions
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  "pending-approval": ["confirmed", "cancelled-by-salon"],
-  confirmed: ["checked-in", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled"],
-  scheduled: ["checked-in", "cancelled-by-customer", "cancelled-by-salon", "no-show", "rescheduled"],
-  "deposit-pending": ["deposit-paid", "cancelled-by-customer", "cancelled-by-salon"],
-  "deposit-paid": ["confirmed", "checked-in"],
-  "checked-in": ["in-progress", "cancelled-by-salon"],
-  "in-progress": ["ready-for-collection", "completed", "incomplete", "incident-review"],
-  "ready-for-collection": ["completed"],
-  completed: [],
-  "cancelled-by-customer": [],
-  "cancelled-by-salon": [],
-  "no-show": [],
-  rescheduled: ["confirmed", "scheduled"],
-  incomplete: ["incident-review"],
-  "incident-review": ["completed"],
-};
+import { STATUS_TRANSITIONS } from "@/src/lib/statusTransitions";
+import { formatDogCountReviewNote } from "@/src/lib/appointmentUtils";
+import { AppointmentDetailsTab } from "@/src/components/appointment/AppointmentDetailsTab";
+import { AppointmentCheckinTab } from "@/src/components/appointment/AppointmentCheckinTab";
+import { AppointmentGroomTab } from "@/src/components/appointment/AppointmentGroomTab";
+import { AppointmentCheckoutTab } from "@/src/components/appointment/AppointmentCheckoutTab";
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -144,19 +130,6 @@ function snapToHalfHour(date: Date) {
   }
 
   return snapped;
-}
-
-function formatDogCountLabel(dogCount?: number) {
-  const count = dogCount || 1;
-  return `${count} ${count === 1 ? "dog" : "dogs"}`;
-}
-
-function formatDogCountReviewNote(reviewedAt?: string, reviewedBy?: string) {
-  if (!reviewedAt) return null;
-  const parsed = new Date(reviewedAt);
-  if (Number.isNaN(parsed.getTime())) return null;
-  const reviewer = reviewedBy || "staff";
-  return `Dog count confirmed by ${reviewer} on ${format(parsed, "d MMM yyyy 'at' h:mm a")}.`;
 }
 
 export function AppointmentModal({ isOpen, onClose, appointment, initialData, onSave }: AppointmentModalProps) {
@@ -290,7 +263,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
         if (!isCancelled) {
           setLookupResults(results);
         }
-      } catch (err) {
+      } catch {
         if (!isCancelled) {
           setLookupResults([]);
         }
@@ -401,7 +374,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
   };
 
   const currentStatus = formData.status || "scheduled";
-  const statusInfo = STATUS_CONFIG[currentStatus] || STATUS_CONFIG["scheduled"];
+  const statusInfo = (STATUS_CONFIG[currentStatus] || STATUS_CONFIG["scheduled"])!;
   const StatusIcon = statusInfo.icon;
   const nextStatuses = STATUS_TRANSITIONS[currentStatus] || [];
 
@@ -447,225 +420,17 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
               ))}
             </div>
 
-            {/* Details Tab */}
             {activeTab === "details" && (
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pet</h3>
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-white shadow-sm flex-shrink-0">
-                        <img src={formData.avatar} alt={formData.petName} className="h-full w-full object-cover" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900">{formData.petName}</h4>
-                        <p className="text-sm text-slate-500">
-                          {formData.breed || "Unknown breed"}
-                          {formData.age ? ` • ${formData.age}` : ""}
-                        </p>
-                      </div>
-                    </div>
-                    {formData.notes && (
-                      <div className="mt-2 text-sm text-slate-700 bg-white p-2 rounded border border-slate-100">
-                        <span className="font-semibold text-xs text-slate-400">Notes:</span> {formData.notes}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner</h3>
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-1">
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-700">Name:</span> {formData.ownerName}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-700">Phone:</span> {formData.phone || "—"}
-                    </p>
-                    {(formData.emergencyContact || formData.emergencyPhone) && (
-                      <div className="mt-2 pt-2 border-t border-slate-200">
-                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                          Emergency Contact
-                        </p>
-                        {formData.emergencyContact && (
-                          <p className="text-sm">
-                            <span className="font-medium text-slate-700">Name:</span> {formData.emergencyContact}
-                          </p>
-                        )}
-                        {formData.emergencyPhone && (
-                          <p className="text-sm">
-                            <span className="font-medium text-slate-700">Phone:</span> {formData.emergencyPhone}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Service</h3>
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 grid grid-cols-2 gap-2">
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-700">Service:</span> {formData.service}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-700">Duration:</span> {formData.duration}m
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-700">Dogs:</span> {formatDogCountLabel(formData.dogCount)}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-700">Date:</span>{" "}
-                      {formData.date ? format(formData.date, "EEE d MMM, h:mm a") : ""}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium text-slate-700">Price:</span> {formatCurrency(formData.price)}
-                    </p>
-                  </div>
-                  {formData.dogCountConfirmed === false && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                      <div className="flex items-center gap-2 font-medium">
-                        <AlertTriangle className="h-4 w-4" />
-                        Dog count needs review
-                      </div>
-                      <p className="mt-1 text-xs text-amber-800">
-                        This booking was created before per-dog capacity tracking. Confirm the number of dogs and save
-                        to bring it back into online availability checks.
-                      </p>
-                    </div>
-                  )}
-                  {dogCountReviewNote && formData.dogCountConfirmed !== false && (
-                    <div className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
-                      {dogCountReviewNote}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <AppointmentDetailsTab formData={formData} dogCountReviewNote={dogCountReviewNote} />
             )}
-
-            {/* Check-in Tab */}
             {activeTab === "checkin" && (
-              <div className="space-y-4">
-                {formData.checkedInAt && (
-                  <div className="text-xs text-accent font-medium flex items-center gap-1">
-                    <CheckCircle className="h-3.5 w-3.5" /> Checked in at{" "}
-                    {format(new Date(formData.checkedInAt), "h:mm a")}
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Check-in Notes</label>
-                  <textarea
-                    name="checkedInNotes"
-                    value={formData.checkedInNotes || ""}
-                    onChange={handleChange}
-                    placeholder="Health changes, coat condition, behaviour at arrival..."
-                    className="w-full min-h-[80px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    onSave({ ...formData, checkedInNotes: formData.checkedInNotes } as Appointment);
-                  }}
-                >
-                  Save Check-in Notes
-                </Button>
-              </div>
+              <AppointmentCheckinTab formData={formData} onChange={handleChange} onSave={onSave} />
             )}
-
-            {/* Groom Tab */}
             {activeTab === "groom" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Groom Notes</label>
-                  <textarea
-                    name="groomNotes"
-                    value={formData.groomNotes || ""}
-                    onChange={handleChange}
-                    placeholder="Style details, clips used..."
-                    className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Products Used</label>
-                  <Input
-                    name="productsUsed"
-                    value={formData.productsUsed || ""}
-                    onChange={handleChange}
-                    placeholder="Shampoo, conditioner..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Behaviour During Groom</label>
-                  <Input
-                    name="behaviourDuringGroom"
-                    value={formData.behaviourDuringGroom || ""}
-                    onChange={handleChange}
-                    placeholder="Calm, anxious, bitey..."
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Surcharge (GBP)</label>
-                    <Input name="surcharge" type="number" value={formData.surcharge || 0} onChange={handleChange} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700">Surcharge Reason</label>
-                    <Input
-                      name="surchargeReason"
-                      value={formData.surchargeReason || ""}
-                      onChange={handleChange}
-                      placeholder="Matting, extra time..."
-                    />
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    onSave({ ...formData } as Appointment);
-                  }}
-                >
-                  Save Groom Notes
-                </Button>
-              </div>
+              <AppointmentGroomTab formData={formData} onChange={handleChange} onSave={onSave} />
             )}
-
-            {/* Check-out Tab */}
             {activeTab === "checkout" && (
-              <div className="space-y-4">
-                {/* Payment Panel */}
-                <PaymentPanel
-                  appointmentId={formData.id || ""}
-                  totalDue={(formData.price || 0) + (formData.surcharge || 0)}
-                  depositRequired={formData.depositAmount as number | undefined}
-                />
-
-                <div className="border-t border-slate-100 pt-4 space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Aftercare Notes</label>
-                  <textarea
-                    name="aftercareNotes"
-                    value={formData.aftercareNotes || ""}
-                    onChange={handleChange}
-                    placeholder="Recommendations for the owner..."
-                    className="w-full min-h-[60px] rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      onSave({ ...formData, aftercareNotes: formData.aftercareNotes } as Appointment);
-                    }}
-                  >
-                    Save Aftercare Notes
-                  </Button>
-                </div>
-
-                {formData.completedAt && (
-                  <div className="text-xs text-accent font-medium flex items-center gap-1">
-                    <CheckCircle className="h-3.5 w-3.5" /> Completed at{" "}
-                    {format(new Date(formData.completedAt), "h:mm a")}
-                  </div>
-                )}
-              </div>
+              <AppointmentCheckoutTab formData={formData} onChange={handleChange} onSave={onSave} />
             )}
 
             {/* Status Transition Buttons */}
@@ -909,6 +674,7 @@ export function AppointmentModal({ isOpen, onClose, appointment, initialData, on
                     name="date"
                     type="datetime-local"
                     step={1800}
+                    min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                     value={formData.date ? format(formData.date, "yyyy-MM-dd'T'HH:mm") : ""}
                     onChange={handleDateChange}
                     aria-invalid={!!errors.date}

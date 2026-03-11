@@ -133,12 +133,12 @@ export function normalizeScheduleRows(rows: RawScheduleRow[]) {
 }
 
 export function timeToMinutes(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
+  const [hours, minutes] = time.split(":").map(Number) as [number, number];
   return hours * 60 + minutes;
 }
 
 export function combineDateAndTime(baseDate: Date, time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
+  const [hours, minutes] = time.split(":").map(Number) as [number, number];
   const combined = new Date(baseDate);
   combined.setHours(hours, minutes, 0, 0);
   return combined;
