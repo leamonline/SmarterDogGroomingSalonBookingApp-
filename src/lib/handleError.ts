@@ -19,7 +19,7 @@ export function handleError(err: unknown, fallbackMessage = "Something went wron
 
   toast.error(userMessage);
 
-  if (process.env.NODE_ENV !== "production") {
+  if (import.meta.env.DEV) {
     console.error(`[PetSpa] ${fallbackMessage}:`, error);
     if (apiDetails) {
       console.error("[PetSpa] API details:", apiDetails);
