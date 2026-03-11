@@ -26,11 +26,14 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Lint (typecheck + ESLint + Prettier)
+        run: npm run lint
 
       - name: API tests
         run: npm test
+
+      - name: Component tests
+        run: npm run test:components
 
       - name: Build production bundle
         run: npm run build

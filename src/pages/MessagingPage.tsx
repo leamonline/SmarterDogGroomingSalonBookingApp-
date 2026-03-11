@@ -72,7 +72,9 @@ function TemplateEditor({
           <CardTitle className="text-base">{template.id ? "Edit template" : "New template"}</CardTitle>
           <CardDescription>Keep templates available without making them the main workflow.</CardDescription>
         </div>
-        <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
+        <Button size="sm" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -189,9 +191,10 @@ export function MessagingPage() {
     }
 
     if (!loadingCustomers) {
-      api.getCustomer(requestedCustomerId)
+      api
+        .getCustomer(requestedCustomerId)
         .then((customer) => {
-          setCustomers((prev) => prev.some((existing) => existing.id === customer.id) ? prev : [customer, ...prev]);
+          setCustomers((prev) => (prev.some((existing) => existing.id === customer.id) ? prev : [customer, ...prev]));
           setSelectedCustomerId(customer.id);
         })
         .catch((err) => toast.error(err.message || "Failed to load client"));
@@ -253,7 +256,7 @@ export function MessagingPage() {
 
   const handleSaveTemplate = (template: MessageTemplate) => {
     const updated = templates.some((existing) => existing.id === template.id)
-      ? templates.map((existing) => existing.id === template.id ? template : existing)
+      ? templates.map((existing) => (existing.id === template.id ? template : existing))
       : [...templates, template];
     saveTemplates(updated);
     setEditingTemplate(null);
@@ -261,16 +264,20 @@ export function MessagingPage() {
   };
 
   const handleToggleTemplate = (templateId: string) => {
-    saveTemplates(templates.map((template) => (
-      template.id === templateId ? { ...template, isActive: !template.isActive } : template
-    )));
+    saveTemplates(
+      templates.map((template) =>
+        template.id === templateId ? { ...template, isActive: !template.isActive } : template,
+      ),
+    );
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-purple">Messaging</h1>
-        <p className="text-sm text-slate-500">Client-linked inbox first, with templates and the global message feed kept as supporting tools.</p>
+        <p className="text-sm text-slate-500">
+          Client-linked inbox first, with templates and the global message feed kept as supporting tools.
+        </p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
@@ -307,9 +314,7 @@ export function MessagingPage() {
                     type="button"
                     onClick={() => setSelectedCustomerId(customer.id)}
                     className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                      isSelected
-                        ? "border-brand-300 bg-brand-50"
-                        : "border-slate-200 bg-white hover:border-slate-300"
+                      isSelected ? "border-brand-300 bg-brand-50" : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -360,7 +365,9 @@ export function MessagingPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Templates</CardTitle>
-                <CardDescription>Keep reusable wording close by without making this page a template manager first.</CardDescription>
+                <CardDescription>
+                  Keep reusable wording close by without making this page a template manager first.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {templates.map((template) => (
@@ -369,7 +376,9 @@ export function MessagingPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-slate-900">{template.name}</p>
-                          <Badge variant="outline" className="capitalize">{template.channel}</Badge>
+                          <Badge variant="outline" className="capitalize">
+                            {template.channel}
+                          </Badge>
                           <Badge variant={template.isActive ? "secondary" : "outline"}>
                             {template.isActive ? "Active" : "Inactive"}
                           </Badge>
@@ -400,7 +409,9 @@ export function MessagingPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-lg">All recent messages</CardTitle>
-                  <CardDescription>The team-wide message log stays available here for broader visibility.</CardDescription>
+                  <CardDescription>
+                    The team-wide message log stays available here for broader visibility.
+                  </CardDescription>
                 </div>
                 <Button size="sm" variant="outline" onClick={loadRecentMessages} disabled={loadingMessages}>
                   {loadingMessages ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -422,13 +433,27 @@ export function MessagingPage() {
                   <div key={message.id} className="rounded-xl border border-slate-200 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="capitalize">{message.channel}</Badge>
-                        <span className="text-sm font-medium text-slate-900">{message.customerName || message.recipientEmail || message.recipientPhone || "Unknown recipient"}</span>
+                        <Badge variant="secondary" className="capitalize">
+                          {message.channel}
+                        </Badge>
+                        <span className="text-sm font-medium text-slate-900">
+                          {message.customerName ||
+                            message.recipientEmail ||
+                            message.recipientPhone ||
+                            "Unknown recipient"}
+                        </span>
                       </div>
-                      <span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString("en-GB")}</span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(message.createdAt).toLocaleString("en-GB")}
+                      </span>
                     </div>
-                    {message.subject ? <p className="mt-2 text-sm font-medium text-slate-900">{message.subject}</p> : null}
-                    <p className="mt-1 text-sm text-slate-600">{message.body.slice(0, 140)}{message.body.length > 140 ? "..." : ""}</p>
+                    {message.subject ? (
+                      <p className="mt-2 text-sm font-medium text-slate-900">{message.subject}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm text-slate-600">
+                      {message.body.slice(0, 140)}
+                      {message.body.length > 140 ? "..." : ""}
+                    </p>
                   </div>
                 ))
               )}

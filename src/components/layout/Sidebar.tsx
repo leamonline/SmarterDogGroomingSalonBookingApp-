@@ -1,11 +1,6 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import {
-  CalendarDays,
-  Users,
-  Dog,
-  Mail,
-} from "lucide-react";
+import { CalendarDays, Users, Dog, Mail } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { useAuth } from "@/src/lib/AuthContext";
 import type { UserRole } from "@/src/types";
@@ -34,8 +29,8 @@ const navigation: NavItem[] = [
 export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boolean) => void }) {
   const location = useLocation();
   const { user } = useAuth();
-  const userLevel = ROLE_LEVEL[(user?.role as UserRole) || 'groomer'] ?? 1;
-  const visibleNav = navigation.filter(item => userLevel >= ROLE_LEVEL[item.minRole]);
+  const userLevel = ROLE_LEVEL[(user?.role as UserRole) || "groomer"] ?? 1;
+  const visibleNav = navigation.filter((item) => userLevel >= ROLE_LEVEL[item.minRole]);
 
   useEffect(() => {
     if (setOpen) setOpen(false);
@@ -43,8 +38,13 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
 
   return (
     <>
-      <div className={`fixed inset-0 z-20 bg-purple/60 backdrop-blur-sm transition-opacity lg:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`} onClick={() => setOpen?.(false)} />
-      <div className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-purple transition-transform lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"} flex flex-col`}>
+      <div
+        className={`fixed inset-0 z-20 bg-purple/60 backdrop-blur-sm transition-opacity lg:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={() => setOpen?.(false)}
+      />
+      <div
+        className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-purple transition-transform lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"} flex flex-col`}
+      >
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-white shadow-md">
@@ -67,15 +67,13 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
                   to={item.href}
                   className={cn(
                     "group flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150",
-                    isActive
-                      ? "bg-white/15 text-white shadow-sm"
-                      : "text-white/70 hover:bg-white/10 hover:text-white"
+                    isActive ? "bg-white/15 text-white shadow-sm" : "text-white/70 hover:bg-white/10 hover:text-white",
                   )}
                 >
                   <item.icon
                     className={cn(
                       "mr-3 h-5 w-5 shrink-0 transition-colors",
-                      isActive ? "text-accent" : "text-white/70 group-hover:text-white/90"
+                      isActive ? "text-accent" : "text-white/70 group-hover:text-white/90",
                     )}
                     aria-hidden="true"
                   />
@@ -93,7 +91,7 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
               {(user?.email?.charAt(0) || "U").toUpperCase()}
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-medium text-white">{user?.email?.split('@')[0] || "User"}</span>
+              <span className="text-sm font-medium text-white">{user?.email?.split("@")[0] || "User"}</span>
               <span className="text-xs text-white/70 capitalize">{(user as any)?.role || "Staff"}</span>
             </div>
           </div>

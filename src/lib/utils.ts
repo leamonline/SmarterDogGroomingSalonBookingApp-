@@ -5,10 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(
-  amount: number | null | undefined,
-  options: Intl.NumberFormatOptions = {},
-) {
+export function formatCurrency(amount: number | null | undefined, options: Intl.NumberFormatOptions = {}) {
   const value = typeof amount === "number" && Number.isFinite(amount) ? amount : 0;
   const defaultFractionDigits = Number.isInteger(value) ? 0 : 2;
 

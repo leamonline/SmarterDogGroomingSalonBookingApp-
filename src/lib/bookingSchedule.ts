@@ -8,11 +8,7 @@ export const BOOKING_DAY_ORDER = [
   "Sunday",
 ] as const;
 
-export const BOOKING_DEFAULT_OPEN_DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-] as const;
+export const BOOKING_DEFAULT_OPEN_DAYS = ["Monday", "Tuesday", "Wednesday"] as const;
 
 export const BOOKING_OPEN_TIME = "08:30";
 export const BOOKING_CLOSE_TIME = "15:30";

@@ -1,26 +1,30 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { handleError } from "@/src/lib/handleError";
-import { Plus, Search, MoreHorizontal, Calendar, DollarSign, Phone, Mail, Edit, Trash, CalendarPlus, MapPin, ShieldAlert, ChevronDown, Users, Dog as DogIcon, MessageSquare } from "lucide-react";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Calendar,
+  DollarSign,
+  Phone,
+  Mail,
+  Edit,
+  Trash,
+  CalendarPlus,
+  MapPin,
+  ShieldAlert,
+  ChevronDown,
+  Users,
+  Dog as DogIcon,
+  MessageSquare,
+} from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/src/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/src/components/ui/table";
 import { Badge } from "@/src/components/ui/badge";
 import { api } from "@/src/lib/api";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/src/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/src/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,10 +105,10 @@ export function Customers() {
       const total: number = json.pagination?.total ?? items.length;
       setTotalCustomers(total);
       setHasMore(targetPage * PAGE_SIZE < total);
-      setCustomers(prev => replace ? items : [...prev, ...items]);
+      setCustomers((prev) => (replace ? items : [...prev, ...items]));
       setPage(targetPage);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load clients');
+      toast.error(err.message || "Failed to load clients");
     } finally {
       setter(false);
     }
@@ -115,10 +119,7 @@ export function Customers() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [, aptData] = await Promise.all([
-          loadCustomers(1, true),
-          api.getAppointments()
-        ]);
+        const [, aptData] = await Promise.all([loadCustomers(1, true), api.getAppointments()]);
         setAppointments(aptData.map((a: any) => normalizeAppointment(a)));
       } catch (err) {
         handleError(err, "Failed to load data");
@@ -142,9 +143,10 @@ export function Customers() {
     }
 
     if (!loading) {
-      api.getCustomer(targetCustomerId)
+      api
+        .getCustomer(targetCustomerId)
         .then((customer) => {
-          setCustomers((prev) => prev.some((existing) => existing.id === customer.id) ? prev : [customer, ...prev]);
+          setCustomers((prev) => (prev.some((existing) => existing.id === customer.id) ? prev : [customer, ...prev]));
           setSelectedCustomer(customer);
           setIsCustomerDetailsModalOpen(true);
         })
@@ -159,7 +161,7 @@ export function Customers() {
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.pets && customer.pets.some((pet) => pet.name.toLowerCase().includes(searchTerm.toLowerCase())))
+      (customer.pets && customer.pets.some((pet) => pet.name.toLowerCase().includes(searchTerm.toLowerCase()))),
   );
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,12 +217,12 @@ export function Customers() {
     if (!customerToDelete) return;
     try {
       await api.deleteCustomer(customerToDelete);
-      setCustomers(prev => prev.filter(c => c.id !== customerToDelete));
+      setCustomers((prev) => prev.filter((c) => c.id !== customerToDelete));
       if (selectedCustomer?.id === customerToDelete) {
         setSelectedCustomer(null);
         setIsCustomerDetailsModalOpen(false);
       }
-      toast.success('Client deleted.');
+      toast.success("Client deleted.");
     } catch (err: any) {
       handleError(err, "Failed to delete customer");
     } finally {
@@ -270,7 +272,9 @@ export function Customers() {
     } catch (err: any) {
       const suggestions: string[] = err?.details?.suggestions || [];
       if (suggestions.length > 0) {
-        toast.error(`${err.message} Next openings: ${suggestions.map((s) => format(new Date(s), "EEE h:mm a")).join(', ')}`);
+        toast.error(
+          `${err.message} Next openings: ${suggestions.map((s) => format(new Date(s), "EEE h:mm a")).join(", ")}`,
+        );
       } else {
         handleError(err, "Failed to save appointment");
       }
@@ -279,7 +283,9 @@ export function Customers() {
   };
 
   const customerAppointments = selectedCustomer
-    ? appointments.filter((apt) => apt.customerId === selectedCustomer.id || (!apt.customerId && apt.ownerName === selectedCustomer.name))
+    ? appointments.filter(
+        (apt) => apt.customerId === selectedCustomer.id || (!apt.customerId && apt.ownerName === selectedCustomer.name),
+      )
     : [];
 
   if (loading) return <CustomersSkeleton />;
@@ -332,70 +338,66 @@ export function Customers() {
                   </div>
                 </TableCell>
               </TableRow>
-            ) : filteredCustomers.map((customer) => (
-              <TableRow
-                key={customer.id}
-                className="cursor-pointer"
-                onClick={() => handleRowClick(customer)}
-              >
-                <TableCell>
-                  <div className="font-medium text-slate-900 flex items-center gap-2">
-                    {customer.name}
-                    {customer.warnings && customer.warnings.length > 0 && (
-                      <ShieldAlert className="h-4 w-4 text-coral" />
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm text-slate-500">{customer.email}</div>
-                  <div className="text-xs text-slate-400">{customer.phone}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    {customer.pets.map((pet) => (
-                      <Badge key={pet.id} variant="secondary">
-                        {pet.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="text-slate-500">{customer.lastVisit}</TableCell>
-                <TableCell className="text-right font-medium text-slate-900">
-                  {formatCurrency(customer.totalSpent)}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={(e) => handleQuickBook(e, customer)}>
-                        <CalendarPlus className="mr-2 h-4 w-4" />
-                        <span>Quick Book</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleEditCustomer(e, customer)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        <span>Edit Client</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-coral focus:text-coral" onClick={(e) => handleDeleteCustomer(e, customer.id)}>
-                        <Trash className="mr-2 h-4 w-4" />
-                        <span>Delete Client</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+            ) : (
+              filteredCustomers.map((customer) => (
+                <TableRow key={customer.id} className="cursor-pointer" onClick={() => handleRowClick(customer)}>
+                  <TableCell>
+                    <div className="font-medium text-slate-900 flex items-center gap-2">
+                      {customer.name}
+                      {customer.warnings && customer.warnings.length > 0 && (
+                        <ShieldAlert className="h-4 w-4 text-coral" />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-slate-500">{customer.email}</div>
+                    <div className="text-xs text-slate-400">{customer.phone}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {customer.pets.map((pet) => (
+                        <Badge key={pet.id} variant="secondary">
+                          {pet.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-slate-500">{customer.lastVisit}</TableCell>
+                  <TableCell className="text-right font-medium text-slate-900">
+                    {formatCurrency(customer.totalSpent)}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={(e) => handleQuickBook(e, customer)}>
+                          <CalendarPlus className="mr-2 h-4 w-4" />
+                          <span>Quick Book</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => handleEditCustomer(e, customer)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          <span>Edit Client</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-coral focus:text-coral"
+                          onClick={(e) => handleDeleteCustomer(e, customer.id)}
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          <span>Delete Client</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -403,17 +405,18 @@ export function Customers() {
       {/* Load More */}
       {hasMore && !searchTerm && (
         <div className="flex justify-center pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="gap-2"
-          >
-            {loadingMore
-              ? <><span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />Loading…</>
-              : <><ChevronDown className="h-3.5 w-3.5" />Load more ({totalCustomers - customers.length} remaining)</>
-            }
+          <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore} className="gap-2">
+            {loadingMore ? (
+              <>
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+                Loading…
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3.5 w-3.5" />
+                Load more ({totalCustomers - customers.length} remaining)
+              </>
+            )}
           </Button>
         </div>
       )}
@@ -425,15 +428,17 @@ export function Customers() {
               <DialogHeader>
                 <div className="flex items-center justify-between pr-6">
                   <div>
-                    <DialogTitle className="text-2xl flex items-center gap-2">
-                      {selectedCustomer.name}
-                    </DialogTitle>
+                    <DialogTitle className="text-2xl flex items-center gap-2">{selectedCustomer.name}</DialogTitle>
                     <DialogDescription>Client profile, dogs, booking history, and conversation</DialogDescription>
                   </div>
-                  <Button variant="outline" size="sm" onClick={(e) => {
-                    setIsCustomerDetailsModalOpen(false);
-                    handleEditCustomer(e, selectedCustomer);
-                  }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      setIsCustomerDetailsModalOpen(false);
+                      handleEditCustomer(e, selectedCustomer);
+                    }}
+                  >
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Profile
                   </Button>
@@ -446,7 +451,9 @@ export function Customers() {
                   <div>
                     <h4 className="text-sm font-semibold text-coral">Client Warnings</h4>
                     <ul className="list-disc list-inside text-sm text-coral/80 mt-1">
-                      {selectedCustomer.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                      {selectedCustomer.warnings.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
                     </ul>
                   </div>
                 </div>
@@ -506,17 +513,32 @@ export function Customers() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 mb-4">
-                            <div><span className="text-slate-400">Weight:</span> {pet.weight} lbs</div>
-                            {pet.dob && <div><span className="text-slate-400">DOB:</span> {pet.dob}</div>}
-                            {pet.coatType && <div><span className="text-slate-400">Coat:</span> {pet.coatType}</div>}
+                            <div>
+                              <span className="text-slate-400">Weight:</span> {pet.weight} lbs
+                            </div>
+                            {pet.dob && (
+                              <div>
+                                <span className="text-slate-400">DOB:</span> {pet.dob}
+                              </div>
+                            )}
+                            {pet.coatType && (
+                              <div>
+                                <span className="text-slate-400">Coat:</span> {pet.coatType}
+                              </div>
+                            )}
                           </div>
 
                           {pet.behavioralNotes && pet.behavioralNotes.length > 0 && (
                             <div className="mb-4">
-                              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Behavior</div>
+                              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                                Behavior
+                              </div>
                               <div className="flex flex-wrap gap-1">
                                 {pet.behavioralNotes.map((note, i) => (
-                                  <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                  <span
+                                    key={i}
+                                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800"
+                                  >
                                     {note}
                                   </span>
                                 ))}
@@ -526,14 +548,19 @@ export function Customers() {
 
                           {pet.vaccinations && pet.vaccinations.length > 0 && (
                             <div>
-                              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Vaccinations</div>
+                              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                                Vaccinations
+                              </div>
                               <div className="space-y-1.5">
                                 {pet.vaccinations.map((vax, i) => (
                                   <div key={i} className="flex items-center justify-between text-xs">
                                     <span className="font-medium text-slate-700">{vax.name}</span>
                                     <div className="flex items-center gap-2">
                                       <span className="text-slate-500">{vax.expiryDate}</span>
-                                      <div className={`h-2 w-2 rounded-full ${vax.status === 'valid' ? 'bg-accent' : 'bg-coral'}`} title={vax.status} />
+                                      <div
+                                        className={`h-2 w-2 rounded-full ${vax.status === "valid" ? "bg-accent" : "bg-coral"}`}
+                                        title={vax.status}
+                                      />
                                     </div>
                                   </div>
                                 ))}
@@ -546,7 +573,11 @@ export function Customers() {
                               <DogIcon className="mr-1.5 h-3.5 w-3.5" />
                               Dog Profile
                             </Button>
-                            <Button size="sm" variant="outline" onClick={(e) => handleQuickBook(e, { ...selectedCustomer, pets: [pet] })}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => handleQuickBook(e, { ...selectedCustomer, pets: [pet] })}
+                            >
                               <CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
                               Book {pet.name}
                             </Button>
@@ -572,7 +603,10 @@ export function Customers() {
                             className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-4 text-sm cursor-pointer hover:border-brand-300 hover:shadow-sm transition-all"
                           >
                             <div className="flex items-center justify-between font-medium text-slate-900">
-                              <span className="text-base">{apt.service} <span className="text-slate-500 font-normal text-sm">({apt.petName})</span></span>
+                              <span className="text-base">
+                                {apt.service}{" "}
+                                <span className="text-slate-500 font-normal text-sm">({apt.petName})</span>
+                              </span>
                               <span className="font-semibold text-brand-600">{formatCurrency(apt.price)}</span>
                             </div>
                             <div className="flex items-center justify-between text-slate-500">
@@ -580,7 +614,10 @@ export function Customers() {
                                 <Calendar className="h-4 w-4 text-slate-400" />
                                 {format(apt.date, "MMM d, yyyy 'at' h:mm a")}
                               </span>
-                              <Badge variant={apt.status === "completed" ? "default" : "secondary"} className="capitalize">
+                              <Badge
+                                variant={apt.status === "completed" ? "default" : "secondary"}
+                                className="capitalize"
+                              >
                                 {apt.status}
                               </Badge>
                             </div>
@@ -592,19 +629,23 @@ export function Customers() {
                                 </Badge>
                               ) : null}
                             </div>
-                            {apt.dogCountConfirmed !== false && (
+                            {apt.dogCountConfirmed !== false &&
                               (() => {
-                                const reviewNote = formatDogCountReviewNote(apt.dogCountReviewedAt, apt.dogCountReviewedBy);
+                                const reviewNote = formatDogCountReviewNote(
+                                  apt.dogCountReviewedAt,
+                                  apt.dogCountReviewedBy,
+                                );
                                 return reviewNote ? (
                                   <p className="text-xs font-medium text-brand-700">{reviewNote}</p>
                                 ) : null;
-                              })()
-                            )}
+                              })()}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">No past appointments found.</div>
+                      <div className="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                        No past appointments found.
+                      </div>
                     )}
                   </div>
 

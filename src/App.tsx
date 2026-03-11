@@ -50,31 +50,38 @@ function RouteLoadingFallback() {
 export default function App() {
   return (
     <ErrorBoundary>
-    <AuthProvider>
-      <Toaster position="top-right" richColors />
-      <Router>
-        <ErrorBoundary>
-        <Suspense fallback={<RouteLoadingFallback />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/book" element={<BookingPage />} />
-            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route index element={<Navigate to="/calendar" replace />} />
-              <Route path="dashboard" element={<Navigate to="/calendar" replace />} />
-              <Route path="calendar" element={<Calendar />} />
-              <Route path="clients" element={<Customers />} />
-              <Route path="dogs" element={<Dogs />} />
-              <Route path="customers" element={<Navigate to="/clients" replace />} />
-              <Route path="services" element={<Services />} />
-              <Route path="messaging" element={<MessagingPage />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-          </Routes>
-        </Suspense>
-        </ErrorBoundary>
-      </Router>
-    </AuthProvider>
+      <AuthProvider>
+        <Toaster position="top-right" richColors />
+        <Router>
+          <ErrorBoundary>
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/book" element={<BookingPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/calendar" replace />} />
+                  <Route path="dashboard" element={<Navigate to="/calendar" replace />} />
+                  <Route path="calendar" element={<Calendar />} />
+                  <Route path="clients" element={<Customers />} />
+                  <Route path="dogs" element={<Dogs />} />
+                  <Route path="customers" element={<Navigate to="/clients" replace />} />
+                  <Route path="services" element={<Services />} />
+                  <Route path="messaging" element={<MessagingPage />} />
+                  <Route path="settings" element={<Settings />} />
+                </Route>
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

@@ -1,10 +1,9 @@
-import * as React from "react"
-import { cn } from "@/src/lib/utils"
+import * as React from "react";
+import { cn } from "@/src/lib/utils";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
-  size?: "default" | "sm" | "lg" | "icon"
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -26,13 +25,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             "h-11 rounded-full px-8": size === "lg",
             "h-10 w-10": size === "icon",
           },
-          className
+          className,
         )}
         {...props}
       />
-    )
-  }
-)
-Button.displayName = "Button"
+    );
+  },
+);
+Button.displayName = "Button";
 
-export { Button }
+export { Button };
