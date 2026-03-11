@@ -7,8 +7,6 @@ import {
   Mail,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { useHealthCheck } from "@/src/hooks/useHealthCheck";
-
 import { useAuth } from "@/src/lib/AuthContext";
 import type { UserRole } from "@/src/types";
 
@@ -36,7 +34,6 @@ const navigation: NavItem[] = [
 export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boolean) => void }) {
   const location = useLocation();
   const { user } = useAuth();
-  const health = useHealthCheck();
   const userLevel = ROLE_LEVEL[(user?.role as UserRole) || 'groomer'] ?? 1;
   const visibleNav = navigation.filter(item => userLevel >= ROLE_LEVEL[item.minRole]);
 
@@ -101,10 +98,6 @@ export function Sidebar({ open, setOpen }: { open?: boolean; setOpen?: (val: boo
               <span className="text-sm font-medium text-white">{user?.email?.split('@')[0] || "User"}</span>
               <span className="text-xs text-white/70 capitalize">{(user as any)?.role || "Staff"}</span>
             </div>
-          </div>
-          <div className="mt-3 flex items-center gap-2 text-[11px] text-white/80">
-            <span className={cn("h-2 w-2 rounded-full", health.status === "connected" ? "bg-success" : health.status === "disconnected" ? "bg-error animate-pulse" : "bg-warning")} />
-            {health.status === "connected" ? "Server online" : health.status === "disconnected" ? "Server offline" : "Checking…"}
           </div>
         </div>
       </div>
