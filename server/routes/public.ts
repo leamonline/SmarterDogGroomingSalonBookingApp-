@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -22,7 +23,7 @@ const router = Router();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 10,
   message: { error: "Too many login attempts from this IP, please try again after 15 minutes" },
   standardHeaders: true,
   legacyHeaders: false,
@@ -72,24 +73,35 @@ router.post("/register", (req, res) => {
 
   try {
     const userId = crypto.randomUUID();
-    const hash = bcrypt.hashSync(password, 10);
-    db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
-      userId,
-      email,
-      hash,
-      "customer",
-    );
-
     const customerId = crypto.randomUUID();
-    db.prepare("INSERT INTO customers (id, name, email, phone) VALUES (?, ?, ?, ?)").run(
-      customerId,
-      `${firstName} ${lastName || ""}`.trim(),
-      email,
-      phone || "",
-    );
+    const hash = bcrypt.hashSync(password, 10);
+
+    db.transaction(() => {
+      db.prepare("INSERT INTO users (id, email, password, role) VALUES (?, ?, ?, ?)").run(
+        userId,
+        email,
+        hash,
+        "customer",
+      );
+      db.prepare("INSERT INTO customers (id, name, email, phone) VALUES (?, ?, ?, ?)").run(
+        customerId,
+        `${firstName} ${lastName || ""}`.trim(),
+        email,
+        phone || "",
+      );
+    })();
 
     const token = jwt.sign({ id: userId, email, role: "customer" }, JWT_SECRET!, { expiresIn: "24h" });
-    return res.json({ token, user: { id: userId, email, role: "customer", customerId } });
+
+    res.cookie("petspa_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+
+    return res.json({ user: { id: userId, email, role: "customer", customerId } });
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("UNIQUE")) {
       return res.status(400).json({ error: "Email already exists" });
@@ -107,9 +119,16 @@ router.post("/login", loginLimiter, (req, res) => {
     const role = user.role || "customer";
     const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET!, { expiresIn: "24h" });
 
+    res.cookie("petspa_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+
     const customer = db.prepare("SELECT id FROM customers WHERE email = ?").get(email) as { id: string } | undefined;
     res.json({
-      token,
       user: { id: user.id, email: user.email, role, customerId: customer?.id || null },
     });
   } else {

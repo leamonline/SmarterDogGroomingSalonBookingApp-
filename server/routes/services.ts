@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import db from "../db.js";
 import { requireAdmin, getUser } from "../middleware/auth.js";

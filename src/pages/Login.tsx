@@ -36,7 +36,7 @@ export function Login() {
 
     try {
       const data = await api.login({ email, password });
-      login(data.token, data.user, data.passwordChangeRequired);
+      login(data.token ?? "", data.user, data.passwordChangeRequired);
       if (data.passwordChangeRequired) {
         navigate("/settings");
       } else {

@@ -57,6 +57,10 @@ app.use((_req, res, next) => {
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   if (isProduction) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+    );
   }
   next();
 });
@@ -175,21 +179,28 @@ if (!isTestEnv) {
     }
   };
 
-  setInterval(
+  const backupInterval = setInterval(
     () => {
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const backupPath = path.join(backupDir, `database_backup_${timestamp}.db`);
       try {
-        db.backup(backupPath).then(() => {
-          logger.info("Database backed up", { path: backupPath });
-          pruneOldBackups();
-        });
+        db.backup(backupPath)
+          .then(() => {
+            logger.info("Database backed up", { path: backupPath });
+            pruneOldBackups();
+          })
+          .catch((err: Error) => {
+            logger.error("Database backup failed (async)", { error: err.message });
+          });
       } catch (err) {
         logger.error("Database backup failed", { error: (err as Error).message });
       }
     },
     6 * 60 * 60 * 1000,
   );
+
+  // Expose for shutdown cleanup
+  (globalThis as any).__backupInterval = backupInterval;
 }
 
 if (!isTestEnv) {
@@ -200,6 +211,12 @@ if (!isTestEnv) {
   // --- Graceful shutdown ---
   const shutdown = (signal: string) => {
     logger.info(`Received ${signal}, shutting down gracefully…`);
+
+    // Stop scheduled backups before closing the database
+    if ((globalThis as any).__backupInterval) {
+      clearInterval((globalThis as any).__backupInterval);
+    }
+
     server.close(() => {
       logger.info("HTTP server closed");
       try {
@@ -225,6 +242,7 @@ if (!isTestEnv) {
 // --- Global process error handlers ---
 process.on("unhandledRejection", (reason) => {
   logger.error("Unhandled rejection", { reason: String(reason) });
+  process.exit(1);
 });
 
 process.on("uncaughtException", (err) => {

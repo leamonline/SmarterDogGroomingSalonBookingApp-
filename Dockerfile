@@ -21,10 +21,16 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
-RUN mkdir -p data/backups
+RUN addgroup -S app && adduser -S app -G app && \
+    mkdir -p data/backups && chown -R app:app data
 
 ENV NODE_ENV=production
 EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3001/api/health || exit 1
+
+USER app
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "dist/server/index.js"]

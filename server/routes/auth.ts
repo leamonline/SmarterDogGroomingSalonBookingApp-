@@ -34,7 +34,7 @@ router.post("/auth/login", loginLimiter, (req, res) => {
     // Flag weak passwords so the frontend can prompt a change
     const isWeak = isWeakPassword(password);
 
-    // Set token as httpOnly cookie AND return in body for backward compat
+    // Set token as httpOnly cookie (token is NOT returned in the body to prevent XSS theft)
     res.cookie("petspa_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -44,7 +44,6 @@ router.post("/auth/login", loginLimiter, (req, res) => {
     });
 
     return res.json({
-      token,
       user: { id: user.id, email: user.email, role },
       ...(isWeak ? { passwordChangeRequired: true } : {}),
     });
