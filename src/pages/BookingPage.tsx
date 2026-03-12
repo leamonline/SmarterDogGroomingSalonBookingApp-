@@ -91,9 +91,20 @@ export function BookingPage() {
       .catch(() => {/* schedule not critical */});
   }, []);
 
+  // Skip the next automatic slot fetch when findFirstAvailable already populated slots
+  const skipNextSlotFetch = React.useRef(false);
+  // Skip the auto-select-date useEffect when findFirstAvailable explicitly chose a date
+  const skipAutoSelectDate = React.useRef(false);
+
   // Load slots when date or service changes
   useEffect(() => {
     if (selectedDate && selectedService) {
+      // findFirstAvailableSlot already fetched and set slots/selectedSlot for this date;
+      // skip the redundant refetch that would clear the selected slot.
+      if (skipNextSlotFetch.current) {
+        skipNextSlotFetch.current = false;
+        return;
+      }
       setLoadingSlots(true);
       setNoAvailability(false);
       publicFetch(`/api/public/available-slots?date=${selectedDate}&duration=${selectedService.duration}&dogCount=${dogCount}`)
@@ -109,6 +120,10 @@ export function BookingPage() {
 
   // Auto-select first available date
   useEffect(() => {
+    if (skipAutoSelectDate.current) {
+      skipAutoSelectDate.current = false;
+      return;
+    }
     if (Object.keys(schedule).length === 0) return;
     const current = dates.find((date) => format(date, "yyyy-MM-dd") === selectedDate);
     if (current && !isDayDisabled(current)) return;
@@ -218,11 +233,13 @@ export function BookingPage() {
     setNoAvailability(false);
     try {
       for (const date of dates) {
-        if (isDayDisabled(date)) continue;
         const dateKey = format(date, "yyyy-MM-dd");
         const data = await publicFetch(`/api/public/available-slots?date=${dateKey}&duration=${selectedService.duration}&dogCount=${dogCount}`);
         const nextSlots = data.slots || [];
         if (nextSlots.length > 0) {
+          // Prevent useEffects from overriding the date/slot we just selected
+          skipNextSlotFetch.current = true;
+          skipAutoSelectDate.current = true;
           setSelectedDate(dateKey);
           setSlots(nextSlots);
           setSelectedSlot(nextSlots[0]);
