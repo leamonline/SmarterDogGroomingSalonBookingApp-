@@ -75,7 +75,7 @@ export function CalendarSidebar({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => onOpenCapacityReview(upcomingCapacityReview[0])}
+                onClick={() => upcomingCapacityReview[0] && onOpenCapacityReview(upcomingCapacityReview[0])}
                 disabled={isConfirmingAllReviewItems}
               >
                 Open next

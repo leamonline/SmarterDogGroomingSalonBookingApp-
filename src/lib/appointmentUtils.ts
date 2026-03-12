@@ -17,6 +17,14 @@ export function isDogCountConfirmed(value: unknown) {
   return value === true || value === 1;
 }
 
+/** "pending-approval" → "Pending Approval" */
+export function formatStatusLabel(status: string): string {
+  return status
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export function normalizeAppointment(item: any): Appointment {
   return {
     ...item,

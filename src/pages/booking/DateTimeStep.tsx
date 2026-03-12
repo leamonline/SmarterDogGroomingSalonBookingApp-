@@ -117,8 +117,8 @@ export function DateTimeStep({
                   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
                     e.preventDefault();
                     for (let n = idx + 1; n < dates.length; n++) {
-                      if (!isDayDisabled(dates[n])) {
-                        onSelectDate(format(dates[n], 'yyyy-MM-dd'));
+                      if (!isDayDisabled(dates[n]!)) {
+                        onSelectDate(format(dates[n]!, 'yyyy-MM-dd'));
                         const next = e.currentTarget.parentElement?.children[n] as HTMLElement;
                         next?.focus();
                         break;
@@ -128,8 +128,8 @@ export function DateTimeStep({
                   if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
                     e.preventDefault();
                     for (let n = idx - 1; n >= 0; n--) {
-                      if (!isDayDisabled(dates[n])) {
-                        onSelectDate(format(dates[n], 'yyyy-MM-dd'));
+                      if (!isDayDisabled(dates[n]!)) {
+                        onSelectDate(format(dates[n]!, 'yyyy-MM-dd'));
                         const prev = e.currentTarget.parentElement?.children[n] as HTMLElement;
                         prev?.focus();
                         break;

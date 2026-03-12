@@ -137,7 +137,7 @@ export function BookingPage() {
   // ── Helpers ──
   const isDayDisabled = (d: Date) => {
     if (Object.keys(schedule).length === 0) return false;
-    const dayName = DAY_NAMES[d.getDay()];
+    const dayName = DAY_NAMES[d.getDay()]!;
     const daySchedule = schedule[dayName];
     if (!daySchedule) return false;
     return daySchedule.isClosed === true || daySchedule.availableSlots === 0;
